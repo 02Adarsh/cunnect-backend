@@ -1,0 +1,2820 @@
+
+<!DOCTYPE html>
+
+<html lang="en">
+<head><meta charset="utf-8"/><meta content="#ce3333" name="theme-color"/><meta content="IE=edge" http-equiv="X-UA-Compatible"/><meta content="upgrade-insecure-requests" http-equiv="Content-Security-Policy"/><meta content="width=device-width, initial-scale=1" name="viewport"/><link href="https://student.culko.in" rel="dns-prefetch"/><link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet"/><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/><link href="https://fonts.googleapis.com/css2?family=Barlow:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&amp;family=Nunito:ital,wght@0,200..1000;1,200..1000&amp;family=Poppins:wght@300;400;500;600&amp;family=Roboto:ital,wght@0,100..900;1,100..900&amp;display=swap" rel="stylesheet"/><title>
+	Student Account Details
+</title><link href="assets/css/bootstrap.min.css" rel="stylesheet"/><link href="assets/css/font-awesome.min.css" rel="stylesheet"/><link href="assets/css/style.css" rel="stylesheet"/><link href="assets/css/material-btn.css" rel="stylesheet"/><link href="assets/css/responsive.css" rel="stylesheet"/><link href="assets/css/style.css" rel="stylesheet"/><link href="assets/css/style-new.css" rel="stylesheet"/><link href="n-css/sidenav.css" rel="stylesheet"/><link href="n-css/scrollbar.css" rel="stylesheet"/><link href="css/toastr8.min.css" rel="stylesheet"/><link href="css/sweet-alert.css" rel="stylesheet"/><link href="Scripts/jquery-ui.css" rel="stylesheet"/><link href="css/apprise.min.css" rel="stylesheet"/><link href="Help/help-css.css" rel="stylesheet"/><link href="assets/css/live-video.css" rel="stylesheet"/>
+<script src="Scripts/apprise-1.5.min.js"></script>
+<script src="Scripts/jquery-2.0.3.min.js" type="text/javascript"></script>
+<script src="Scripts/sweet-alert.min.js" type="text/javascript"></script>
+<!-- Bootstrap JS and dependencies -->
+<script crossorigin="anonymous" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js"></script>
+<!--- Analytics CUCHD --->
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async="" src="https://www.googletagmanager.com/gtag/js?id=UA-108822757-1"></script>
+<script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag() { dataLayer.push(arguments); }
+        gtag('js', new Date());
+
+        gtag('config', 'UA-108822757-1');
+    </script>
+<style>
+        body, html {
+            height: 100%;
+            width: 100%;
+        }
+
+        #div_exam img {
+            width: 100%;
+        }
+
+        #div_exam {
+            width: 146px;
+            position: absolute;
+            left: 0;
+            top: 10px;
+        }
+
+        .header-right {
+            position: relative;
+        }
+
+        #menu-loading {
+            /*position: absolute;
+            top: 9px;
+            left: 50%;*/
+            display: none;
+            width: 20px;
+            height: 20px;
+        }
+        .loading{ top: 16px; left: 50%; }
+        #short_links .col-sm-3 {
+            width: 20%;
+        }
+
+        .logo {
+            position: relative;
+        }
+        .logo i {
+            position: absolute;
+            top: 50%;
+            right: -30px;
+            width: 20px;
+            height: 20px;
+            line-height: 20px;
+            border-radius: 50%;
+            transform: translateY(-50%);
+            font-size: 36px;
+        }
+        #footer {
+            position: relative;
+        }
+        #a_bugreport {
+            /*position: absolute;
+            right: 13px;
+            bottom: 28px;*/
+            color: red;
+            font-size: 13px;
+        }
+        div[id*="divUniEmail"] {
+            position: absolute;
+            top: 102px;
+            background: #fff;
+            padding: 10px;
+            height: auto;
+            z-index: 99;
+            border-radius: 10px;
+            border: 1px solid #cecece;
+            z-index: 999999;
+            right: 10px;
+            transition: all 0.4s ease-in-out 0s;
+            -webkit-transition: all 0.4s ease-in-out 0s;
+            display: none;
+            width:calc(100% - 20px);
+        }
+        div[id*="div_OE"] {
+            /*position: relative;
+            z-index:999;*/
+        }
+        #short_links {
+            overflow: visible !important;
+        }
+        @media only screen and (max-width: 767px) {
+            #short_links .col-sm-3 {
+                width: 50%;
+            }
+            #short_links .col-sm-3:last-child {
+                padding-right: 7px;
+            }
+            div[id*="divUniEmail"]{
+                width:310px;
+            }
+        }
+        /* 22-08-2023 */
+        #divChangePassword *** 
+        #divChangePassword ***
+        #divChangeWifiPassword *** 
+        #divChangeWifiPassword ***
+            padding: 0px !important;
+        }
+        input[type=submit], input[type=button] {
+            padding: 7px 15px !important;
+        }
+
+        /*header {
+            background: #fff;
+            box-shadow: none;
+            border-bottom: 1px solid #dadbdd;
+        }*/
+
+        .page-search {
+            padding: 13px 30px;
+    }
+        .header-left {
+            /*width: 260px;
+                border-right: 1px solid #dadbdd;
+            padding: 7px 0;*/
+        }
+
+        .user-profile-link h6 {
+            color: #405189;
+        }
+
+        .header-right {
+            padding: 0;
+        }
+        .user-profile-link > span {
+            height: 38px;
+            width: 38px;
+        }
+
+
+        .user-dropdown {
+            width: 190px;
+            background: #fff;
+            box-shadow: none;
+            top: 74px;
+            padding: 0;
+            box-shadow: 0 5px 10px rgba(30,32,37,.12);
+        }
+        .user-dropdown ul li a {
+            padding: 10px 10px;
+            font-size: 14px;
+        }
+        .user-dropdown ul li a:hover{
+            background: #f1f1f1;
+            color: #333;
+        }
+
+        .user-profile-link small.uid{
+            display: block;
+            margin-top: 2px;
+        }
+
+        .setting-dropdown {
+            width: 210px;
+            background: #fff;
+            box-shadow: none;
+            top: 52px;
+            right: -11px;
+            padding: 0;
+            box-shadow: 0 5px 10px rgba(30,32,37,.12);
+        }
+
+        .setting-dropdown ul li{
+            margin: 0 !important;
+        }
+        .setting-dropdown ul li a {
+            padding: 10px 10px;
+            font-size: 14px;
+        }
+        .setting-dropdown ul li a:hover{
+            background: #f1f1f1;
+            color: #333;
+        }
+
+        .info-icon{
+            width: auto;
+        }
+        .home-links ul li,
+        .all-notifications ul>li{
+            margin-left: 25px;
+        }
+
+
+        /*.main-wrapper {
+            background: #f3f3f9;
+            padding: 72px 0 0 260px;
+        }
+        .inner-wrapper {
+            padding: 30px 15px;
+        }*/
+        .page-search-input input[type="text"] {
+            height: 48px;
+            width: 100%;
+            border-radius: 30px;
+            background-color: rgba(228, 228, 228, 0.5);
+            padding: 0 25px;
+            color: #000;
+            transition: all 0.4s ease-in-out 0s;
+            -webkit-transition: all 0.4s ease-in-out 0s;
+            border: 1px solid #fff;
+        }
+
+        /*.uims-sidebar {
+            width: 260px;
+            background: #fff;
+            box-shadow: none;
+            padding-top: 75px;
+            border-right: 1px solid #dadbdd;
+        }*/
+        .uims-sidebar li {
+            border-bottom: 0;
+        }
+        .uims-sidebar li a {
+            color: #fff;
+            font-size: 14px;
+            line-height: 17px;
+            padding:15px;
+            position: relative;
+            font-weight: normal;
+            border-radius:30px;
+        }
+        .uims-sidebar li a span.arrow {
+            position: absolute;
+            right: 5px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+        .uims-sidebar ul .sub-menu li{
+            background-color: transparent;
+            border-color: #f5f5f5;
+            border: 0;
+        }
+        .uims-sidebar ul .sub-menu li a{
+            position: relative;
+            color: #fff;
+        }
+        .uims-sidebar ul .sub-menu li a::before {
+            content: '';
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 7px;
+            height: 2px;
+            background: #fff;
+        }
+        .uims-sidebar ul ul {
+            padding: 0;
+            /*border-bottom: 1px solid #fff;*/
+        }
+        .uims-sidebar ul ul li a {
+            display: block;
+            padding: 12px 16px 12px 35px;
+            line-height: 16px;
+            font-size: 14px;
+        }
+        .menu-content li[aria-expanded="true"] a {
+            background-color: #B80101;
+            color: #fff !important;
+        }
+        li[aria-expanded="true"] a .arrow::before {
+            transform: rotate(90deg);
+        }
+        .uims-sidebar li a:hover {
+            background-color:#B80101;
+        }
+        .uims-sidebar ul ul ul {
+            padding: 0;
+        }
+
+        .user-profile-link {
+            background: #f1f1f1;
+            padding: 18px 20px;
+        }
+
+        .shortLinks {
+            display: flex;
+            justify-content: space-between;
+            margin: 0 -10px;
+        }
+        /*.shortLinks__item:first-child{
+            padding-left: 0;
+        }
+        .shortLinks__item:last-child{
+            padding-right: 0;
+        }*/
+        .shortLinks__item {
+            width: 100%;
+            padding: 0 10px;
+        }
+        .shortLinks__item a {
+            width: 100%;
+            background: #fff;
+            padding: 20px;
+            position: relative;
+        }
+        .shortLinks__item a span {
+            position: absolute;
+            right: 20px;
+            bottom: 20px;
+            background: #e5f3fe;
+            width: 40px;
+            height: 40px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .shortLinks__item a h6 {
+            font-size: 16px;
+            color: #354781;
+            font-weight: 600;
+        }
+        .shortLinks__item a small {
+            font-size: 12px;
+            border-bottom: 2px solid #ddd;
+            color: #333;
+            display: inline-block;
+            text-transform: uppercase;
+            margin-top: 15px;
+        }
+
+        #loader img{
+            border-radius: 50%;
+            width: 35px
+        }
+        footer {
+            /*padding: 20px 0;
+            background: #f3f3f9;
+            margin-top: 0;
+            border-top: 1px solid #ddd;*/
+        }
+
+        .uims-sidebar.swipe {
+            left: -275px;
+        }
+
+        .box-shadow-common {
+            box-shadow: rgba(100,98,92,.06) 0 0 15px 4px;
+            border: 0;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        body {
+            background: #F7F7F5 !important;
+        }
+
+        /*table#rAttachments {
+            background: #f1f1f1 !important;
+        }*/
+        table#rAttachments td{
+            padding: 0!important;
+        }
+        #divChangePassword***
+        #divChangeWifiPassword***
+            background-color: rgba(30, 30, 30, 50%) !important;
+        }
+
+        #divChangePassword ***
+        #divChangeWifiPassword *** {
+            border-radius: 10px;
+            box-shadow: rgba(100,98,92,.06) 0 0 15px 4px;
+        }
+
+        #divChangePassword *** 
+        #divChangePassword *** 
+        #divChangePassword *** 
+        #divChangePassword ***
+        #divChangeWifiPassword *** 
+        #divChangeWifiPassword *** 
+        #divChangeWifiPassword *** 
+        #divChangeWifiPassword *** {
+            height: 43px;
+            border-radius: 6px;
+            padding: 0 14px;
+        }
+
+        #divChangePassword *** 
+        #divChangePassword ***
+        #divChangeWifiPassword *** 
+        #divChangeWifiPassword *** {
+            font-size: 14px;
+            cursor: pointer;
+            width: 100%;
+            height: 43px;
+            border-radius: 6px;
+            font-weight: 600;
+            line-height: 43px;
+        }
+        #divChangePassword ***
+        #divChangeWifiPassword *** {
+            background: #fff;
+            border: 0;
+            padding:10px;
+        }
+        #divChangePassword *** h4,
+        #divChangeWifiPassword *** h4 {
+            color: #333;
+            font-weight: 600;
+        }
+        #divChangePassword *** .close,
+        #divChangeWifiPassword *** .close {
+            color: #999;
+            right: 5px;
+            position: relative;
+            top: 4px;
+        }
+
+        #divChangePassword ***
+        #divChangeWifiPassword *** {
+            padding: 10px 20px 15px;
+        }
+
+        #divChangePassword ***
+        #divChangeWifiPassword *** {
+            max-width: 400px;
+            margin: 40px auto;
+            padding: 0 20px;
+            width: 100%;
+        }
+        .form_header {
+            background: #B80101;
+            padding: 12px;
+            border-bottom: 0;
+            text-align: center;
+            margin: 0;
+            line-height: 18px;
+            font-size: 18px;
+            color: #fff;
+            border-radius: 10px;
+            font-weight: bold;
+            margin-bottom: 20px;
+        } 
+        table{
+            background: #fff !important;
+                border-color: #ddd;
+        }
+        table th {
+            padding: 0;
+            background-color: #eeeeee !important;
+            font-weight: 500 !important;
+            padding: 3px 10px !important;
+            font-size: 14px !important;
+        }
+        table th:hover{ background-color: #eeeeee !important; }
+        table td {
+            padding: 3px 10px;
+        }
+
+        .NavigationSearchPC {
+	        background: #fff;
+	        left: 0;
+	        right: 0;
+	        top: 0;
+            width:100%;
+	        padding-top: 52px;
+        }
+        .divUniEmail{ color:#232323; }
+        .modal { z-index:1060; }
+        .modal.fade .modal-dialog{ transition: transform .35s ease-out; }
+        .modal-backdrop.in{ opacity:.5; }
+        .modal.fade.in .modal-dialog{ transform: translate(0,0); }
+        .modal.fade.in { opacity: 1; }
+        .fade{ transition: opacity .35s linear; }
+        .nav-tabMessage li a{ padding:10px 15px; border-radius:5px 5px 0 0; }
+        .nav-tabMessage li{ display:flex; }
+        /*.modal.show .modal-dialog{ border:10px solid green; }*/
+        @media only screen and (min-width: 1920px){
+            .inner-wrapper{
+                max-width: 1920px;
+                margin: auto;
+            }
+        }
+        @media only screen and (max-width: 1365px){
+            .page-search {
+                width: 37%;
+            }
+            /*.main-wrapper {
+                padding-left: 0;
+            }*/
+            .uims-sidebar {
+                /*left: -265px;*/
+            }
+            .uims-sidebar.swipe {
+                left: 0;
+                z-index: 9999;
+            }
+            .modal-backdrop{
+                    background-color: rgb(30 30 30 / 37%) !important;
+            }
+        }
+        @media only screen and (max-width: 1199px){
+            .page-search {
+                padding: 13px 0;
+                width: 30%;
+            }
+            .home-links ul li, .all-notifications ul>li {
+                margin-left: 20px;
+            }
+            .shortLinks {
+                flex-direction: row;
+                flex-wrap: wrap;
+            }
+            .shortLinks__item {
+                width: 33%;
+                padding: 0 10px;
+            }
+        }
+        @media only screen and (max-width: 991px){
+            .info-icon svg,
+            .home-links svg{
+                width: 16px;
+                height: 16px;
+            }
+            .home-links ul li, .all-notifications ul>li {
+                margin-left: 15px;
+            }
+            .home-links > ul > li > a{
+                font-size: 0
+            }
+            .page-search-input input[type="text"]{
+                padding-right: 40px
+            }
+            /*#txtUserSearch001_PC {
+                background-position: 92% center;
+            }*/
+            .user-profile-link {
+                background: transparent;
+            }
+            .page-search {
+                width: 36%;
+            }
+        }
+        @media only screen and (max-width: 767px){
+            .page-search {
+                position: absolute;
+                display: none;
+                width: 100% !important;
+                top: 45px;
+                background: #fff;
+                padding: 8px 13px;
+            }
+            .page-search.open{
+                display: block
+            } 
+            .all-notifications, .home-links {
+                position: relative;
+                top: 0;
+                right: 0;
+            }
+            .header-right{
+                width: auto;
+            }
+            header::before{
+                display: none !important;
+            }
+
+            .shortLinks__item {
+                width: 50%;
+                padding: 0 10px;
+            }
+            /*.row {
+                margin-right: -15px !important;
+                margin-left: -15px !important;
+            }*/
+            .all-notifications{
+                width: auto;
+            }
+
+            .mob-search {
+                display: inline-block !important;
+            }
+            .mob-search svg{
+                width: 16px;
+                height: 16px;
+            }
+        }
+
+        @media only screen and (max-width: 575px){
+            .user-n-mob {
+                display: block;
+            }
+            .user-profile-link h6{
+                display: none
+            }
+            .user-n-mob h5{
+                font-size: 14px;
+                font-weight: 500;
+                color: #405189;
+            }
+            .user-n-mob h5 small{
+                display: block;
+                margin-top: 2px;
+            }
+        }
+
+
+        @media only screen and (max-width: 479px){
+            .shortLinks__item a span {
+                position: relative;
+                margin-top: 15px;
+                display: block;
+                left: 0;
+                bottom: 0;
+            }
+            .shortLinks__item a span svg {
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%,-50%);
+            }
+            .shortLinks__item{
+                margin-bottom: 20px;
+            }
+            .shortLinks__item a{
+                height: 100%;
+                margin-bottom: 0;
+            }
+
+            /*.header-left {
+                width: 116px;
+                text-align: right;
+            }*/
+            .logo {
+                width: 70px;
+            }
+            .user-profile-link {
+                padding: 7px 10px;
+                margin-left: 0;
+            }
+            .info-icon svg, .home-links svg {
+                width: 14px;
+                height: 14px;
+            }
+            .mob-search svg{
+                width: 14px;
+                height: 14px;
+            }
+            .home-links ul li, .all-notifications ul>li {
+                margin-left: 10px;
+            }
+            .home-links ul li:first-child, .all-notifications ul>li:first-child{
+                margin-left: 0 !important;
+            }
+            .user-profile-link > span {
+                margin: 0;
+            }
+            .all-notifications, .home-links {
+                margin-top: 5px;
+            }
+            .main-wrapper {
+                padding-top: 72px;
+            }
+            .inner-wrapper {
+                padding: 0 15px;
+            }
+            .all-notifications {
+                margin-right: 15px;
+            }
+            .user-dropdown{
+                top: 51px;
+            }
+            .setting-dropdown {
+                top: 34px;
+            }
+        }
+
+
+        /* 22-08-2023 */
+    </style>
+<style>
+        @-webkit-keyframes blink {
+            from {
+                color: green;
+            }
+
+            to {
+                color: red;
+            }
+        }
+
+        @-moz-keyframes blink {
+            from {
+                color: green;
+            }
+
+            to {
+                color: red;
+            }
+        }
+
+        @-ms-keyframes blink {
+            from {
+                color: green;
+            }
+
+            to {
+                color: red;
+            }
+        }
+
+        @-o-keyframes blink {
+            from {
+                color: green;
+            }
+
+            to {
+                color: red;
+            }
+        }
+
+        @keyframes blink {
+            from {
+                color: green;
+            }
+
+            to {
+                color: red;
+            }
+        }
+
+        .blink {
+            color: green;
+            -webkit-animation: blink 2s 3 alternate;
+            -moz-animation: blink 2s 3 alternate;
+            -ms-animation: blink 2s 3 alternate;
+            -o-animation: blink 2s 3 alternate;
+            animation: blink 2s 3 alternate;
+        }
+
+        .div_Transaction {
+            transform: translateY(-9000%);
+            transition: all 0.4s ease 0s;
+            display: none;
+            background: #fff;
+            border: 1px solid #dadada;
+            margin: 10px 0px;
+            padding: 10px;
+        }
+        .page-heading { color:red
+        }
+
+        .customeRad {
+            width: 510px;
+            margin: auto;
+            position: relative;
+            border: 1px solid #ddd;
+            height: 61px;
+            padding: 0 20px;
+        }
+
+            .customeRad table {
+                width: 100%;
+            }
+
+                .customeRad table td {
+                    border: 0 !important;
+                    height: 59px;
+                }
+
+                    .customeRad table td label {
+                        margin: 0;
+                        font-size: 17px;
+                        position: absolute;
+                        right: 0;
+                        top: 0;
+                    }
+
+                    .customeRad table td input {
+                        display: inline-block;
+                        vertical-align: middle;
+                        margin: 0 160px 0 0;
+                    }
+
+            .customeRad img {
+                display: inline-block;
+                vertical-align: middle;
+                margin: 0;
+                position: absolute;
+                left: 65px;
+                top: 5px;
+            }
+
+        .outerPayment {
+            padding: 20px;
+            border: 1px solid #ddd;
+            background: #ffff;
+            border-radius: 15px;
+            margin: 20px 0;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+        }
+    </style>
+<script src="assets/js/student/accounts_fee_payment.js"></script>
+<link href="n-css/responsive-table.css" rel="stylesheet"/>
+<script src="n-js/responsive-table.js"></script>
+<script type="text/javascript">
+        function openImageFlyhiLogo() {        
+            var imageUrl = "../uims/imgs/FlyhiKM.png"; // Replace with the actual image URL
+            window.open(imageUrl, "_blank", "height=800,width=800");
+        }
+        function openImageGrayQuest() {
+            var imageUrl = "../uims/imgs/GrayquestKM.png"; // Replace with the actual image URL
+            window.open(imageUrl, "_blank", "height=800,width=800");
+        }
+        function openImageLiquiLoans() {
+            var imageUrl = "../uims/imgs/LiquiloansKM.jpg"; // Replace with the actual image URL
+            window.open(imageUrl, "_blank", "height=800,width=800");
+        }
+        function openImageeduvanz() {
+            var imageUrl = "../uims/imgs/EDUVANZKM.jpg"; // Replace with the actual image URL
+            window.open(imageUrl, "_blank", "height=800,width=800");
+        }
+    </script>
+<style>
+        .student-info {
+            padding: 10px 20px;
+        }
+
+        .abutton {
+            height: 30px;
+            border-radius: 5px;
+            background-color: #e10f0f;
+            border: 0;
+            padding: 0 15px;
+            color: #fff;
+            text-transform: uppercase;
+            transition: all 0.4s ease-in-out 0s;
+            -webkit-transition: all 0.4s ease-in-out 0s;
+            width: auto;
+            font-size: 12px;
+            cursor: pointer;
+            -webkit-appearance: button;
+            font-family: inherit;
+            font-size: inherit;
+            line-height: 30px;
+        }
+
+        .student-info h5 {
+            margin-bottom: 20px;
+            font-size: 16px;
+            line-height: 20px;
+        }
+
+        .student-info p {
+            margin-bottom: 5px;
+            font-size: 14px;
+            line-height: 18px;
+        }
+
+        .days-alert p {
+            color: red;
+        }
+
+            .days-alert p:first-child {
+                font-size: 26px;
+            }
+
+        .days-alert .days-alert-counter {
+            font-size: 24px;
+        }
+
+        /*.student-info-detail {
+        margin-top: 20px;
+        border: 1px solid #cecece;
+        padding: 10px;
+    }*/
+
+
+        @media screen and (max-width: 480px) {
+
+            .modal-body {
+                padding: 0;
+            }
+
+            .modal-dialog {
+                padding: 15px;
+            }
+
+            #divPartPaymentPopUp .modal-dialog {
+                width: 100%;
+            }
+        }
+
+        @media screen and (max-width: 767px) {
+
+
+            table[id*="rbtnPayableOptions"] td {
+                text-align: right !important;
+            }
+
+            .div_Semester {
+                margin-left: 0px !important;
+            }
+
+            input[type="radio"] {
+                top: 18px;
+                position: relative;
+                float: left;
+            }
+
+            div[id*="RadPageView2"] table td {
+                width: auto !important;
+            }
+        }
+
+        @media screen and (min-width: 991px) {
+            .modal-dialog {
+                width: 40% !important;
+            }
+        }
+
+        .transactions-date-container {
+            margin: -6px -5px;
+        }
+
+        .div_Semester, .divFeeType {
+            /*margin-left: 200px;*/
+            font-weight: bold;
+            text-align: center;
+            font-size: 14px;
+        }
+
+        .transactions-date-container {
+            border: 1px solid #CED1D3;
+            max-width: 70px;
+        }
+
+        .transactions-date {
+            font-size: 24px;
+            /*padding: 10px 2px 5px;*/
+            text-align: center;
+        }
+
+        .transactions-month {
+            background-color: #D2D2D2;
+            font-size: 11px;
+            padding-bottom: 8px;
+            padding-top: 8px;
+            text-align: center;
+        }
+
+        .trans-success {
+            background-image: url("imgs/payment_status.png");
+            background-position: 0 -95px;
+            display: block;
+            height: 35px;
+            left: 0;
+            position: absolute;
+            top: 0;
+            width: 35px;
+        }
+
+        .trans-failed {
+            background-image: url("imgs/payment_status.png");
+            background-position: 0 -153px;
+            display: block;
+            height: 35px;
+            left: 0;
+            position: absolute;
+            top: 0;
+            width: 35px;
+        }
+
+        .move-10 {
+            position: relative;
+            bottom: 10px;
+        }
+
+        div[id*="div_info"] {
+            padding: 10px;
+        }
+    </style>
+<style>
+        #example .demo-container {
+            display: inline-block;
+            text-align: left;
+            padding: 50px 40px 35px 40px;
+        }
+
+        .demo-container .RadTabStrip {
+            /*margin-left: 8px;*/
+        }
+
+            .demo-container .RadTabStrip .rtsLevel1 {
+                border: none;
+            }
+
+            .demo-container .RadTabStrip .tab {
+                background-color: #9ab5c1;
+                width: 100%;
+                height: 100%;
+                border-right: 1px solid #FFF;
+                text-align: center;
+                vertical-align: middle;
+                padding: 10px 0px;
+                font-size: 16px !important;
+            }
+
+                .demo-container .RadTabStrip .tab.overviewTab {
+                    border-top-left-radius: 5px;
+                }
+
+                .demo-container .RadTabStrip .tab.priceTab {
+                    background-color: #9ab5c1;
+                    border-top-right-radius: 5px;
+                }
+
+                .demo-container .RadTabStrip .tab.selectedTab {
+                    background-color: #4051a4;
+                }
+
+                .demo-container .RadTabStrip .tab.hoveredTab {
+                    background-color: #81a3b2;
+                }
+
+                    .demo-container .RadTabStrip .tab.hoveredTab.selectedTab {
+                        background-color: #4051a4;
+                    }
+
+                .demo-container .RadTabStrip .tab .rtsLink {
+                    border: none;
+                    padding: 12px 0 0 0;
+                }
+
+                .demo-container .RadTabStrip .tab .rtsTxt {
+                    color: white;
+                    font-size: 14px;
+                }
+
+                    .demo-container .RadTabStrip .tab .rtsTxt:before {
+                        display: block;
+                        height: 22px;
+                        width: 22px;
+                        border-radius: 15px;
+                        background-color: #FFF;
+                        color: #4051a4;
+                        font-family: TelerikWebUI;
+                        font-size: 16px;
+                        text-align: center;
+                        margin: 0 auto 1px auto;
+                        padding: 4px;
+                    }
+
+                .demo-container .RadTabStrip .tab.overviewTab .rtsTxt:before {
+                    /*content: "\e0f9";*/
+                }
+
+                .demo-container .RadTabStrip .tab.attractionsTab .rtsTxt:before {
+                    /*content: "\e07c";*/
+                }
+
+                .demo-container .RadTabStrip .tab.locationTab .rtsTxt:before {
+                    content: "\e125";
+                }
+
+                .demo-container .RadTabStrip .tab.calendarTab .rtsTxt:before {
+                    content: "\e089";
+                }
+
+                .demo-container .RadTabStrip .tab.priceTab .rtsTxt:before {
+                    /*content: "$";*/
+                    font-family: Arial;
+                    font-size: 20px;
+                    font-weight: 700;
+                    padding-top: 4px;
+                    height: 28px;
+                    width: 28px;
+                    padding: 1px;
+                }
+
+        .TopTabSpacer {
+            background: #4051a4;
+            padding: 2px;
+            border-bottom: 1px solid #e5e5e5;
+            text-align: center;
+            margin: 0;
+            line-height: 1.42857143;
+            color: #fff;
+            height: 5px;
+            border-radius: 0px !important;
+        }
+
+        .divFeeType label {
+            font-size: 14px !important;
+        }
+
+        .divFeeType table td {
+            vertical-align: top;
+            padding: 5px 15px;
+            /*display: inline-block;*/
+            margin: 5px 5px 5px 0;
+        }
+
+            .divFeeType table td label {
+                font-weight: normal;
+                line-height: 14px;
+                cursor: pointer;
+            }
+
+            .divFeeType table td input {
+                margin-right: 5px !important;
+                cursor: pointer;
+            }
+
+        .mycustomcss tr > td:last-of-type {
+            text-align: center !important;
+        }
+    </style>
+<script type="text/javascript">
+
+        function BindEvents() {
+            $(document).ready(function () {
+
+                ResponsiveTab('gvAccountStudentDetails');
+                ResponsiveTab('gvPendingFee');
+                ResponsiveTab('gvAccountStudentReceiptList');
+
+            });
+        }
+        function SetTarget() {
+            document.forms[0].target = "_blank";
+        }
+
+    </script>
+<link class="Telerik_stylesheet" href="/WebResource.axd?d=HkmiNSkKJcp9zYO7iQ4LQYqQu4YJQpQOs_4nl9IZQCTXnVzdo10I6unhbYi-Bxa5LuBNu-UO00wX4tJzXQUJ645BSiHGMKeMCV76xWtf6AmqqJMD4cHdGxxgFwziUCay7UrK332b7PHd6fhfTVpEDA2&amp;t=635288564600000000" rel="stylesheet" type="text/css"/><link class="Telerik_stylesheet" href="/WebResource.axd?d=lsHxUYuoKn-ifTgGVgyNZRcW1Fkeiu6IzFCXLwOwdoVm4aAbqeNF9EHUQUffgdPrGOggijPmDqbxsY1Rbh6Ecx6uvipxtz4C2tSkYnzDbJHkRe2bCu4OA8QTgBV7FTvq3bK_e59WOIPILStYJ1LcrA2&amp;t=635288564600000000" rel="stylesheet" type="text/css"/></head>
+<body class="body-gradient">
+<form action="./frmAccountStudentDetails.aspx" id="form1" method="post">
+<div class="aspNetHidden">
+<input id="__EVENTTARGET" name="__EVENTTARGET" type="hidden" value=""/>
+<input id="__EVENTARGUMENT" name="__EVENTARGUMENT" type="hidden" value=""/>
+<input id="__LASTFOCUS" name="__LASTFOCUS" type="hidden" value=""/>
+<input id="__VIEWSTATE" name="__VIEWSTATE" type="hidden" value="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"/>
+</div>
+<script type="text/javascript">
+//<![CDATA[
+var theForm = document.forms['form1'];
+if (!theForm) {
+    theForm = document.form1;
+}
+function __doPostBack(eventTarget, eventArgument) {
+    if (!theForm.onsubmit || (theForm.onsubmit() != false)) {
+        theForm.__EVENTTARGET.value = eventTarget;
+        theForm.__EVENTARGUMENT.value = eventArgument;
+        theForm.submit();
+    }
+}
+//]]>
+</script>
+<script src="/WebResource.axd?d=pynGkmcFUV13He1Qd6_TZPq3HaZr2PUdbYniTyCZWQerr8wwVfNZHSaVFb4PngwIEXnszWZGXzZTXgGQ1iRJ9Q2&amp;t=638774887141545536" type="text/javascript"></script>
+<script src="/ScriptResource.axd?d=D9drwtSJ4hBA6O8UhT6CQh3Y8nY4nhn-sbcXorRHtj0cBE5I40ap3pm5ZhBLjISGJGHNCO3jE-8UUnTJUCdI9PFb-ROrRgR9gFoNavG67iuXd43wgajodstUMhLg1vnACp0EIr0g130ggVzyoWHnoxdI7KRfrcuvaLralQk01qk1&amp;t=ffffffffacea8b1a" type="text/javascript"></script>
+<script type="text/javascript">
+//<![CDATA[
+if (typeof(Sys) === 'undefined') throw new Error('ASP.NET Ajax client-side framework failed to load.');
+//]]>
+</script>
+<script src="/ScriptResource.axd?d=JnUc-DEDOM5KzzVKtsL1tdNhMGMooJ95FrQOhCiulFF25Cl3gpR-57cckv1m6GobAssTaZGZ8HkgoLQWr90wXoSDPGyUobU2rLgDYbcJqHlvbPExbdsIQVK4KVP9Q8IsRKhDdAHM0Sy2sg22bfR0UpKuVgayOTI7x5WW_FzraVke-GSWRCv2E5NPpfdUP7fE0&amp;t=ffffffffacea8b1a" type="text/javascript"></script>
+<script src="/ScriptResource.axd?d=OMa_nbU0_VSWnHtE895qh58WDky39JY8bxDqsvmupx6l9zkCw6TnW04fzVZ5uFQ_59GKaPgNXS68HaZrmVV19jMlNy7Af8vkzNVDUbK3VfVEeT0jNjXMhV_GtkH_5ESW5Ft9Y5iGApbLS0NKxujXUyNpokpUaZWOuWKMsF2Qeqw1&amp;t=ffffffffdb8968b2" type="text/javascript"></script>
+<script src="/ScriptResource.axd?d=TDVjdgRbdvNAY3tnbizUcK-6ZA3YGQVFnD5cLUypgWpobxMZcqHo_4TZ2iHMh_OQp7F-airw43nZX1Nnj0e7Y0mdzAE0u_-Mxugq8a3wGZOve23YsGQ__TFaL_wqcQ2C0&amp;t=ffffffffdb8968b2" type="text/javascript"></script>
+<script src="/ScriptResource.axd?d=mbGZm65DzNC0tMTq0ElbcdDmC5dl8s6irUZ8NfTeynIRzIzzSGoLZLK1dA7-wDVHN6YEF98aeMVE9eauYGNvScN63fAxaeiTI5rYvWufopTWRlhz5BG_4BUFvCHY8vvnkqRRj69D3AbCXR0hiO-_qw2&amp;t=ffffffffdb8968b2" type="text/javascript"></script>
+<script src="/ScriptResource.axd?d=cmIcXiVJ__exjjpjrN730rgj3lq0YEqO0D-V16fUIzqWI1CMdJwfOl90OyfYydc4VEfrCnOfARfVksnMKiKCRiqES1K7wFK9pjGrU3JU0o1a8vC8orZatLWk3qIWsLs4jea1qlVkODAeNcngg0AgVA2&amp;t=ffffffffdb8968b2" type="text/javascript"></script>
+<script src="/ScriptResource.axd?d=uZyysmNAhs23bID72ZUaSuTRtjOOFHHzLLyeOBjQ8w0-WSjje6AZAzDNV1H0zr17JE74D4jAZBCFNVfXecUiLQmJbJ-gbAPTFJEkGWifDVdpTsXsw5hG10KdNQTPRbBpaU3sim5grWTP3hYLSaCfB0gSPbLKnOhxaCSg9lBP7hU1&amp;t=ffffffffdb8968b2" type="text/javascript"></script>
+<script src="/ScriptResource.axd?d=eKZhdBAoDXLAsQys5JFN8hse1gms_jB5dVYuB67qZO3fjITqRzmekz2vqQZ9Di6pZO_xEF_EC4TNSBhJ3sqIza86mQZtFJ_NkEInj7f5SeazietS56W43E3FHfaGc2JRn2l6NWqJ7dIVb3qTc024BYBHStPV4mJByOlVZYyuIqM1&amp;t=ffffffffdb8968b2" type="text/javascript"></script>
+<script src="/ScriptResource.axd?d=J3KXk9aJ0qdg4i-qt8PQkE9uh6EpWh4ZnzOx6XZhZ4uycuBXoEUIKXSvzVuUaOnpbyjXrUk8OBOvmEW59yxdhutgs-mgTtvYBaHkOXTP5WpXJJeSTZnCmhw5OmsypIIbhOnqweatgIBmkmCZdWL8aw2&amp;t=ffffffffdb8968b2" type="text/javascript"></script>
+<script src="/ScriptResource.axd?d=EUgTm_qqqh-Cc1R3PndxhkBRD8rS2dTENjoe34ze9kC9EacvNnHW9RaaxpD7_tF8ZnMwZfJOAuwh9skj7gyWCDDKTUQ3TMxq-yymJMKq9Nl9CFoqhZQTkuPRdCkYJoORJTAUvoQjC9QK6YZtKMd2KjnZ9ZfXZYbD0EkTw4o8f1E1&amp;t=ffffffffdb8968b2" type="text/javascript"></script>
+<script src="/ScriptResource.axd?d=V7lYofBNDiSYOgSlDiTISpWQzXwHkdwb_MyQo9JoDqXv1GErNGoxyxvNBawo0CpmimIDli_6RgRpuDdKbSQ7C8nsqLCX_bEw4eHA_psm0-9G62oXZC3EhjXGt49l_xn_oUPP_hQ2MtNdqhDi3389qgJr4l0F3NCMtJ751pfp9nU1&amp;t=ffffffff9b7d03cf" type="text/javascript"></script>
+<script src="/ScriptResource.axd?d=8HBMVpJM49mm80uR-ggjY9_O4NHujT-HsBEsHUjCcGslRgkZk7NZQJq1InktUR18D6otBlNrtHuIil5S3XKZBNLBoizi068Jdo28ymNIsnXZgqnmzzPGMZSD4J9Tyqzz3HniSQox53H456DZyV3FyQ2&amp;t=ffffffff9b7d03cf" type="text/javascript"></script>
+<script src="/ScriptResource.axd?d=vQR2N7McTtmzjONdj8pDQPdvnkuSyfYQAvJvDncncxIDqvSbUk7HwZWSmo6cHtvIwRVO-wHw4VjG_biYk0fJNAJel_Bu4t7YIEyS4U19SRYjIDC2iVKmpC6glilG3MgWvusRDgsvJ-Y69-ByrgfswbMplKgFDDZy65jmdJYy7AM1&amp;t=ffffffff9b7d03cf" type="text/javascript"></script>
+<script src="/ScriptResource.axd?d=8CjII1v0OLoMNKf5zGXmemIk3OzZlcpC2D0DaIe6EdALuOS1S4p0g2jtrkaaKB7KNyn9U1-OOXUlpQaQCwNGBoxjO1694M0VPAa9vUZ2wFLhl-__QFn8KUh1NnDDknG3QkLOk5jCXH45FT2L4dgUM8FGG5cbyofdu0oLRNERZm81&amp;t=ffffffff9b7d03cf" type="text/javascript"></script>
+<script src="/ScriptResource.axd?d=yoepU9WTnNLBrovfoMoPb7Koo3z_0NFPum7qDjpzw8cl7PKoNog8KvJ4diNqXzMRNAPpm2L7mIXnzizbAvX4QISmDHJ-19WNQFlOkTYmhOQSXyVtxRdkVyuN02T7YaAAUij1lETDwdLrwOURi-wWHM5C8Hbav2-aSp9a1pw6H9ipsRRGHW3W_zzG3eJWTuXRUMBRHpzSTgNReOINmv2lsA2&amp;t=ffffffff9b7d03cf" type="text/javascript"></script>
+<div class="aspNetHidden">
+<input id="__VIEWSTATEGENERATOR" name="__VIEWSTATEGENERATOR" type="hidden" value="65E709D8"/>
+<input id="__EVENTVALIDATION" name="__EVENTVALIDATION" type="hidden" value="2fNW1HaOStcm4Rk0g/E5bK5stkZHcj+GlwZ3Y/ewVcu5rfSED4lo2DyLR/7FFzVmf6kDmpyUxgedc+lHAbe1iaaou2i/lA5q7Y/oFs2oLcgqD5gEt20nvWOq2+k6g7KKEXHxfDhWCdrhJFfpjvz6LeK1awyuK0lJ2JpecpcGTLJxeRc+g3W7ygt9/BQPJXVUvNgAgW5HRJBmvz+j74zh3jKsviBpBVucZaqTgHr7PmAX3XTWMZUiovyq80HHxLJJ03pR5yB/Ot4/sYR0Zx+ovE9ItR2QqwUWCioRmf+ATeN71AsRJJRNr8os3pqaa0D+0GXrjeRxbxWoLJW1fUdF5oIDzbTqiJ+XmHfJJO0E33Qv2lVX8AuLf2lYjCKZ5SRBia/RtedeMqz7unwftLiNfrah/OsIVZvdf41xMxLoC5f0MuKVupzvbTs/jacN94YFt7D5DeecXN+qmthJyqcSca9NQDmVKVpJpGuZfO9hm0HGSyWqRwkAaqJ2TmMWp1YTAKzwlYhEX0PUtBdF7kJDAZPtuRD/827KMBXebup1OoZI6Q3vCQjzuPhCh288S5Sbw8QPbS9w8PTmaeeCq7e9XlQ0oJHBK06GKxjg8V3ssqob8cXjSDU9wsMM/TRBY4jTkJqe8hH66MqEKC6Y1H8rFkbGKXtGdj5v6fNrVy235iv6mbCjhRNTjOAh93PacmFNYPqLPuPWarkg7xsD2Rjbqg=="/>
+</div>
+<input id="hfInfoMessage" name="ctl00$hfInfoMessage" type="hidden"/>
+<input id="hfUserTheme" name="ctl00$hfUserTheme" type="hidden"/>
+<input id="hfWindowScroll" name="ctl00$hfWindowScroll" type="hidden"/>
+<input id="hfMessagePageNumber" name="ctl00$hfMessagePageNumber" type="hidden"/>
+<input id="hfIsNewMessage" name="ctl00$hfIsNewMessage" type="hidden"/>
+<input id="hfAlertPageNumber" name="ctl00$hfAlertPageNumber" type="hidden"/>
+<input id="hfIsNewAlert" name="ctl00$hfIsNewAlert" type="hidden"/>
+<input id="hfAlertsCount" name="ctl00$hfAlertsCount" type="hidden"/>
+<input id="hfMessagesCount" name="ctl00$hfMessagesCount" type="hidden"/>
+<input id="hfIsMobile" name="ctl00$hfIsMobile" type="hidden"/>
+<input id="hfbytes" name="ctl00$hfbytes" type="hidden"/>
+<input id="hfname" name="ctl00$hfname" type="hidden"/>
+<script type="text/javascript">
+//<![CDATA[
+Sys.WebForms.PageRequestManager._initialize('ctl00$ScriptManager1', 'form1', ['tctl00$ContentPlaceHolder1$upStudentAccountStatement','ContentPlaceHolder1_upStudentAccountStatement'], [], ['ctl00$ContentPlaceHolder1$rPaymentHistory','ContentPlaceHolder1_rPaymentHistory'], 90, 'ctl00');
+//]]>
+</script>
+<div id="loader-wrapper">
+<div id="loader">
+<img alt="Loading" src="assets/uploads/loader.gif"/>
+<p>Loading...</p>
+</div>
+</div>
+<div class="main-wrapper" id="mainWrap">
+<header class="position-fixed header d-flex" id="header">
+<div class="topbar d-flex position-absolute" id="myElement">
+<div class="header-left bg-transparent">
+<button aria-controls="uims_sidebar" aria-expanded="false" aria-label="Toggle navigation" class="navbar-toggler position-absolute collapsed" data-bs-target="#uims_sidebar" data-bs-toggle="collapse" onclick="slideLeft()" type="button">
+<img alt="logo" class="img-fluid" id="Image1" src="../assets/upload-images/icon-hamburger.svg"/>
+</button>
+<a class="navbar-brand"><img class="img-fluid" src="../assets/upload-images/logo-main-black.png" width="100"/></a>
+</div>
+<div class="ms-auto d-flex outer-area">
+<div class="search-bar d-flex">
+<div class="search-form d-flex align-items-center">
+<span class="total-results position-absolute" id="s-total-search"></span>
+<input autocomplete="off" class="search-result" id="txtUserSearch001_PC" name="query" placeholder="Search here" type="text"/>
+<img class="loading position-absolute" id="menu-loading" src="assets/uploads/loader.gif"/>
+<div class="NavigationSearchPC position-absolute">
+</div>
+</div>
+</div>
+<nav class="header-nav ms-auto">
+<ul class="d-flex align-items-center">
+<li class="nav-item d-block d-lg-none" id="searchBox">
+<a class="nav-link nav-icon d-flex justify-content-center align-items-center search-icon search-bar-toggle" href="#">
+<img alt="Search" src="../assets/upload-images/icon-search.svg"/>
+</a>
+</li>
+<li class="nav-item dropdown">
+<a aria-expanded="false" class="nav-link nav-icon d-flex nav-settings justify-content-center align-items-center" data-bs-toggle="dropdown" href="#" id="div_NotiCount">
+<img alt="Notifications" src="../assets/upload-images/icon-notifications.svg"/>
+<span class="other-notify badge badge-number badge-red align-items-center justify-content-center" id="spanNoti_Count">0</span>
+</a>
+<ul class="dropdown-menu dropdown-menu-end dropdown-menu-arrow notifications" id="noti_content">
+<li class="dropdown-header d-flex">
+                                            You have 0 new notifications
+                                            <a href="#"><span class="badge d-flex rounded-pill bg-primary p-2 ms-2">View all</span></a>
+</li>
+<li>
+<hr class="dropdown-divider"/>
+</li>
+<li class="dropdown-footer">
+<a href="#">Show all notifications</a>
+</li>
+</ul>
+</li>
+<li class="nav-item dropdown">
+<a class="nav-link nav-icon d-flex align-items-center justify-content-center" data-bs-toggle="dropdown" href="StudentHome.aspx" id="aHome">
+<img alt="Messages" src="../assets/upload-images/icon-messages.svg"/>
+<span class="badge badge-number d-flex align-items-center justify-content-center">0</span>
+</a>
+<ul class="dropdown-menu dropdown-menu-end dropdown-menu-arrow messages">
+<li class="dropdown-header">
+                                            You have 0 new messages
+                                            <a href="#"><span class="badge rounded-pill bg-primary p-2 ms-2">View all</span></a>
+</li>
+<li>
+<hr class="dropdown-divider"/>
+</li>
+<li>
+<hr class="dropdown-divider"/>
+</li>
+<li class="dropdown-footer">
+<a href="#">Show all messages</a>
+</li>
+</ul>
+</li>
+<li class="nav-item dropdown">
+<a class="nav-link nav-icon nav-library d-flex align-items-center justify-content-center" href="#" id="div_LibCount">
+<img alt="Messages" src="../assets/upload-images/icon-books.svg"/>
+<span class="badge badge-number badge-light d-flex align-items-center justify-content-center" id="spanLib_Count">0</span>
+</a>
+</li>
+<li class="nav-item dropdown pe-3 userInfo">
+<a aria-expanded="false" class="nav-link nav-profile d-flex align-items-center pe-0" data-bs-toggle="dropdown" href="#">
+<div class="d-none d-md-block dropdown-toggle position-relative ps-2">
+<div class="u-name d-flex">
+<span>Hello,</span>Ayan
+                                            </div>
+<small class="uid">25LBCS1294</small>
+</div>
+<img alt="Profile" class="rounded-circle" id="imgFullProfilePic" src="data:image;base64,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"/>
+</a>
+<ul class="dropdown-menu dropdown-menu-end dropdown-menu-arrow profile">
+<li class="dropdown-header d-flex flex-column">
+<h6>Ayan ahmad khan</h6>
+</li>
+<li class="user-n-mob">
+<h5></h5>
+</li>
+<li>
+<hr class="dropdown-divider"/>
+</li>
+<li id="liProfile">
+<a class="dropdown-item d-flex align-items-center" href="frmStudentProfile.aspx">
+<i class="bi bi-person"></i>
+<span>My Profile</span>
+</a>
+</li>
+<li>
+<hr class="dropdown-divider"/>
+</li>
+<li>
+<a class="dropdown-item d-flex align-items-center" href="javascript:__doPostBack('ctl00$LinkButton2','')" id="LinkButton2">
+<i class="bi bi-gear"></i>
+<span>Account Settings</span>
+</a>
+</li>
+<li>
+<hr class="dropdown-divider"/>
+</li>
+<li>
+<a class="dropdown-item d-flex align-items-center" href="javascript:__doPostBack('ctl00$LinkButton3','')" id="LinkButton3" style="text-decoration: none;">
+<i class="bi bi-lock"></i>
+<span>Change Password***
+</a>
+</li>
+<li>
+<hr class="dropdown-divider"/>
+</li>
+<li class="message-item d-flex" id="liWifiPassword***
+<a class="dropdown-item d-flex align-items-center" href="javascript:__doPostBack('ctl00$lbtnChangeWifiPassword*** id="lbtnChangeWifiPassword*** style="text-decoration: none;">
+<i class="bi bi-wifi"></i>
+<span>Change Internet Password***
+</a>
+</li>
+<li>
+<hr class="dropdown-divider"/>
+</li>
+<li>
+<a class="dropdown-item d-flex align-items-center" onclick="Logout()">
+<i class="bi bi-box-arrow-right"></i>
+<span>Sign Out</span>
+</a>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</div>
+</div>
+</header>
+<div class="uims-sidebar d-lg-block sidebar leftSidebar leftSidebar-collapse position-fixed collapse" id="uims_sidebar">
+<div class="mobile-header align-items-center d-flex d-lg-none justify-content-between">
+<a class="navbar-brand"><img class="img-fluid" src="/assets/upload-images/logo-main.png" width="165"/></a>
+<button aria-controls="uims_sidebar" aria-expanded="false" aria-label="Toggle navigation" class="navbar-toggler d-lg-none navbar-toggler collapsed" data-bs-target="#uims_sidebar" data-bs-toggle="collapse" onclick="slideLeft()" type="button">
+<span class="navbar-toggler-icon"><img src="/assets/upload-images/icon-close.svg"/></span>
+</button>
+</div>
+<div class="header-left">
+<button aria-controls="uims_sidebar" aria-expanded="false" aria-label="Toggle navigation" class="navbar-toggler position-absolute d-none d-lg-none collapsed" data-bs-target="#uims_sidebar" data-bs-toggle="collapse" onclick="slideLeft()" type="button">
+<img alt="logo" class="img-fluid" id="img_logo" src="assets\uploads\login-logo-main.png"/>
+</button>
+<button aria-controls="uims_sidebar" aria-expanded="false" aria-label="Toggle navigation" class="navbar-toggler position-absolute d-none d-sm-none d-lg-block collapsed" data-bs-target="#uims_sidebar" data-bs-toggle="collapse" onclick="slideLeft()" type="button">
+<span class="navbar-toggler-icon"><img class="img-fluid" src="../assets/upload-images/icon-hamburger-white.svg"/></span>
+</button>
+<a class="navbar-brand d-none d-lg-block" href="StudentHome.aspx"><img class="img-fluid" src="../assets/upload-images/logo-main.png" width="165"/></a>
+</div>
+<div class="scroll-bar">
+<ul class="nav flex-column menu-content collapse out" id="menu-content">
+<li class="collapsed" data-target="#3563" data-toggle="collapse">
+<a class="a-uims-nav" href="javascript:void(0);">
+							            Academics<span class="arrow"></span></a>
+</li>
+<ul class="sub-menu collapse" id="3563"><li><a class="a-uims-nav" href="javascript:void(0);">Department of Life Long(DLL)</a></li><li><a class="a-uims-nav" href="frmStudentCourseWiseAttendanceSummary.aspx?type=etgkYfqBdH1fSfc255iYGw==">My Attendance</a></li><li><a class="a-uims-nav" href="frmStudentWinningCampAttendanceSummary.aspx?type=etgkYfqBdH1fSfc255iYGw==">My Attendance ACP/Winning Camp</a></li><li><a class="a-uims-nav" href="frmMyCourse.aspx">My Courses and Lecture Plan</a></li><li><a class="a-uims-nav" href="frmMyTimeTable.aspx">My Time Table</a></li><li><a class="a-uims-nav" href="frmWinningCampMyTimetable.aspx">My Time Table ACP/Winning Camp</a></li><li><a class="a-uims-nav" href="javascript:void(0);">Project</a></li><li><a class="a-uims-nav" href="frmResourceLibrary.aspx">Resource Library</a></li><li class="collapsed" data-target="#4138" data-toggle="collapse"><a class="a-uims-nav" href="javascript:void(0);">Social Internship<span class="arrow"></span></a></li><ul class="sub-menu collapse" id="4138"><li><a class="a-uims-nav" href="frmStudentDailyDiary.aspx ">Daily Diary</a></li><li><a class="a-uims-nav" href="frmStudentSocialInternshipEntry.aspx">Model Selection &amp; Activity Upload</a></li><li><a class="a-uims-nav" href="frmStudentSocialInternshipEntryPart2.aspx">Model Selection Part 2 &amp; Activity Upload</a></li></ul></ul>
+<li class="collapsed" data-target="#2403" data-toggle="collapse">
+<a class="a-uims-nav" href="javascript:void(0);">
+							            Accounts<span class="arrow"></span></a>
+</li>
+<ul class="sub-menu collapse" id="2403"><li><a class="a-uims-nav" href="frmAccountsStudentReceiptList.aspx">Accounts Reciept</a></li><li><a class="a-uims-nav" href="frmAccountStudentDetails.aspx">Accounts Statement/ Fee Payment</a></li></ul>
+<li class="collapsed" data-target="#3566" data-toggle="collapse">
+<a class="a-uims-nav" href="javascript:void(0);">
+							            Administration<span class="arrow"></span></a>
+</li>
+<ul class="sub-menu collapse" id="3566"><li class="collapsed" data-target="#4214" data-toggle="collapse"><a class="a-uims-nav" href="javascript:void(0);">Centre for Global Education (CGE)<span class="arrow"></span></a></li><ul class="sub-menu collapse" id="4214"><li><a class="a-uims-nav" href="frmCentreForGlobalEducationCGE_ISTP.aspx">International Short-Term Program (ISTP)</a></li><li><a class="a-uims-nav" href="frmCentreForGlobalEducationCGE_ITP.aspx">International Transfer Program (ITP)</a></li><li><a class="a-uims-nav" href="frmCentreForGlobalEducationCGE_SEP.aspx">Semester Exchange Program (SEP)</a></li><li><a class="a-uims-nav" href="frmCentreForGlobalEducationCGE_USA.aspx">USA</a></li></ul><li><a class="a-uims-nav" href="frmStudentComplaintAgainstHarassment.aspx">Complaint Against Harassment</a></li><li><a class="a-uims-nav" href="frmStudentAdmissionDocumentsUpload.aspx">Document Upload</a></li><li><a class="a-uims-nav" href="frmInternationalStudentBasicInformation.aspx">International Student Application Form </a></li><li><a class="a-uims-nav" href="frmICTSServices.aspx">ITP (International Transfer Program) Services</a></li><li><a class="a-uims-nav" href="frmInternationalProgramEnrolment.aspx">OIR Enrollment Form</a></li><li><a class="a-uims-nav" href="frmOIRServices.aspx">OIR Services</a></li><li><a class="a-uims-nav" href="frmUploadInternationalStudentMedicalInsurance.aspx">University Medical Insurance</a></li></ul>
+<li class="collapsed" data-target="#2850" data-toggle="collapse">
+<a class="a-uims-nav" href="frmLoanLetterApplication.aspx">
+							            Apply for Loan Documents<span class="arrow"></span></a>
+</li>
+<li class="collapsed" data-target="#3880" data-toggle="collapse">
+<a class="a-uims-nav" href="frmAppCounsellingTherapyClinicRegistration.aspx">
+							            Counseling Therapy Clinic Registration<span class="arrow"></span></a>
+</li>
+<li class="collapsed" data-target="#3713" data-toggle="collapse">
+<a class="a-uims-nav" href="javascript:void(0);">
+							            DCPD<span class="arrow"></span></a>
+</li>
+<ul class="sub-menu collapse" id="3713"><li><a class="a-uims-nav" href="frmCareerOptionOther.aspx?Type=QGVcrLuOjfitECW4+veVzA==">Career Options by DCPD</a></li><li class="collapsed" data-target="#3714" data-toggle="collapse"><a class="a-uims-nav" href="javascript:void(0);">Evening CUCAT<span class="arrow"></span></a></li><ul class="sub-menu collapse" id="3714"><li><a class="a-uims-nav" href="frmMockTestNew.aspx">Mock Test</a></li><li><a class="a-uims-nav" href="frmStuQuestionSolution.aspx">View Question Solution</a></li></ul></ul>
+<li class="collapsed" data-target="#4193" data-toggle="collapse">
+<a class="a-uims-nav" href="frmDLLMOOCCoordinatorList.aspx">
+							            DLL MOOC Coordinator List<span class="arrow"></span></a>
+</li>
+<li class="collapsed" data-target="#2342" data-toggle="collapse">
+<a class="a-uims-nav" href="javascript:void(0);">
+							            E Library<span class="arrow"></span></a>
+</li>
+<ul class="sub-menu collapse" id="2342"><li><a class="a-uims-nav" href="frmOpenAuthentication.aspx?id=PA8f2gBZPN2G5vACgUpS8q8aPNbtEWoFpGvx9fSSTn5SBSUkvaW1F4+WDbeuEVgrByLqYAw71dFjOnpINJQkb1nS/VwF0vUGdaNa/ZxXLbPWzD1EDuitwgCqnL4LzayY">EBSCO eBook Academic Collection</a></li><li><a class="a-uims-nav" href="frmOpenAuthentication.aspx?id=PA8f2gBZPN2G5vACgUpS8q8aPNbtEWoFpGvx9fSSTn5SBSUkvaW1F4+WDbeuEVgrByLqYAw71dFjOnpINJQkb1nS/VwF0vUGdaNa/ZxXLbMj6WG9aUk6g/X7ApvmbBzR">EBSCO Management Collection</a></li><li><a class="a-uims-nav" href="frmOpenAuthentication.aspx?id=PA8f2gBZPN2G5vACgUpS8q8aPNbtEWoFpGvx9fSSTn5SBSUkvaW1F4+WDbeuEVgrByLqYAw71dFjOnpINJQkb1nS/VwF0vUGdaNa/ZxXLbMa+4YBf7yAR+H/jNSXzgUV">EBSCOhost  E-Journal Access(Art and Architecture)</a></li><li><a class="a-uims-nav" href="frmOpenAuthentication.aspx?id=QV5dHL7jXjFoMfhJzyRSB8mHytDcqoV5f4Wom3J0nlRXzfF6WI0M1CH0kkL/8BpGYTEyZlvrVdogWC2fw3Akc8lFubnuUo4BnEATg248VJXkQapuALK1TryDjmoT7t3eOXYb07XbuxPD2oE+obUlNg==">IEEE</a></li><li><a class="a-uims-nav" href="frmOpenAuthentication.aspx?id=QV5dHL7jXjFoMfhJzyRSB8mHytDcqoV5f4Wom3J0nlRXzfF6WI0M1CH0kkL/8BpGQpb7uMfdWl8yF4aRUmP6Zsn6AQJaRnEB7/gtSzVR1p585pFZUqCcLP0Md1FrzDxE">J-Gate (Science &amp; Technology)</a></li><li><a class="a-uims-nav" href="frmOpenAuthentication.aspx?id=QV5dHL7jXjFoMfhJzyRSB8mHytDcqoV5f4Wom3J0nlRXzfF6WI0M1CH0kkL/8BpGQpb7uMfdWl8yF4aRUmP6Zsn6AQJaRnEB7/gtSzVR1p585pFZUqCcLP0Md1FrzDxE">J-Gate (Soc. Science and Humanities)</a></li><li><a class="a-uims-nav" href="frmOpenAuthentication.aspx?id=PA8f2gBZPN2G5vACgUpS8q8aPNbtEWoFpGvx9fSSTn5rGd65jzE8cRuauaYj2tJnH0PJZ8oauJ+rb9nxzuaAexyENYqhaXlaXq/+C2p07L/8z27ruNOLpK4peo2XgI8A">Publication Finder and Open Athens</a></li><li><a class="a-uims-nav" href="frmOpenAuthentication.aspx?id=nfiADxpckRxbzXbfgdwrIInRiQfwBTLb6/+Drz4Hfuu1f/+GiF1v7htWc6qZ4UfeZ8rCtYt+mAXwUTxgui+nIVYMH/X2+Mz5T0N9xRCq1O7h9QK5KPVsxhQgLnm25vNLWngZ7jKKbHleD9V5LzqaNEdPHmQrgYDKSejwnT8cE+y+fkzv+sKNmr1tKO6Ax8X20DEzMdIuHk6qSwoUsEES/mvO9tbVtnt1MFx0J9xqrshfF359RI86VFsSRY6J30wDg9WSMpPa4j3V28dJRMP5MvBH+hj+t0X5vazU4wBNAqs=">Web of Science</a></li></ul>
+<li class="collapsed" data-target="#3565" data-toggle="collapse">
+<a class="a-uims-nav" href="javascript:void(0);">
+							            Examination<span class="arrow"></span></a>
+</li>
+<ul class="sub-menu collapse" id="3565"><li><a class="a-uims-nav" href="FrmStudentFormsDetails.aspx">Examaination Form Details</a></li><li><a class="a-uims-nav" href="frmStudentDatesheet.aspx">My Date Sheet</a></li><li class="collapsed" data-target="#4168" data-toggle="collapse"><a class="a-uims-nav" href="javascript:void(0);">Raise Query<span class="arrow"></span></a></li><ul class="sub-menu collapse" id="4168"><li><a class="a-uims-nav" href="StudentQueryMaster.aspx">Student Query Master</a></li></ul><li class="collapsed" data-target="#2190" data-toggle="collapse"><a class="a-uims-nav" href="javascript:void(0);">Result<span class="arrow"></span></a></li><ul class="sub-menu collapse" id="2190"><li><a class="a-uims-nav" href="result.aspx">Result ( Regular )</a></li></ul><li><a class="a-uims-nav" href="frmAMCATStudentResult.aspx?type=6kjkaB6U01jsNZdSPYT2YA==">Student AMCAT Result</a></li><li class="collapsed" data-target="#2600" data-toggle="collapse"><a class="a-uims-nav" href="javascript:void(0);">Student Marks View<span class="arrow"></span></a></li><ul class="sub-menu collapse" id="2600"><li><a class="a-uims-nav" href="frmStudentReappearMarksView.aspx">Student Marks View Reappear</a></li><li><a class="a-uims-nav" href="frmStudentMarksView.aspx">Student Marks View Regular</a></li></ul><li><a class="a-uims-nav" href="frmStudentPracticleDateSheet.aspx">Student Practical Date Sheet</a></li><li><a class="a-uims-nav" href="frmAMCATStudentResult.aspx?type=S4w6En2dn/RLwsoo51Osyw==">Student Technical Result</a></li></ul>
+<li class="collapsed" data-target="#4157" data-toggle="collapse">
+<a class="a-uims-nav" href="javascript:void(0);">
+							            Hostel<span class="arrow"></span></a>
+</li>
+<ul class="sub-menu collapse" id="4157"><li><a class="a-uims-nav" href="frmStudenHostelDetails.aspx">Details</a></li></ul>
+<li class="collapsed" data-target="#2836" data-toggle="collapse">
+<a class="a-uims-nav" href="frmStudentHostelLeave.aspx">
+							            Hostel Leave<span class="arrow"></span></a>
+</li>
+<li class="collapsed" data-target="#3567" data-toggle="collapse">
+<a class="a-uims-nav" href="javascript:void(0);">
+							            Library<span class="arrow"></span></a>
+</li>
+<ul class="sub-menu collapse" id="3567"><li><a class="a-uims-nav" href="frmLibraryRepository.aspx">CU E-Repository </a></li></ul>
+<li class="collapsed" data-target="#2185" data-toggle="collapse">
+<a class="a-uims-nav" href="frmStudentProfile.aspx">
+							            My Profile<span class="arrow"></span></a>
+</li>
+<li class="collapsed" data-target="#2199" data-toggle="collapse">
+<a class="a-uims-nav" href="frmTakeTest.aspx">
+							            Online Test<span class="arrow"></span></a>
+</li>
+<li class="collapsed" data-target="#4199" data-toggle="collapse">
+<a class="a-uims-nav" href="javascript:void(0);">
+							            PhD<span class="arrow"></span></a>
+</li>
+<li class="collapsed" data-target="#2932" data-toggle="collapse">
+<a class="a-uims-nav" href="javascript:void(0);">
+							            Student Leave Application<span class="arrow"></span></a>
+</li>
+<ul class="sub-menu collapse" id="2932"><li><a class="a-uims-nav" href="frmStudentApplyDutyLeave.aspx">Duty Leave</a></li><li><a class="a-uims-nav" href="frmStudentMedicalLeaveApply.aspx">Medical Leave</a></li></ul>
+<li class="collapsed" data-target="#2192" data-toggle="collapse">
+<a class="a-uims-nav" href="javascript:void(0);">
+							            Student Relation Management System<span class="arrow"></span></a>
+</li>
+<ul class="sub-menu collapse" id="2192"><li><a class="a-uims-nav" href="javascript:void(0);">Clubs &amp; Societies</a></li><li><a class="a-uims-nav" href="frmStudentEventReview.aspx">Event Review</a></li><li><a class="a-uims-nav" href="frmSWCRequest.aspx">Online Student Care Center Requests</a></li><li><a class="a-uims-nav" href="frmTalentSearchProgram.aspx">Talent Search Program</a></li></ul>
+<li class="collapsed" data-target="#4194" data-toggle="collapse">
+<a class="a-uims-nav" href="javascript:void(0);">
+							            TPP UILAH<span class="arrow"></span></a>
+</li>
+<li class="collapsed" data-target="#4159" data-toggle="collapse">
+<a class="a-uims-nav" href="javascript:void(0);">
+							            Transport<span class="arrow"></span></a>
+</li>
+<ul class="sub-menu collapse" id="4159"><li><a class="a-uims-nav" href="frmTransportDetails.aspx">Details</a></li><li><a class="a-uims-nav" href="frmStudentTransportConsent.aspx">Transport Consent</a></li><li><a class="a-uims-nav" href="frmStudentTransportConsent.aspx">Transport Consent</a></li></ul>
+<li class="collapsed" data-target="#4172" data-toggle="collapse">
+<a class="a-uims-nav" href="javascript:void(0);">
+							            UCMC<span class="arrow"></span></a>
+</li>
+<ul class="sub-menu collapse" id="4172"><li class="collapsed" data-target="#4178" data-toggle="collapse"><a class="a-uims-nav" href="javascript:void(0);">Competitive Exams Career Options<span class="arrow"></span></a></li><ul class="sub-menu collapse" id="4178"><li><a class="a-uims-nav" href="frmresources.aspx?type=3MjtO9wiGLhI6em0bw+XikP5Cb/RMH/7S57lk08Obqs=">Judicial Services Preparation</a></li></ul></ul>
+<li class="collapsed" data-target="#4210" data-toggle="collapse">
+<a class="a-uims-nav" href="frmStuUniformCollection.aspx">
+							            Uniform Management<span class="arrow"></span></a>
+</li>
+</ul>
+</div>
+</div>
+<div class="body-overlay"></div>
+<div class="inner-wrapper">
+<div class="d-flex content-boxes row g-3" id="short_links">
+<div class="col-sm-6 col-xl-3 col-6">
+<a class="bg-red d-flex card-info" href="frmImportantlink.aspx" id="div_top_1">
+<div class="card-icon rounded-circle red-box d-flex align-items-center justify-content-center">
+<img alt="Important Links" class="img-fluid" src="/assets/upload-images/icon-links.svg"/>
+</div>
+<div class="d-flex flex-column cardBox justify-content-center">
+<h4>Important Links</h4>
+<span class="moreLink d-flex text-uppercase">Click Here</span>
+</div>
+</a>
+</div>
+<div class="col-sm-6 col-xl-3 col-6">
+<a class="card-info bg-blue d-flex" href="https://www.culko.in/online-request/" id="div_top_3">
+<div class="card-icon rounded-circle blue-box d-flex align-items-center justify-content-center">
+<img alt="Facilitation" class="img-fluid" id="Layer_1" src="/assets/upload-images/icon-facilitation.svg"/>
+</div>
+<div class="d-flex flex-column cardBox justify-content-center">
+<h4>Student Facilitation</h4>
+<span class="moreLink d-flex text-uppercase">Click to View</span>
+</div>
+</a>
+</div>
+<div class="col-sm-6 col-xl-3 col-6">
+<div class="d-flex" id="div_top_5">
+<a class="d-flex card-info bg-yellow" href="javascript:__doPostBack('ctl00$lbtnLMSSSO','')" id="lbtnLMSSSO">
+<div class="card-icon rounded-circle yellow-box d-flex align-items-center justify-content-center">
+<img alt="CU-LMS" class="img-fluid" src="/assets/upload-images/icon-study.svg"/>
+</div>
+<div class="d-flex flex-column cardBox justify-content-center">
+<h4>CU-LMS</h4>
+<span class="moreLink d-flex text-uppercase d-flex">My LMS</span>
+</div>
+</a>
+</div>
+</div>
+<div class="col-sm-6 col-xl-3 col-6 d-none">
+<a class="d-flex card-info bg-yellow" href="frmSWCRequest.aspx" id="div_top_4">
+<div class="card-icon rounded-circle yellow-box d-flex align-items-center justify-content-center">
+<img alt="Anti Ragging" class="img-fluid" src="/assets/upload-images/icon-antiragging.svg"/>
+</div>
+<div class="d-flex flex-column cardBox justify-content-center">
+<h4>Student Center</h4>
+<span class="moreLink d-flex text-uppercase d-flex">Get Help</span>
+</div>
+</a>
+</div>
+<div class="col-sm-6 col-xl-3 col-6 position-relative">
+<div class="card-info emp-info d-flex card-thumb" id="div_OE">
+<div class="card-icon rounded-circle email-box d-flex align-items-center justify-content-center">
+<img alt="Anti Ragging" class="img-fluid" src="/assets/upload-images/icon-email-lg.svg" width="40"/>
+</div>
+<div class="d-flex flex-column cardBox justify-content-center">
+<h4>My University Email</h4>
+<span class="moreLink d-flex text-uppercase d-flex">View Details</span>
+</div>
+</div>
+<div class="divUniEmail" id="divUniEmail" style="display: none;">Dear Ayan ahmad khan, <br/><span style="display:block; margin-top:5px">Your EmailId: <b>25LBCS1294@culkomail.in</b></span> <span style="display:block; margin-top:10px">Password: *** <span style="display:block; margin-top:10px">(One Time Password*** To activate click <a href="https://culkomail.in" style="display:block; padding:0" target="_blank">https://culkomail.in</a>
+<p style="font-size:10px; font-style:italic;margin-top:5px">Note: This is one-time password *** your outlook ID. You need to use your changed password *** time you have to log in to your account</p></div>
+</div>
+</div>
+<div class="div_Transaction" style="clear: both">
+<div class="text-center">
+<h2 class="page-heading">FEE PAYMENT DETAILS</h2>
+</div>
+<div>
+<table class="table table-bordered table-hover">
+<tr>
+<td><b>Payment Amount:</b>
+</td>
+<td>
+<span id="ContentPlaceHolder1_lblTransAmount"></span></td>
+</tr>
+<tr>
+<td><b>Transaction Id:</b>
+</td>
+<td>
+<span id="ContentPlaceHolder1_lblTransId"></span>
+</td>
+</tr>
+<tr>
+<td><b>Transaction Date:</b>
+</td>
+<td>
+<span id="ContentPlaceHolder1_lblTransDate"></span>
+</td>
+</tr>
+<tr>
+<td><b>Transaction Status:</b>
+</td>
+<td>
+<span id="ContentPlaceHolder1_lblTransStatus"></span>
+</td>
+</tr>
+<tr>
+<td>
+<input id="btnTryAgain" name="ctl00$ContentPlaceHolder1$btnTryAgain" type="submit" value="TRY AGAIN"/>
+</td>
+<td>
+<input id="hfPaymentId" name="ctl00$ContentPlaceHolder1$hfPaymentId" type="hidden"/>
+</td>
+</tr>
+</table>
+</div>
+</div>
+<div>
+<div id="ContentPlaceHolder1_upStudentAccountStatement">
+<script language="javascript" type="text/javascript">
+                    Sys.Application.add_load(BindEvents);
+                    function ClosePopUp() {
+                        $('#divPartPaymentPopUp').css('width', '0');
+                    }
+
+                </script>
+<input id="ContentPlaceHolder1_hfErrorInfo" name="ctl00$ContentPlaceHolder1$hfErrorInfo" type="hidden"/>
+<div class="demo-container">
+<div class="RadTabStrip RadTabStrip_ RadTabStripTop_" id="ctl00_ContentPlaceHolder1_RadTabStrip1">
+<!-- 2014.1.225.45 --><div class="rtsLevel rtsLevel1">
+<ul class="rtsUL"><li class="rtsLI rtsFirst"><a class="rtsLink tab overviewTab rtsSelected selectedTab" href="#"><span class="rtsOut"><span class="rtsIn"><span class="rtsTxt">Student Account Balance Sheet</span></span></span></a></li><li class="rtsLI rtsLast"><a class="rtsLink rtsAfter tab attractionsTab" href="#"><span class="rtsOut"><span class="rtsIn"><span class="rtsTxt">Online Fee Payment History</span></span></span></a></li></ul>
+</div><input id="ctl00_ContentPlaceHolder1_RadTabStrip1_ClientState" name="ctl00_ContentPlaceHolder1_RadTabStrip1_ClientState" type="hidden"/>
+</div>
+<div id="ctl00_ContentPlaceHolder1_RadMultiPage1" style="width:100%;">
+<div id="ContentPlaceHolder1_RadPageView1">
+<div class="TopTabSpacer"> </div>
+<table id="ContentPlaceHolder1_tbl_payment" style="width: 100%;">
+<tr>
+<td class="form_header1" colspan="3">
+<input id="ContentPlaceHolder1_hfURL" name="ctl00$ContentPlaceHolder1$hfURL" type="hidden"/>
+</td>
+</tr>
+<tr>
+<td>
+<marquee scrollamount="5"> <p style="color:red;font-size:medium;">* Dear Student, if you face any issues related to payment or transaction updation,you are requested to lodge the request on Navigation &gt; Student Relation Management System  &gt; Online Student Care Center Requests OR <a href="https://uims.cuchd.in/uims/frmSWCRequest.aspx" style="color:green;" target="_blank">Click Here</a></p></marquee>
+</td>
+</tr>
+<tr>
+<td colspan="3">
+<div>
+</div>
+<br/>
+<div id="ContentPlaceHolder1_divPendingFee">
+<div id="ContentPlaceHolder1_divSemesterPendingFee">
+<div class="divFeeType">
+<b class="move-10">Select Fee Type: </b>
+<table id="ContentPlaceHolder1_rbnlFeeType" style="display: inline;">
+<tr>
+<td><input checked="checked" id="ContentPlaceHolder1_rbnlFeeType_0" name="ctl00$ContentPlaceHolder1$rbnlFeeType" type="radio" value="R"/><label for="ContentPlaceHolder1_rbnlFeeType_0">Regular Pending Fee</label></td>
+</tr>
+</table>
+</div>
+<div class="div_Semester" id="ContentPlaceHolder1_divSemester" style="margin: 10px 0px !important">
+                                                    Select Semester:
+                                                    <select id="ContentPlaceHolder1_ddlFeeSemester" name="ctl00$ContentPlaceHolder1$ddlFeeSemester" onchange="javascript:setTimeout('__doPostBack(\'ctl00$ContentPlaceHolder1$ddlFeeSemester\',\'\')', 0)" style="width:70px;">
+<option selected="selected" value="3">3</option>
+</select>
+</div>
+<div>
+<table border="1" cellspacing="0" class="table table-bordered table-hover mycustomcss" id="ContentPlaceHolder1_gvPendingFee" rules="all" style="border-collapse:collapse;">
+<tr>
+<th scope="col">Particulars</th><th scope="col">Fee Payable</th><th scope="col">Extension / Scholarship / Loan / Other Amount</th><th scope="col">Late Fee Charges</th><th scope="col">Payable Amount</th><th scope="col">To pay fee payment (tick below)</th>
+</tr><tr>
+<td>
+<span id="ContentPlaceHolder1_gvPendingFee_lblHeadName_0">Semester Fee</span>
+</td><td>
+                                                                Rs 
+                                                                <span id="ContentPlaceHolder1_gvPendingFee_lblActualPending_0">27200</span>
+</td><td>
+                                                                Rs 
+                                                                <span id="ContentPlaceHolder1_gvPendingFee_lblExtensionAmount_0">27200</span>
+</td><td>
+<span id="ContentPlaceHolder1_gvPendingFee_lblFineAmount_0">0.00</span>
+</td><td>
+                                                                Rs 
+                                                                <span id="ContentPlaceHolder1_gvPendingFee_lblPendingFee_0">27200</span>
+<a class="btn btn-xs btn-primary" href="javascript:__doPostBack('ctl00$ContentPlaceHolder1$gvPendingFee$ctl02$btnPartPayment','')" id="ContentPlaceHolder1_gvPendingFee_btnPartPayment_0">Part Payment</a>
+<span id="ContentPlaceHolder1_gvPendingFee_lblPendingPartFeeText_0" style="font-weight:bold;"></span>
+</td><td>
+<input id="ContentPlaceHolder1_gvPendingFee_chkSelectHead_0" name="ctl00$ContentPlaceHolder1$gvPendingFee$ctl02$chkSelectHead" onclick="javascript:setTimeout('__doPostBack(\'ctl00$ContentPlaceHolder1$gvPendingFee$ctl02$chkSelectHead\',\'\')', 0)" type="checkbox"/>
+</td>
+</tr>
+</table>
+</div>
+<div class="text-left" style="font-style: italic; color: red;">
+                                                    Note: Fee details will updated with in next 10 minutes (Last updated on dated:
+                                        8/25/2026 3:43:56 PM)
+                                                </div>
+</div>
+<div class="outerPayment" id="ContentPlaceHolder1_divEMIPay" style="display:none">
+<br/>
+<div id="ContentPlaceHolder1_divgqgrid">
+<div>
+</div>
+</div>
+</div>
+<div class="row">
+<div class="col-sm-12">
+<table id="ContentPlaceHolder1_Table1" style="width: 100%; margin-top: 20px; display:none">
+<tr>
+<td colspan="4" style="text-align: center">
+<img src="imgs/propelld.png" style="width: 30%;"/>
+<b>Fund Your Education</b><a href="https://pl.propelld.com/lp/university?utm_source=clg&amp;utm_campaign=CU" target="_blank"> Click Here</a>
+</td>
+</tr>
+</table>
+</div>
+</div>
+<div class="row">
+<div class="col-sm-12">
+<table id="ContentPlaceHolder1_tblIND" style="width: 100%; margin-top: 20px; display:none">
+<tr>
+<td colspan="2" style="text-align: center">
+<h3>Important Information</h3>
+</td>
+</tr>
+<tr>
+<td colspan="2" style="text-align: center">RTGS/NEFT/IMPS details for fee payment Bank account details are below
+                                                            </td>
+</tr>
+<tr>
+<td>Applicable For</td>
+<td style="color: blue; font-weight: bold; font-size: 14px !important;">Fee Payment for Semester / Hostel / Transport Fee Only</td>
+</tr>
+<tr>
+<td>Name of Beneficiary</td>
+<td style="color: blue">Chandigarh University - eCMS a/c</td>
+</tr>
+<tr>
+<td>Bank Name/ Branch</td>
+<td style="color: blue">HDFC BANK LTD, Mumbai</td>
+</tr>
+<tr>
+<td>IFSC/RTGS Code</td>
+<td style="color: blue">HDFC0000240</td>
+</tr>
+<tr>
+<td>Bank ID</td>
+<td style="color: blue">CETCUI</td>
+</tr>
+<tr>
+<td>Bank Account No.</td>
+<td style="color: blue">
+                                                                CETCUI125030549</td>
+</tr>
+<tr>
+<td></td>
+<td style="color: blue">First 6 digits are bank ID i.e.CETCUI and next 8 digits are student’s Account no of CUIMS. For example: If CUIMS ACCOUNT NO of the student is 1180XXXX, then for him, the Bank Account No will be CETCUI1180XXXX.
+                                                        <br/>
+                                                                Please Note that the Bank Account No. of every student is Unique and Different.</td>
+</tr>
+<tr>
+<td colspan="2"><b>Note for RTGS/NEFT/IMPS:</b>
+<ul style="margin: 0px 10px !important">
+<li>Students are advised to deposit the fee ONLY in his/her account as per the details mentioned above. Payments made to any other account by RTGS/NEFT will not be considered as payments made.
+                                                                    </li>
+<li>The above bank account details are ONLY for payment through NEFT/RTGS. No other mode for payment (Online/ offline i.e by way of Direct deposit of Cheque/ Cash/ Demand Draft/ Pay Order/ Electronic Transfer using E-Wallet/ UPI etc.) should be used for making the payment for any type of fee/ charges.
+                                                                    </li>
+<li>This payment mode is NOT a Real Time Fee Payment Process, hence updation of fee paid to student account may take 2-3 bank working days to get updated in student account.
+                                                                    </li>
+<li>Please mention Student Mobile No in remarks column of the transaction, if field is available</li>
+</ul>
+</td>
+</tr>
+<tr>
+<td colspan="2">
+<p style="background-color: #f8f8f8; padding: 10px; border: 1px solid #ccc; margin-bottom: 20px; color: #666; font-size: 14px;">
+<b>Disclaimer:</b>
+
+                                                                    Chandigarh University only acts as an introducer between the EMI service provider for education loan and the students/parents. CU disassociates itself for any risk associated with the transaction.  The terms of loan , decision to sanction or disbursal purely lies with the granter (EMI service provider) and , to avail or not lies with the beneficiary (student/parents). Chandigarh University is not liable for the redressal and/or rectification for any dispute or discrepancy that may arise between lender and borrower.
+                                                                </p>
+</td>
+</tr>
+</table>
+</div>
+</div>
+</div>
+</td>
+</tr>
+</table>
+</div><div class="rmpHiddenView" id="ContentPlaceHolder1_RadPageView2">
+<div class="TopTabSpacer"> </div>
+<table style="width: 100%">
+<tr>
+<td class="form_header1">
+<div style="text-align: center">
+<input id="ContentPlaceHolder1_btnRefresh" name="ctl00$ContentPlaceHolder1$btnRefresh" style="background-color: #f9e502 !important; border: 1px solid #0b3a55 !important; box-shadow: 0 0 4px rgba(0, 0, 0, 0.75) !important; color: #000 !important; padding: 5px 40px;" type="submit" value="Refresh Current Date History"/>
+</div>
+</td>
+</tr>
+<tr>
+<td>
+<div style="max-height: 500px; overflow-y: scroll;">
+<div style="width: 100%; background-color: #F9F8F8; border-bottom: 1px solid #A5A5A5; clear: both; position: relative">
+<i class="trans-success"></i>
+<table cellpadding="0" cellspacing="0" style="width: 100%;">
+<tr>
+<td style="width: 8%;">
+<div class="transactions-date-container">
+<div class="transactions-date">19</div>
+<div class="transactions-month">Jul 2026</div>
+</div>
+</td>
+<td style="width: 32%; font-size: 12px;">
+<div>
+<span style="color: #484848; font-weight: bold">Transaction REF NO: </span>
+<span id="ContentPlaceHolder1_rPaymentHistory_lblTransactionREFNO_0">UM49969</span>
+</div>
+<div>
+<span style="color: #484848; font-weight: bold">BANK REF NO: </span>
+<span id="ContentPlaceHolder1_rPaymentHistory_lblBANKREFNO_0">ffd1613a15374dc998548fad5a63b717jx7wk</span>
+</div>
+<div>
+<span style="color: #484848; font-weight: bold">PAYMENT MODE: </span>
+<span id="ContentPlaceHolder1_rPaymentHistory_lblPaymentMode_0">HDFC_NEW GATEWAY</span>
+</div>
+</td>
+<td style="font-size: 14px; width: 25%; vertical-align: top;">
+<div style="font-size: 12px"><span style="font-weight: bold">Total:</span><span style="font-size: 11px;"> </span>Rs 15000.00</div>
+<div style="font-size: 12px"><span style="font-weight: bold">Service Tax:</span><span style="font-size: 11px;"> Rs. </span>0.00</div>
+<div style="font-size: 12px"><span style="font-weight: bold">Processing Fee:</span><span style="font-size: 11px;"> Rs. </span>0.00</div>
+</td>
+<td style="width: 40%;">
+<span id="ContentPlaceHolder1_rPaymentHistory_lblTransactionResponse_0" style="color:Green">SUCCESS</span>
+</td>
+</tr>
+</table>
+</div>
+<div style="width: 100%; background-color: #F9F8F8; border-bottom: 1px solid #A5A5A5; clear: both; position: relative">
+<i class="trans-success"></i>
+<table cellpadding="0" cellspacing="0" style="width: 100%;">
+<tr>
+<td style="width: 8%;">
+<div class="transactions-date-container">
+<div class="transactions-date">19</div>
+<div class="transactions-month">Jul 2026</div>
+</div>
+</td>
+<td style="width: 32%; font-size: 12px;">
+<div>
+<span style="color: #484848; font-weight: bold">Transaction REF NO: </span>
+<span id="ContentPlaceHolder1_rPaymentHistory_lblTransactionREFNO_1">UM49966</span>
+</div>
+<div>
+<span style="color: #484848; font-weight: bold">BANK REF NO: </span>
+<span id="ContentPlaceHolder1_rPaymentHistory_lblBANKREFNO_1">91c77ff217e7456bbd5e57ceca099128dehqx</span>
+</div>
+<div>
+<span style="color: #484848; font-weight: bold">PAYMENT MODE: </span>
+<span id="ContentPlaceHolder1_rPaymentHistory_lblPaymentMode_1">HDFC_NEW GATEWAY</span>
+</div>
+</td>
+<td style="font-size: 14px; width: 25%; vertical-align: top;">
+<div style="font-size: 12px"><span style="font-weight: bold">Total:</span><span style="font-size: 11px;"> </span>Rs 50000.00</div>
+<div style="font-size: 12px"><span style="font-weight: bold">Service Tax:</span><span style="font-size: 11px;"> Rs. </span>0.00</div>
+<div style="font-size: 12px"><span style="font-weight: bold">Processing Fee:</span><span style="font-size: 11px;"> Rs. </span>0.00</div>
+</td>
+<td style="width: 40%;">
+<span id="ContentPlaceHolder1_rPaymentHistory_lblTransactionResponse_1" style="color:Green">SUCCESS</span>
+</td>
+</tr>
+</table>
+</div>
+<div style="width: 100%; background-color: #F9F8F8; border-bottom: 1px solid #A5A5A5; clear: both; position: relative">
+<i class="trans-success"></i>
+<table cellpadding="0" cellspacing="0" style="width: 100%;">
+<tr>
+<td style="width: 8%;">
+<div class="transactions-date-container">
+<div class="transactions-date">18</div>
+<div class="transactions-month">Jul 2026</div>
+</div>
+</td>
+<td style="width: 32%; font-size: 12px;">
+<div>
+<span style="color: #484848; font-weight: bold">Transaction REF NO: </span>
+<span id="ContentPlaceHolder1_rPaymentHistory_lblTransactionREFNO_2">UM49762</span>
+</div>
+<div>
+<span style="color: #484848; font-weight: bold">BANK REF NO: </span>
+<span id="ContentPlaceHolder1_rPaymentHistory_lblBANKREFNO_2">20ea42ede7c840ccb85cf37a5ab23402gpg0b</span>
+</div>
+<div>
+<span style="color: #484848; font-weight: bold">PAYMENT MODE: </span>
+<span id="ContentPlaceHolder1_rPaymentHistory_lblPaymentMode_2">HDFC_NEW GATEWAY</span>
+</div>
+</td>
+<td style="font-size: 14px; width: 25%; vertical-align: top;">
+<div style="font-size: 12px"><span style="font-weight: bold">Total:</span><span style="font-size: 11px;"> </span>Rs 45000.00</div>
+<div style="font-size: 12px"><span style="font-weight: bold">Service Tax:</span><span style="font-size: 11px;"> Rs. </span>0.00</div>
+<div style="font-size: 12px"><span style="font-weight: bold">Processing Fee:</span><span style="font-size: 11px;"> Rs. </span>0.00</div>
+</td>
+<td style="width: 40%;">
+<span id="ContentPlaceHolder1_rPaymentHistory_lblTransactionResponse_2" style="color:Green">SUCCESS</span>
+</td>
+</tr>
+</table>
+</div>
+<div style="width: 100%; background-color: #F9F8F8; border-bottom: 1px solid #A5A5A5; clear: both; position: relative">
+<i class="trans-success"></i>
+<table cellpadding="0" cellspacing="0" style="width: 100%;">
+<tr>
+<td style="width: 8%;">
+<div class="transactions-date-container">
+<div class="transactions-date">20</div>
+<div class="transactions-month">May 2026</div>
+</div>
+</td>
+<td style="width: 32%; font-size: 12px;">
+<div>
+<span style="color: #484848; font-weight: bold">Transaction REF NO: </span>
+<span id="ContentPlaceHolder1_rPaymentHistory_lblTransactionREFNO_3">UM32744</span>
+</div>
+<div>
+<span style="color: #484848; font-weight: bold">BANK REF NO: </span>
+<span id="ContentPlaceHolder1_rPaymentHistory_lblBANKREFNO_3">c074b6452763431183722bbf08ea58f0ul65t</span>
+</div>
+<div>
+<span style="color: #484848; font-weight: bold">PAYMENT MODE: </span>
+<span id="ContentPlaceHolder1_rPaymentHistory_lblPaymentMode_3">HDFC_NEW GATEWAY</span>
+</div>
+</td>
+<td style="font-size: 14px; width: 25%; vertical-align: top;">
+<div style="font-size: 12px"><span style="font-weight: bold">Total:</span><span style="font-size: 11px;"> </span>Rs 71800.00</div>
+<div style="font-size: 12px"><span style="font-weight: bold">Service Tax:</span><span style="font-size: 11px;"> Rs. </span>0.00</div>
+<div style="font-size: 12px"><span style="font-weight: bold">Processing Fee:</span><span style="font-size: 11px;"> Rs. </span>0.00</div>
+</td>
+<td style="width: 40%;">
+<span id="ContentPlaceHolder1_rPaymentHistory_lblTransactionResponse_3" style="color:Green">SUCCESS</span>
+</td>
+</tr>
+</table>
+</div>
+<div style="width: 100%; background-color: #F9F8F8; border-bottom: 1px solid #A5A5A5; clear: both; position: relative">
+<i class="trans-success"></i>
+<table cellpadding="0" cellspacing="0" style="width: 100%;">
+<tr>
+<td style="width: 8%;">
+<div class="transactions-date-container">
+<div class="transactions-date">15</div>
+<div class="transactions-month">May 2026</div>
+</div>
+</td>
+<td style="width: 32%; font-size: 12px;">
+<div>
+<span style="color: #484848; font-weight: bold">Transaction REF NO: </span>
+<span id="ContentPlaceHolder1_rPaymentHistory_lblTransactionREFNO_4">UM32254</span>
+</div>
+<div>
+<span style="color: #484848; font-weight: bold">BANK REF NO: </span>
+<span id="ContentPlaceHolder1_rPaymentHistory_lblBANKREFNO_4">cd6d0a5dcc99458f9c4083bf18dd5591bajbl</span>
+</div>
+<div>
+<span style="color: #484848; font-weight: bold">PAYMENT MODE: </span>
+<span id="ContentPlaceHolder1_rPaymentHistory_lblPaymentMode_4">HDFC_NEW GATEWAY</span>
+</div>
+</td>
+<td style="font-size: 14px; width: 25%; vertical-align: top;">
+<div style="font-size: 12px"><span style="font-weight: bold">Total:</span><span style="font-size: 11px;"> </span>Rs 64500.00</div>
+<div style="font-size: 12px"><span style="font-weight: bold">Service Tax:</span><span style="font-size: 11px;"> Rs. </span>0.00</div>
+<div style="font-size: 12px"><span style="font-weight: bold">Processing Fee:</span><span style="font-size: 11px;"> Rs. </span>0.00</div>
+</td>
+<td style="width: 40%;">
+<span id="ContentPlaceHolder1_rPaymentHistory_lblTransactionResponse_4" style="color:Green">SUCCESS</span>
+</td>
+</tr>
+</table>
+</div>
+<div style="width: 100%; background-color: #F9F8F8; border-bottom: 1px solid #A5A5A5; clear: both; position: relative">
+<i class="trans-failed"></i>
+<table cellpadding="0" cellspacing="0" style="width: 100%;">
+<tr>
+<td style="width: 8%;">
+<div class="transactions-date-container">
+<div class="transactions-date">15</div>
+<div class="transactions-month">May 2026</div>
+</div>
+</td>
+<td style="width: 32%; font-size: 12px;">
+<div>
+<span style="color: #484848; font-weight: bold">Transaction REF NO: </span>
+<span id="ContentPlaceHolder1_rPaymentHistory_lblTransactionREFNO_5">UM32248</span>
+</div>
+<div>
+<span style="color: #484848; font-weight: bold">BANK REF NO: </span>
+<span id="ContentPlaceHolder1_rPaymentHistory_lblBANKREFNO_5">212673176edc4046b0851dc570d80e84bc4yd</span>
+</div>
+<div>
+<span style="color: #484848; font-weight: bold">PAYMENT MODE: </span>
+<span id="ContentPlaceHolder1_rPaymentHistory_lblPaymentMode_5">HDFC_NEW GATEWAY</span>
+</div>
+</td>
+<td style="font-size: 14px; width: 25%; vertical-align: top;">
+<div style="font-size: 12px"><span style="font-weight: bold">Total:</span><span style="font-size: 11px;"> </span>Rs 65000.00</div>
+<div style="font-size: 12px"><span style="font-weight: bold">Service Tax:</span><span style="font-size: 11px;"> Rs. </span>0.00</div>
+<div style="font-size: 12px"><span style="font-weight: bold">Processing Fee:</span><span style="font-size: 11px;"> Rs. </span>0.00</div>
+</td>
+<td style="width: 40%;">
+<span id="ContentPlaceHolder1_rPaymentHistory_lblTransactionResponse_5" style="color:Red">FAILED</span>
+</td>
+</tr>
+</table>
+</div>
+<div style="width: 100%; background-color: #F9F8F8; border-bottom: 1px solid #A5A5A5; clear: both; position: relative">
+<i class="trans-failed"></i>
+<table cellpadding="0" cellspacing="0" style="width: 100%;">
+<tr>
+<td style="width: 8%;">
+<div class="transactions-date-container">
+<div class="transactions-date">15</div>
+<div class="transactions-month">May 2026</div>
+</div>
+</td>
+<td style="width: 32%; font-size: 12px;">
+<div>
+<span style="color: #484848; font-weight: bold">Transaction REF NO: </span>
+<span id="ContentPlaceHolder1_rPaymentHistory_lblTransactionREFNO_6">UM32239</span>
+</div>
+<div>
+<span style="color: #484848; font-weight: bold">BANK REF NO: </span>
+<span id="ContentPlaceHolder1_rPaymentHistory_lblBANKREFNO_6">a1662e33f587404191fba67e7e082c92ekvlm</span>
+</div>
+<div>
+<span style="color: #484848; font-weight: bold">PAYMENT MODE: </span>
+<span id="ContentPlaceHolder1_rPaymentHistory_lblPaymentMode_6">HDFC_NEW GATEWAY</span>
+</div>
+</td>
+<td style="font-size: 14px; width: 25%; vertical-align: top;">
+<div style="font-size: 12px"><span style="font-weight: bold">Total:</span><span style="font-size: 11px;"> </span>Rs 36300.00</div>
+<div style="font-size: 12px"><span style="font-weight: bold">Service Tax:</span><span style="font-size: 11px;"> Rs. </span>0.00</div>
+<div style="font-size: 12px"><span style="font-weight: bold">Processing Fee:</span><span style="font-size: 11px;"> Rs. </span>0.00</div>
+</td>
+<td style="width: 40%;">
+<span id="ContentPlaceHolder1_rPaymentHistory_lblTransactionResponse_6" style="color:Red">FAILED</span>
+</td>
+</tr>
+</table>
+</div>
+<div style="width: 100%; background-color: #F9F8F8; border-bottom: 1px solid #A5A5A5; clear: both; position: relative">
+<i class="trans-success"></i>
+<table cellpadding="0" cellspacing="0" style="width: 100%;">
+<tr>
+<td style="width: 8%;">
+<div class="transactions-date-container">
+<div class="transactions-date">7</div>
+<div class="transactions-month">Apr 2026</div>
+</div>
+</td>
+<td style="width: 32%; font-size: 12px;">
+<div>
+<span style="color: #484848; font-weight: bold">Transaction REF NO: </span>
+<span id="ContentPlaceHolder1_rPaymentHistory_lblTransactionREFNO_7">UM25968</span>
+</div>
+<div>
+<span style="color: #484848; font-weight: bold">BANK REF NO: </span>
+<span id="ContentPlaceHolder1_rPaymentHistory_lblBANKREFNO_7">e80fa0a560b1469dad97c7a62f87a3bfqpkfz</span>
+</div>
+<div>
+<span style="color: #484848; font-weight: bold">PAYMENT MODE: </span>
+<span id="ContentPlaceHolder1_rPaymentHistory_lblPaymentMode_7">HDFC_NEW GATEWAY</span>
+</div>
+</td>
+<td style="font-size: 14px; width: 25%; vertical-align: top;">
+<div style="font-size: 12px"><span style="font-weight: bold">Total:</span><span style="font-size: 11px;"> </span>Rs 6140.00</div>
+<div style="font-size: 12px"><span style="font-weight: bold">Service Tax:</span><span style="font-size: 11px;"> Rs. </span>0.00</div>
+<div style="font-size: 12px"><span style="font-weight: bold">Processing Fee:</span><span style="font-size: 11px;"> Rs. </span>0.00</div>
+</td>
+<td style="width: 40%;">
+<span id="ContentPlaceHolder1_rPaymentHistory_lblTransactionResponse_7" style="color:Green">SUCCESS</span>
+</td>
+</tr>
+</table>
+</div>
+<div style="width: 100%; background-color: #F9F8F8; border-bottom: 1px solid #A5A5A5; clear: both; position: relative">
+<i class="trans-failed"></i>
+<table cellpadding="0" cellspacing="0" style="width: 100%;">
+<tr>
+<td style="width: 8%;">
+<div class="transactions-date-container">
+<div class="transactions-date">14</div>
+<div class="transactions-month">Mar 2026</div>
+</div>
+</td>
+<td style="width: 32%; font-size: 12px;">
+<div>
+<span style="color: #484848; font-weight: bold">Transaction REF NO: </span>
+<span id="ContentPlaceHolder1_rPaymentHistory_lblTransactionREFNO_8">UM23739</span>
+</div>
+<div>
+<span style="color: #484848; font-weight: bold">BANK REF NO: </span>
+<span id="ContentPlaceHolder1_rPaymentHistory_lblBANKREFNO_8">8c496dc9ef9a4b848a44693da2f1b4a3rnyj8</span>
+</div>
+<div>
+<span style="color: #484848; font-weight: bold">PAYMENT MODE: </span>
+<span id="ContentPlaceHolder1_rPaymentHistory_lblPaymentMode_8">HDFC_NEW GATEWAY</span>
+</div>
+</td>
+<td style="font-size: 14px; width: 25%; vertical-align: top;">
+<div style="font-size: 12px"><span style="font-weight: bold">Total:</span><span style="font-size: 11px;"> </span>Rs 3200.00</div>
+<div style="font-size: 12px"><span style="font-weight: bold">Service Tax:</span><span style="font-size: 11px;"> Rs. </span>0.00</div>
+<div style="font-size: 12px"><span style="font-weight: bold">Processing Fee:</span><span style="font-size: 11px;"> Rs. </span>0.00</div>
+</td>
+<td style="width: 40%;">
+<span id="ContentPlaceHolder1_rPaymentHistory_lblTransactionResponse_8" style="color:Red">FAILED</span>
+</td>
+</tr>
+</table>
+</div>
+<div style="width: 100%; background-color: #F9F8F8; border-bottom: 1px solid #A5A5A5; clear: both; position: relative">
+<i class="trans-success"></i>
+<table cellpadding="0" cellspacing="0" style="width: 100%;">
+<tr>
+<td style="width: 8%;">
+<div class="transactions-date-container">
+<div class="transactions-date">30</div>
+<div class="transactions-month">Dec 2025</div>
+</div>
+</td>
+<td style="width: 32%; font-size: 12px;">
+<div>
+<span style="color: #484848; font-weight: bold">Transaction REF NO: </span>
+<span id="ContentPlaceHolder1_rPaymentHistory_lblTransactionREFNO_9">UM16047</span>
+</div>
+<div>
+<span style="color: #484848; font-weight: bold">BANK REF NO: </span>
+<span id="ContentPlaceHolder1_rPaymentHistory_lblBANKREFNO_9">92ca20d14d554d91b00f095d0089a3a8o8syk</span>
+</div>
+<div>
+<span style="color: #484848; font-weight: bold">PAYMENT MODE: </span>
+<span id="ContentPlaceHolder1_rPaymentHistory_lblPaymentMode_9">HDFC_NEW GATEWAY</span>
+</div>
+</td>
+<td style="font-size: 14px; width: 25%; vertical-align: top;">
+<div style="font-size: 12px"><span style="font-weight: bold">Total:</span><span style="font-size: 11px;"> </span>Rs 61300.00</div>
+<div style="font-size: 12px"><span style="font-weight: bold">Service Tax:</span><span style="font-size: 11px;"> Rs. </span>0.00</div>
+<div style="font-size: 12px"><span style="font-weight: bold">Processing Fee:</span><span style="font-size: 11px;"> Rs. </span>0.00</div>
+</td>
+<td style="width: 40%;">
+<span id="ContentPlaceHolder1_rPaymentHistory_lblTransactionResponse_9" style="color:Green">SUCCESS</span>
+</td>
+</tr>
+</table>
+</div>
+<div style="width: 100%; background-color: #F9F8F8; border-bottom: 1px solid #A5A5A5; clear: both; position: relative">
+<i class="trans-success"></i>
+<table cellpadding="0" cellspacing="0" style="width: 100%;">
+<tr>
+<td style="width: 8%;">
+<div class="transactions-date-container">
+<div class="transactions-date">23</div>
+<div class="transactions-month">Dec 2025</div>
+</div>
+</td>
+<td style="width: 32%; font-size: 12px;">
+<div>
+<span style="color: #484848; font-weight: bold">Transaction REF NO: </span>
+<span id="ContentPlaceHolder1_rPaymentHistory_lblTransactionREFNO_10">UM14723</span>
+</div>
+<div>
+<span style="color: #484848; font-weight: bold">BANK REF NO: </span>
+<span id="ContentPlaceHolder1_rPaymentHistory_lblBANKREFNO_10">4cb6ca61d3164fcc82731d282733cd9f72xj7</span>
+</div>
+<div>
+<span style="color: #484848; font-weight: bold">PAYMENT MODE: </span>
+<span id="ContentPlaceHolder1_rPaymentHistory_lblPaymentMode_10">HDFC_NEW GATEWAY</span>
+</div>
+</td>
+<td style="font-size: 14px; width: 25%; vertical-align: top;">
+<div style="font-size: 12px"><span style="font-weight: bold">Total:</span><span style="font-size: 11px;"> </span>Rs 50000.00</div>
+<div style="font-size: 12px"><span style="font-weight: bold">Service Tax:</span><span style="font-size: 11px;"> Rs. </span>0.00</div>
+<div style="font-size: 12px"><span style="font-weight: bold">Processing Fee:</span><span style="font-size: 11px;"> Rs. </span>0.00</div>
+</td>
+<td style="width: 40%;">
+<span id="ContentPlaceHolder1_rPaymentHistory_lblTransactionResponse_10" style="color:Green">SUCCESS</span>
+</td>
+</tr>
+</table>
+</div>
+<div style="width: 100%; background-color: #F9F8F8; border-bottom: 1px solid #A5A5A5; clear: both; position: relative">
+<i class="trans-success"></i>
+<table cellpadding="0" cellspacing="0" style="width: 100%;">
+<tr>
+<td style="width: 8%;">
+<div class="transactions-date-container">
+<div class="transactions-date">21</div>
+<div class="transactions-month">Dec 2025</div>
+</div>
+</td>
+<td style="width: 32%; font-size: 12px;">
+<div>
+<span style="color: #484848; font-weight: bold">Transaction REF NO: </span>
+<span id="ContentPlaceHolder1_rPaymentHistory_lblTransactionREFNO_11">UM14590</span>
+</div>
+<div>
+<span style="color: #484848; font-weight: bold">BANK REF NO: </span>
+<span id="ContentPlaceHolder1_rPaymentHistory_lblBANKREFNO_11">c22966d026784ab4ba6c1848b3f222d5952y2</span>
+</div>
+<div>
+<span style="color: #484848; font-weight: bold">PAYMENT MODE: </span>
+<span id="ContentPlaceHolder1_rPaymentHistory_lblPaymentMode_11">HDFC_NEW GATEWAY</span>
+</div>
+</td>
+<td style="font-size: 14px; width: 25%; vertical-align: top;">
+<div style="font-size: 12px"><span style="font-weight: bold">Total:</span><span style="font-size: 11px;"> </span>Rs 67940.00</div>
+<div style="font-size: 12px"><span style="font-weight: bold">Service Tax:</span><span style="font-size: 11px;"> Rs. </span>0.00</div>
+<div style="font-size: 12px"><span style="font-weight: bold">Processing Fee:</span><span style="font-size: 11px;"> Rs. </span>0.00</div>
+</td>
+<td style="width: 40%;">
+<span id="ContentPlaceHolder1_rPaymentHistory_lblTransactionResponse_11" style="color:Green">SUCCESS</span>
+</td>
+</tr>
+</table>
+</div>
+<div style="width: 100%; background-color: #F9F8F8; border-bottom: 1px solid #A5A5A5; clear: both; position: relative">
+<i class="trans-success"></i>
+<table cellpadding="0" cellspacing="0" style="width: 100%;">
+<tr>
+<td style="width: 8%;">
+<div class="transactions-date-container">
+<div class="transactions-date">29</div>
+<div class="transactions-month">Nov 2025</div>
+</div>
+</td>
+<td style="width: 32%; font-size: 12px;">
+<div>
+<span style="color: #484848; font-weight: bold">Transaction REF NO: </span>
+<span id="ContentPlaceHolder1_rPaymentHistory_lblTransactionREFNO_12">UM12847</span>
+</div>
+<div>
+<span style="color: #484848; font-weight: bold">BANK REF NO: </span>
+<span id="ContentPlaceHolder1_rPaymentHistory_lblBANKREFNO_12">0b177fa12cd54154915cac2b67a8443ejq8wo</span>
+</div>
+<div>
+<span style="color: #484848; font-weight: bold">PAYMENT MODE: </span>
+<span id="ContentPlaceHolder1_rPaymentHistory_lblPaymentMode_12">HDFC_NEW GATEWAY</span>
+</div>
+</td>
+<td style="font-size: 14px; width: 25%; vertical-align: top;">
+<div style="font-size: 12px"><span style="font-weight: bold">Total:</span><span style="font-size: 11px;"> </span>Rs 48800.00</div>
+<div style="font-size: 12px"><span style="font-weight: bold">Service Tax:</span><span style="font-size: 11px;"> Rs. </span>0.00</div>
+<div style="font-size: 12px"><span style="font-weight: bold">Processing Fee:</span><span style="font-size: 11px;"> Rs. </span>0.00</div>
+</td>
+<td style="width: 40%;">
+<span id="ContentPlaceHolder1_rPaymentHistory_lblTransactionResponse_12" style="color:Green">SUCCESS</span>
+</td>
+</tr>
+</table>
+</div>
+<div style="width: 100%; background-color: #F9F8F8; border-bottom: 1px solid #A5A5A5; clear: both; position: relative">
+<i class="trans-success"></i>
+<table cellpadding="0" cellspacing="0" style="width: 100%;">
+<tr>
+<td style="width: 8%;">
+<div class="transactions-date-container">
+<div class="transactions-date">11</div>
+<div class="transactions-month">Aug 2025</div>
+</div>
+</td>
+<td style="width: 32%; font-size: 12px;">
+<div>
+<span style="color: #484848; font-weight: bold">Transaction REF NO: </span>
+<span id="ContentPlaceHolder1_rPaymentHistory_lblTransactionREFNO_13">UM8372</span>
+</div>
+<div>
+<span style="color: #484848; font-weight: bold">BANK REF NO: </span>
+<span id="ContentPlaceHolder1_rPaymentHistory_lblBANKREFNO_13">9941fffaf6d24188967ff900b755c738j46m0</span>
+</div>
+<div>
+<span style="color: #484848; font-weight: bold">PAYMENT MODE: </span>
+<span id="ContentPlaceHolder1_rPaymentHistory_lblPaymentMode_13">HDFC_NEW GATEWAY</span>
+</div>
+</td>
+<td style="font-size: 14px; width: 25%; vertical-align: top;">
+<div style="font-size: 12px"><span style="font-weight: bold">Total:</span><span style="font-size: 11px;"> </span>Rs 15000.00</div>
+<div style="font-size: 12px"><span style="font-weight: bold">Service Tax:</span><span style="font-size: 11px;"> Rs. </span>0.00</div>
+<div style="font-size: 12px"><span style="font-weight: bold">Processing Fee:</span><span style="font-size: 11px;"> Rs. </span>0.00</div>
+</td>
+<td style="width: 40%;">
+<span id="ContentPlaceHolder1_rPaymentHistory_lblTransactionResponse_13" style="color:Green">SUCCESS</span>
+</td>
+</tr>
+</table>
+</div>
+<div style="width: 100%; background-color: #F9F8F8; border-bottom: 1px solid #A5A5A5; clear: both; position: relative">
+<i class="trans-success"></i>
+<table cellpadding="0" cellspacing="0" style="width: 100%;">
+<tr>
+<td style="width: 8%;">
+<div class="transactions-date-container">
+<div class="transactions-date">11</div>
+<div class="transactions-month">Aug 2025</div>
+</div>
+</td>
+<td style="width: 32%; font-size: 12px;">
+<div>
+<span style="color: #484848; font-weight: bold">Transaction REF NO: </span>
+<span id="ContentPlaceHolder1_rPaymentHistory_lblTransactionREFNO_14">UM8371</span>
+</div>
+<div>
+<span style="color: #484848; font-weight: bold">BANK REF NO: </span>
+<span id="ContentPlaceHolder1_rPaymentHistory_lblBANKREFNO_14">0ec400dc921240a1b9826bea6ac455b0ms1ex</span>
+</div>
+<div>
+<span style="color: #484848; font-weight: bold">PAYMENT MODE: </span>
+<span id="ContentPlaceHolder1_rPaymentHistory_lblPaymentMode_14">HDFC_NEW GATEWAY</span>
+</div>
+</td>
+<td style="font-size: 14px; width: 25%; vertical-align: top;">
+<div style="font-size: 12px"><span style="font-weight: bold">Total:</span><span style="font-size: 11px;"> </span>Rs 50000.00</div>
+<div style="font-size: 12px"><span style="font-weight: bold">Service Tax:</span><span style="font-size: 11px;"> Rs. </span>0.00</div>
+<div style="font-size: 12px"><span style="font-weight: bold">Processing Fee:</span><span style="font-size: 11px;"> Rs. </span>0.00</div>
+</td>
+<td style="width: 40%;">
+<span id="ContentPlaceHolder1_rPaymentHistory_lblTransactionResponse_14" style="color:Green">SUCCESS</span>
+</td>
+</tr>
+</table>
+</div>
+<div style="width: 100%; background-color: #F9F8F8; border-bottom: 1px solid #A5A5A5; clear: both; position: relative">
+<i class="trans-success"></i>
+<table cellpadding="0" cellspacing="0" style="width: 100%;">
+<tr>
+<td style="width: 8%;">
+<div class="transactions-date-container">
+<div class="transactions-date">11</div>
+<div class="transactions-month">Aug 2025</div>
+</div>
+</td>
+<td style="width: 32%; font-size: 12px;">
+<div>
+<span style="color: #484848; font-weight: bold">Transaction REF NO: </span>
+<span id="ContentPlaceHolder1_rPaymentHistory_lblTransactionREFNO_15">UM8364</span>
+</div>
+<div>
+<span style="color: #484848; font-weight: bold">BANK REF NO: </span>
+<span id="ContentPlaceHolder1_rPaymentHistory_lblBANKREFNO_15">5b9bfb6e34fc44319917a24bb540c2d47eihb</span>
+</div>
+<div>
+<span style="color: #484848; font-weight: bold">PAYMENT MODE: </span>
+<span id="ContentPlaceHolder1_rPaymentHistory_lblPaymentMode_15">HDFC_NEW GATEWAY</span>
+</div>
+</td>
+<td style="font-size: 14px; width: 25%; vertical-align: top;">
+<div style="font-size: 12px"><span style="font-weight: bold">Total:</span><span style="font-size: 11px;"> </span>Rs 54500.00</div>
+<div style="font-size: 12px"><span style="font-weight: bold">Service Tax:</span><span style="font-size: 11px;"> Rs. </span>0.00</div>
+<div style="font-size: 12px"><span style="font-weight: bold">Processing Fee:</span><span style="font-size: 11px;"> Rs. </span>0.00</div>
+</td>
+<td style="width: 40%;">
+<span id="ContentPlaceHolder1_rPaymentHistory_lblTransactionResponse_15" style="color:Green">SUCCESS</span>
+</td>
+</tr>
+</table>
+</div>
+<div style="width: 100%; background-color: #F9F8F8; border-bottom: 1px solid #A5A5A5; clear: both; position: relative">
+<i class="trans-failed"></i>
+<table cellpadding="0" cellspacing="0" style="width: 100%;">
+<tr>
+<td style="width: 8%;">
+<div class="transactions-date-container">
+<div class="transactions-date">11</div>
+<div class="transactions-month">Aug 2025</div>
+</div>
+</td>
+<td style="width: 32%; font-size: 12px;">
+<div>
+<span style="color: #484848; font-weight: bold">Transaction REF NO: </span>
+<span id="ContentPlaceHolder1_rPaymentHistory_lblTransactionREFNO_16">UM8360</span>
+</div>
+<div>
+<span style="color: #484848; font-weight: bold">BANK REF NO: </span>
+<span id="ContentPlaceHolder1_rPaymentHistory_lblBANKREFNO_16">a2ae6ddbee9b476eadc0390c5b17778excoq2</span>
+</div>
+<div>
+<span style="color: #484848; font-weight: bold">PAYMENT MODE: </span>
+<span id="ContentPlaceHolder1_rPaymentHistory_lblPaymentMode_16">HDFC_NEW GATEWAY</span>
+</div>
+</td>
+<td style="font-size: 14px; width: 25%; vertical-align: top;">
+<div style="font-size: 12px"><span style="font-weight: bold">Total:</span><span style="font-size: 11px;"> </span>Rs 54500.00</div>
+<div style="font-size: 12px"><span style="font-weight: bold">Service Tax:</span><span style="font-size: 11px;"> Rs. </span>0.00</div>
+<div style="font-size: 12px"><span style="font-weight: bold">Processing Fee:</span><span style="font-size: 11px;"> Rs. </span>0.00</div>
+</td>
+<td style="width: 40%;">
+<span id="ContentPlaceHolder1_rPaymentHistory_lblTransactionResponse_16" style="color:Red">FAILED</span>
+</td>
+</tr>
+</table>
+</div>
+<div style="width: 100%; background-color: #F9F8F8; border-bottom: 1px solid #A5A5A5; clear: both; position: relative">
+<i class="trans-success"></i>
+<table cellpadding="0" cellspacing="0" style="width: 100%;">
+<tr>
+<td style="width: 8%;">
+<div class="transactions-date-container">
+<div class="transactions-date">9</div>
+<div class="transactions-month">Aug 2025</div>
+</div>
+</td>
+<td style="width: 32%; font-size: 12px;">
+<div>
+<span style="color: #484848; font-weight: bold">Transaction REF NO: </span>
+<span id="ContentPlaceHolder1_rPaymentHistory_lblTransactionREFNO_17">UM8294</span>
+</div>
+<div>
+<span style="color: #484848; font-weight: bold">BANK REF NO: </span>
+<span id="ContentPlaceHolder1_rPaymentHistory_lblBANKREFNO_17">pay_R3Hfi5D3BMLyq3</span>
+</div>
+<div>
+<span style="color: #484848; font-weight: bold">PAYMENT MODE: </span>
+<span id="ContentPlaceHolder1_rPaymentHistory_lblPaymentMode_17">HDFC_New_LSQ GATEWAY:Online</span>
+</div>
+</td>
+<td style="font-size: 14px; width: 25%; vertical-align: top;">
+<div style="font-size: 12px"><span style="font-weight: bold">Total:</span><span style="font-size: 11px;"> </span>Rs 10000.00</div>
+<div style="font-size: 12px"><span style="font-weight: bold">Service Tax:</span><span style="font-size: 11px;"> Rs. </span>0.00</div>
+<div style="font-size: 12px"><span style="font-weight: bold">Processing Fee:</span><span style="font-size: 11px;"> Rs. </span>0.00</div>
+</td>
+<td style="width: 40%;">
+<span id="ContentPlaceHolder1_rPaymentHistory_lblTransactionResponse_17" style="color:Green">SUCCESS</span>
+</td>
+</tr>
+</table>
+</div>
+</div>
+</td>
+</tr>
+</table>
+</div><input id="ctl00_ContentPlaceHolder1_RadMultiPage1_ClientState" name="ctl00_ContentPlaceHolder1_RadMultiPage1_ClientState" type="hidden"/>
+</div>
+<div class="sidenav" id="divPendingFeeOthers" style="transition: all 0.5s ease 0s; top: 0; width: 0px; z-index: 9999; font-size: smaller !important;">
+<div style="display: block; margin: -45px auto auto; width: 90%;">
+<div style="max-height: 750px; overflow-y: auto; padding: 5px !important;">
+<div class="closebtn" onclick="ClosePendingFeeOthers();">
+                                    X
+                                </div>
+<div style="margin-top: 10%">
+<div id="ContentPlaceHolder1_ltrl" style="font-size: large; color: red; text-align: center"></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="sidenav" id="divPD_PopUp" style="transition: all 0.5s ease 0s; width: 0px; z-index: 15;">
+<div style="display: block; margin: auto; width: 80%;">
+<div style="background: #fff; max-height: 350px;">
+<div class="closebtn" onclick="ClosePD_PopUp();">
+                    X
+                </div>
+<div align="center" class="blink" id="ContentPlaceHolder1_div_content" style="font-size: 20px; color: red;"></div>
+</div>
+</div>
+</div>
+<input id="ContentPlaceHolder1_hfisaloowed" name="ctl00$ContentPlaceHolder1$hfisaloowed" type="hidden" value="1"/>
+<input id="ContentPlaceHolder1_hPropelldAutologin" name="ctl00$ContentPlaceHolder1$hPropelldAutologin" type="hidden" value="VXNlcklkPTI1TEJDUzEyOTQ7VHlwZT1TO0FjY291bnRObz0xMjUwMzA1NDk="/>
+<script>
+
+        function EMIbtnClick() {
+            // Get the RadioButtonList elements
+            var rbtnEMIOptions = document.getElementById('ContentPlaceHolder1_rbtnEMIOptions');
+            var rbtnEMIOptionsPropelld = document.getElementById('ContentPlaceHolder1_rbtnEMIOptionsPropelld');
+
+            // Check if rbtnEMIOptions is selected
+            if (rbtnEMIOptions.querySelector('input[type="radio"]:checked')) {
+                // Call gqbtnClick if the first RadioButtonList is selected
+                gqbtnClick();
+            }
+                // Check if rbtnEMIOptionsPropelld is selected
+            else if (rbtnEMIOptionsPropelld.querySelector('input[type="radio"]:checked')) {
+                // Call PropelldbtnClick if the second RadioButtonList is selected
+                PropelldbtnClick();
+            } else {
+                // If no selection is made, show an alert
+                alert("Please select a Payable Option.");
+            }
+        }
+
+        (function (g, q, s, d, k) {
+            var loader = function () {
+                var gq,
+                    id = 'gqerp-jssdk';
+                if (q.getElementById(id)) {
+                    return;
+                }
+                gq = q.createElement(s);
+                gq.async = true;
+                gq.type = 'text/javascript';
+                gq.src = d;
+                var sc = q.getElementsByTagName('script')[0];
+                sc.parentNode.insertBefore(gq, sc);
+            };
+            g.addEventListener
+                ? g.addEventListener('load', loader, false)
+                : g.attachEvent('onload', loader);
+        })(window, document, 'script', 'https://erp-sdk.grayquest.com/v1.1/gqerp-sdk.min.js?v=latest');
+
+        function gqbtnClick() {
+            var calculatedAmount = document.getElementById('ContentPlaceHolder1_hdnCalculatedAmount').value;
+              var UID = '25LBCS1294';
+              var API_ID = '1';
+              console.log('calamount', calculatedAmount)
+              console.log('uid', UID)
+              $.ajax({
+                  method: "POST",
+                  url: "frmAccountStudentDetails.aspx/GetStudentAdmissionDetails",
+                  data: "{UID:'" + UID + "'}",
+                  contentType: "application/json; charset=utf-8",
+                  dataType: "json",
+                  success: function (response) {
+                      var responseData = JSON.parse(response.d);
+                      console.log('responsedata', responseData)
+                      const fullName = responseData[0].Name.split(" ");
+                      var firstName = fullName[0];
+                      var lastName = fullName[1];
+                      SaveAPILog('0', 'SUCCESS', API_ID);
+                      /* const fullAddress = responseData[0].PermanentAddress;
+                       let line1 = "";
+                       let line2 = "";
+                       if (fullAddress.length > 40) {
+                           const lastSpaceIndex = fullAddress.lastIndexOf(' ', 40);
+ 
+                           if (lastSpaceIndex !== -1) {
+                               line1 = fullAddress.substring(0, lastSpaceIndex);
+                               line2 = fullAddress.substring(lastSpaceIndex + 1);
+                           }
+                       }*/
+                      GqErpSDK.setOptions({
+                          env: 'live',
+                          auth: {
+
+                              client_id: 'GQ-6b2fb427-275e-4f8f-ba84-2caae49145fb',
+                              client_secret: '4b967388-a4ef-4ee9-9be4-55c7ae22742a',
+                              api_key: '6ffdbe41-0f3d-423f-ab58-5ecfc23ce544',
+                          },
+                          student_id: responseData[0].UID,
+                          customer_mobile: responseData[0].MobileNo,
+                          student_details: {
+                              student_first_name: firstName,
+                              student_last_name: lastName,
+                              student_type: "EXISTING",
+                          },
+                          customer_details: {
+                              customer_email: responseData[0].Email,
+                          },
+                          residential_details: {
+                              //  residential_addr_line_1: line1 ? line1 : responseData[0].PermanentAddress,
+                              //   residential_addr_line_2: line2,
+                              //    residential_pincode: responseData[0].PermanentPin,
+                          },
+
+                          notes: {
+                              account_no: responseData[0].AccountNo,
+                          },
+                          pp_config: {
+                              slug: "chandigarh-university-semester-hostel",
+                          },
+                          fee_headers: {
+                              Payable_fee_Emi: parseInt(calculatedAmount),
+                          },
+
+                          customizations: {
+
+                          },
+                      });
+                      GqErpSDK.render();
+                  },
+                  error: function () {
+                      $("#result").html("Failed to fetch record.");
+                  }
+              });
+          }
+          document.addEventListener('onGqPopupClose', (e) => {
+              console.log('GQ Popup close', e);
+          });
+          document.addEventListener('onGqFormSubmit', (e) => {
+              console.log('form submit');
+          });
+          document.addEventListener('onGqError', (e) => {
+              console.log('GQ Error = ', e);
+          });
+
+          document.addEventListener('onGqSuccess', (e) => {
+              console.log('GQ SUCCESS = ', e);
+          });
+
+          document.addEventListener('onGqActivity', (e) => {
+              console.log('GQ ACTIVITY = ', e);
+          });
+
+             
+
+        function PropelldbtnClick() {
+            var UID = '25LBCS1294';
+            var API_ID = '2';
+            var APIAutologin = document.getElementById('ContentPlaceHolder1_hPropelldAutologin').value;
+              var TotalcalculatedAmount = document.getElementById('ContentPlaceHolder1_hdnCalculatedAmount').value; // Fetch the calculated amount
+            calculatedAmount = parseInt(TotalcalculatedAmount);
+            $.ajax({
+                method: "POST",
+                url: "frmAccountStudentDetails.aspx/GetStudentAdmissionDetailsforPropelld",
+                data: "{UID:'" + UID + "'}",
+                contentType: "application/json; charset=utf-8",
+                dataType: "json",
+                success: function (response) {
+                    var responseData = JSON.parse(response.d);
+                    //console.log('Received responseData:', responseData);
+
+                    // Split Name
+                    const fullName = responseData[0].Name.split(" ");
+                    var firstName = fullName[0] || '';
+                    var lastName = fullName[1] || '';
+
+                    // Construct API body with calculatedAmount
+                    var apiBody = {
+                        "CourseId": responseData[0].CourseId,
+                        "FirstName": firstName,
+                        "LastName": lastName,
+                        "DiscountedCourseFee": calculatedAmount, // Use calculatedAmount
+                        "LoanAmount": calculatedAmount,         // Use calculatedAmount
+                        "Tenor": responseData[0].Tenor,
+                        "Moratorium": responseData[0].Moratorium,
+                        "Email": responseData[0].Email,
+                        "Mobile": responseData[0].Mobile,
+                        "ParentName": responseData[0].ParentName,
+                        "ParentMobileNumber": responseData[0].ParentMobileNumber,
+                        "ParentEmail": responseData[0].ParentEmail,
+                        "ReferenceNumber": responseData[0].ReferenceNumber,
+                        "RedirectUrl": "https://students.cuchd.in/frmAccountStudentDetails.aspx?Autologin=" + APIAutologin,
+                        "Notes": {}
+                    };
+
+                    //console.log("Sending data to API:", apiBody);
+
+                    // Call the Propelld API
+                    $.ajax({
+                        method: "POST",
+                        url: "https://live.propelld.com/v1/product/apply/generic",
+                        headers: {
+                            "client-id": "XZe6FtiViuGXIenECCJeqlNn_fAuFlmg724f8883-1686-5616-881f-f05d1572fc09",
+                            "client-secret": "vIsmmNYHJs9IqbjNVnVsQHiSywA0Z1Hcc99b6186-115d-55c1-9f49-99354e2b0f4d",
+                            "Content-Type": "application/json"
+                        },
+                        data: JSON.stringify(apiBody),
+                        success: function (apiResponse) {
+                            //console.log("Propelld API response:", apiResponse);
+
+                            if (apiResponse.Code === 0 && apiResponse.Message === "SUCCESS") {
+                                var redirectionUrl = apiResponse.PayLoad.RedirectionUrl;
+                                var QuoteId = apiResponse.PayLoad.QuoteId;
+                                //console.log("Redirecting user to:", redirectionUrl);
+                                SaveAPILog(QuoteId, 'SUCCESS', API_ID);
+                                // Redirect user to the RedirectionUrl
+                                
+                                window.open(redirectionUrl, '_blank');
+                            }
+                            else {
+                                console.error("API returned an error:", apiResponse.Errors);
+                                alert("Something went wrong: " + apiResponse.Message);
+                                SaveAPILog('0', apiResponse.Message, API_ID);
+                            }
+                        },
+                        error: function (xhr, status, error) {
+                            if (xhr.status === 406) {
+                                const response = JSON.parse(xhr.responseText || "{}");
+                                const errorMessage = response?.Errors?.[0]?.Message || "An error occurred.";
+                                alert(errorMessage);
+                                 
+                                SaveAPILog('0', errorMessage, API_ID);
+                            }
+                            else {
+                                console.error("Failed to send data to Propelld API:", status, error);
+                                alert("Failed to process your request. Please try again later.");
+                                SaveAPILog('0', 'Failed to process your request. Please try again later.', API_ID);
+                            }
+                        }
+                    });
+                },
+                error: function () {
+                    $("#result").html("Failed to fetch record.");
+                }
+            });
+        }
+
+        function SaveAPILog(QuoteId,MSG,API_ID) {
+            //alert("QuoteId: " + QuoteId + ", Message: " + MSG);
+            var UID = '25LBCS1294';
+              $.ajax({
+                  method: "POST",
+                  url: "frmAccountStudentDetails.aspx/SaveApiResponse",
+                  data: JSON.stringify({
+                      UID: UID,
+                      QuoteId: QuoteId,
+                      Message: MSG,
+                      API_ID: API_ID
+                  }), // Pass UID, QuoteId, and Message as JSON
+                  contentType: "application/json; charset=utf-8",
+                  dataType: "json",
+                  success: function (response) {
+                      var responseData = JSON.parse(response.d);
+                      
+
+                      
+                  },
+                  error: function () {
+                      $("#result").html("Failed to fetch record.");
+                  }
+              });
+          }
+
+    </script>
+</div>
+<footer class="footer d-flex flex-column" id="footer">
+<div class="top-footer d-flex align-items-center justify-content-center flex-column">
+<a href="#"><img alt="Chandigarh University" class="img-fluid" src="/assets/upload-images/logo-black.svg"/></a>
+<ul class="social-icons d-flex">
+<li><a href="#"><img alt="Facebook" class="img-fluid" src="/assets/upload-images/icon-fb.svg"/></a></li>
+<li><a href="#"><img alt="Twitter" class="img-fluid" src="/assets/upload-images/icon-twitter.svg"/></a></li>
+<li><a href="#"><img alt="Vimeo" class="img-fluid" src="/assets/upload-images/icon-vimeo.svg"/></a></li>
+<li><a href="https://www.youtube.com/@Chandigarhuniversity"><img alt="Youtube" class="img-fluid" src="/assets/upload-images/icon-youtube.svg" width="30"/></a></li>
+</ul>
+</div>
+<div class="text-end">
+<a href="bugreport.aspx" id="a_bugreport" title="Report a bug">Report a Bug  <i aria-hidden="true" class="fa fa-bug"></i></a>
+</div>
+<div class="bottom-footer d-flex justify-content-between">
+<div class="footer-txt">© 2025 Chandigarh University, Lucknow - Kanpur Highway-27, Unnao, Uttar Pradesh, India.</div>
+<div class="footer-txt"><a href="tel:18002701411"><img alt="phone" class="img-fluid" src="/assets/upload-images/icon-phone.svg" width="15"/>General Helpline No: 18002701411</a></div>
+<div class="footer-txt"><a href="mailto:studentcare@culko.in"><img alt="Email ID" class="img-fluid" src="/assets/upload-images/icon-email.svg" width="15"/>studentcare@culko.in</a></div>
+</div>
+</footer>
+</div>
+<div class="modal fade" id="div_help_popup" role="dialog" style="z-index: 99999; background: rgba(255, 255, 255, 0.9); display:none;">
+<div class="modal-dialog">
+<!-- Modal content-->
+<div class="modal-content">
+<div class="modal-header">
+<button class="close" data-dismiss="modal" onclick="OpenNewPopUp('0','div_help_popup')" type="button">×</button>
+<h4 class="modal-title text-center">UIMS HELP</h4>
+</div>
+<div class="modal-body" id="help_content" style="height: 450px; overflow-y: scroll;">
+</div>
+</div>
+</div>
+</div>
+<!-- Modal -->
+<div class="modal fade" id="div_libpopup" role="dialog" style="z-index: 999999; background: rgba(255, 255, 255, 0.9); display:none;">
+<div class="modal-dialog">
+<!-- Modal content-->
+<div class="modal-content">
+<div class="modal-header">
+<h4 class="modal-title text-center w-100">LIBRARY MESSAGES</h4>
+<button class="close" data-dismiss="modal" onclick="OpenNewPopUp('0','div_libpopup')" type="button">×</button>
+</div>
+<div class="modal-body">
+<ul class="nav nav-tabs nav-tabMessage" id="tabs">
+<li class="active"><a data-toggle="tab" href="#t1">Pending</a></li>
+<li><a data-toggle="tab" href="#t2">History</a></li>
+</ul>
+<div id="div_lib_content">
+</div>
+<!-- Bootstrap Accordion -->
+<div aria-multiselectable="true" class="panel-group" id="accordion" role="tablist"></div>
+<!-- /Bootstrap Accordion -->
+</div>
+</div>
+</div>
+</div>
+<div class="sidenav" id="div_celebrations" style="transition: all 0.5s ease 0s; width: 0px; z-index: 15;">
+<div style="display: block; margin: auto; width: 100%;">
+<div style="background: #fff;">
+<div class="div_celebrations_Popup">
+</div>
+</div>
+</div>
+</div>
+<div class="divForcePopup modal fade" id="divForcePopUp" role="dialog" style="z-index: 99999; background: rgba(255, 255, 255, 0.9);">
+<div class="modal-dialog" style="width: 98%; max-width:98%;">
+<!-- Modal content-->
+<div class="modal-content">
+<div class="modal-header">
+<button class="close" data-dismiss="modal" onclick="OpenNewPopUp('0','divForcePopUp')" type="button">×</button>
+<h4 class="modal-title text-center w-100">IMPORTANT INFORMATION</h4>
+</div>
+<div class="modal-body" id="divForcePopUp_content">
+</div>
+</div>
+</div>
+</div>
+<div id="UpdateProgress1" style="display:none;">
+<div id="loader-wrapper">
+<div id="loader">
+<img src="assets/uploads/loader.gif"/>
+<p>Loading...</p>
+</div>
+</div>
+</div>
+<script src="assets/js/bootstrap.min.js"></script>
+<script src="assets/js/materialize.js" type="text/javascript"></script>
+<script src="Scripts/UIMSHome4.0.js?version=4.2" type="text/javascript"></script>
+<script src="n-js/jquery.scrollbar.js" type="text/javascript"></script>
+<script src="Scripts/toastr8.min.js" type="text/javascript"></script>
+<script src="Scripts/jquery-ui.js" type="text/javascript"></script>
+<script>
+        $(".mob-search a").click(function(){
+            $(".page-search").toggleClass("open");
+        });
+    </script>
+<script>
+        const myElement = document.getElementById('myElement');
+        const searchBox = document.getElementById('searchBox');
+        searchBox.addEventListener('click', function () {
+            myElement.classList.toggle('searchOuter');
+        });
+        function slideLeft() {
+            const mainWrap = document.getElementById('mainWrap');
+            mainWrap.classList.toggle('slideLeft');
+            const sidebarMenu = document.getElementById('uims_sidebars');
+            //uims_sidebar.classList.toggle('slideLeft');
+        }
+        function flip() {
+            $('.card-thumb').toggleClass('flipped');
+        }
+    </script>
+<script type="text/javascript">
+//<![CDATA[
+setTimeout(function () { ShowMessage('divPartPaymentPopUp','1')}, 500);setTimeout(function () { OpenPendingFeeOthers() }, 200);Sys.Application.add_init(function() {
+    $create(Telerik.Web.UI.RadTabStrip, {"_selectedIndex":0,"_skin":"","clientStateFieldID":"ctl00_ContentPlaceHolder1_RadTabStrip1_ClientState","multiPageID":"ctl00_ContentPlaceHolder1_RadMultiPage1","selectedIndexes":["0"],"tabData":[{"selectedCssClass":"selectedTab","hoveredCssClass":"hoveredTab","cssClass":"tab overviewTab","_implPageViewID":"ContentPlaceHolder1_RadPageView1"},{"selectedCssClass":"selectedTab","hoveredCssClass":"hoveredTab","cssClass":"tab attractionsTab","_implPageViewID":"ContentPlaceHolder1_RadPageView2"}]}, null, null, $get("ctl00_ContentPlaceHolder1_RadTabStrip1"));
+});
+Sys.Application.add_init(function() {
+    $create(Telerik.Web.UI.RadMultiPage, {"clientStateFieldID":"ctl00_ContentPlaceHolder1_RadMultiPage1_ClientState","pageViewData":[{"id":"ContentPlaceHolder1_RadPageView1"},{"id":"ContentPlaceHolder1_RadPageView2"},{"id":"ContentPlaceHolder1_RadPageView3"}],"selectedIndex":0}, null, null, $get("ctl00_ContentPlaceHolder1_RadMultiPage1"));
+});
+Sys.Application.add_init(function() {
+    $create(Sys.UI._UpdateProgress, {"associatedUpdatePanelId":null,"displayAfter":0,"dynamicLayout":true}, null, null, $get("UpdateProgress1"));
+});
+Sys.Application.add_init(function() {
+    $create(AjaxControlToolkit.AlwaysVisibleControlBehavior, {"HorizontalSide":1,"VerticalSide":1,"id":"AlwaysVisibleControlExtender5"}, null, null, $get("UpdateProgress1"));
+});
+//]]>
+</script>
+</form>
+</body>
+</html>

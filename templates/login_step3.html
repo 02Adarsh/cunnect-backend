@@ -1,0 +1,787 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CUIMS - Complete Your Profile</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+    />
+
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@600;700;800&display=swap");
+
+      body {
+        font-family: "Inter", system-ui, sans-serif;
+      }
+
+      .profile-logo-wrap {
+        margin: 0 auto 28px;
+        text-align: center;
+      }
+      .cunnect-logo {
+        display: inline-flex;
+        align-items: baseline;
+        font-family: "Poppins", system-ui, sans-serif;
+        font-size: 42px;
+        font-weight: 800;
+        letter-spacing: -3px;
+        line-height: 1;
+      }
+      .logo-cu {
+        color: #ff1022;
+        text-shadow:
+          0 0 10px rgba(255, 16, 34, 0.85),
+          0 0 22px rgba(255, 16, 34, 0.35);
+      }
+      .logo-nnect {
+        color: #fff;
+        text-shadow: 0 2px 10px rgba(255, 255, 255, 0.16);
+      }
+      .logo-tagline {
+        width: 100%;
+        display: block;
+        margin: 12px auto 0;
+        color: #a3a3a3;
+        text-align: center;
+        font-size: 9px;
+        font-weight: 700;
+        letter-spacing: 2px;
+      }
+
+      .course-picker {
+        position: relative;
+      }
+      .course-selected-wrap {
+        position: relative;
+      }
+      .course-toggle {
+        position: absolute;
+        top: 50%;
+        right: 15px;
+        border: 0;
+        background: transparent;
+        color: #a1a1aa;
+        cursor: pointer;
+        transform: translateY(-50%);
+      }
+      .course-dropdown {
+        position: absolute;
+        z-index: 50;
+        top: calc(100% + 8px);
+        left: 0;
+        right: 0;
+        overflow: hidden;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 16px;
+        background: #18181b;
+        box-shadow: 0 18px 45px rgba(0, 0, 0, 0.55);
+      }
+      .course-dropdown.hidden {
+        display: none;
+      }
+      .course-search-wrap {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        color: #a1a1aa;
+      }
+      .course-search-wrap input {
+        width: 100%;
+        border: 0;
+        outline: 0;
+        background: transparent;
+        color: #fff;
+        font-size: 13px;
+      }
+      .course-options {
+        max-height: 260px;
+        overflow-y: auto;
+        padding: 6px;
+      }
+      .course-group-title {
+        padding: 10px 10px 5px;
+        color: #ef4444;
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: 0.8px;
+        text-transform: uppercase;
+      }
+      .course-option {
+        width: 100%;
+        padding: 10px;
+        border: 0;
+        border-radius: 9px;
+        background: transparent;
+        color: #e5e5e5;
+        cursor: pointer;
+        font-size: 12px;
+        text-align: left;
+        transition: 0.2s ease;
+      }
+      .course-option:hover {
+        background: rgba(239, 16, 34, 0.14);
+        color: #fff;
+      }
+      .course-empty {
+        padding: 20px;
+        color: #a1a1aa;
+        font-size: 12px;
+        text-align: center;
+      }
+    </style>
+  </head>
+
+  <body class="min-h-screen flex items-center justify-center bg-zinc-950 py-8">
+    <div class="w-full max-w-lg px-4">
+      <div
+        class="bg-zinc-900 border border-white/10 rounded-3xl p-8 shadow-2xl"
+      >
+        <div class="profile-logo-wrap">
+          <div class="cunnect-logo">
+            <span class="logo-cu">CU</span><span class="logo-nnect">nnect</span>
+          </div>
+          <p class="logo-tagline">YOUR CAMPUS. CONNECTED.</p>
+        </div>
+
+        <h2
+          class="text-white text-3xl font-bold tracking-tight text-center mb-2"
+        >
+          Complete Your Profile
+        </h2>
+        <p class="text-zinc-400 text-center text-sm mb-8">
+          Please fill the following details to continue
+        </p>
+
+        <form id="profileForm" method="POST" enctype="multipart/form-data">
+          {% csrf_token %}
+
+          <div class="space-y-4">
+            <div>
+              <label class="block text-sm text-zinc-400 mb-1"
+                >User ID (UID)</label
+              >
+              <input
+                type="text"
+                name="uid"
+                value="{{ request.user.username }}"
+                readonly
+                class="w-full bg-zinc-800 border border-white/10 text-white text-sm rounded-2xl py-3.5 px-5 cursor-not-allowed"
+              />
+              <p class="text-xs text-zinc-500 mt-1">
+                This User ID cannot be changed.
+              </p>
+            </div>
+
+            <div>
+              <label class="block text-sm text-zinc-400 mb-1"
+                >Email Address</label
+              >
+              <input
+                type="email"
+                name="email"
+                value="{{ request.user.email }}"
+                readonly
+                class="w-full bg-zinc-800 border border-white/10 text-white text-sm rounded-2xl py-3.5 px-5 cursor-not-allowed"
+              />
+              <p class="text-xs text-zinc-500 mt-1">
+                This email is verified and cannot be changed.
+              </p>
+            </div>
+
+            <div>
+              <label class="block text-sm text-zinc-400 mb-1">Full Name</label>
+
+              <input
+                type="text"
+                name="full_name"
+                value="{% if profile.full_name %}{{ profile.full_name }}{% else %}{{ request.user.first_name }}{% endif %}"
+                readonly
+                class="w-full bg-zinc-800 border border-white/10 text-white text-sm rounded-2xl py-3.5 px-5 cursor-not-allowed"
+              />
+
+              <p class="text-xs text-zinc-500 mt-1">
+                This name cannot be changed.
+              </p>
+            </div>
+            <input
+              type="tel"
+              name="phone"
+              required
+              placeholder="Phone Number (WhatsApp)"
+              class="w-full bg-zinc-800 border border-white/10 text-white placeholder:text-zinc-400 text-sm rounded-2xl py-3.5 px-5 focus:outline-none focus:border-red-500/50"
+            />
+            <!-- Date of Birth: custom Date / Month / Year dropdowns -->
+            <div>
+              <label class="block text-sm text-zinc-400 mb-2"
+                >Date of Birth</label
+              >
+              <input type="hidden" id="dobValue" name="dob" />
+
+              <div class="grid grid-cols-3 gap-2">
+                <div class="course-picker" id="dobDayPicker">
+                  <div class="course-selected-wrap">
+                    <input
+                      type="text"
+                      id="selectedDobDay"
+                      readonly
+                      placeholder="Date"
+                      class="w-full bg-zinc-800 border border-white/10 text-white placeholder:text-zinc-400 text-xs rounded-2xl py-3.5 px-3 pr-9 cursor-pointer focus:outline-none focus:border-red-500/50"
+                    />
+                    <button
+                      type="button"
+                      id="dobDayToggle"
+                      class="course-toggle"
+                    >
+                      <i class="fa-solid fa-chevron-down"></i>
+                    </button>
+                  </div>
+                  <div class="course-dropdown hidden" id="dobDayDropdown">
+                    <div class="course-search-wrap">
+                      <i class="fa-solid fa-magnifying-glass"></i
+                      ><input
+                        type="text"
+                        id="dobDaySearch"
+                        placeholder="Date..."
+                        autocomplete="off"
+                      />
+                    </div>
+                    <div id="dobDayOptions" class="course-options"></div>
+                  </div>
+                </div>
+
+                <div class="course-picker" id="dobMonthPicker">
+                  <div class="course-selected-wrap">
+                    <input
+                      type="text"
+                      id="selectedDobMonth"
+                      readonly
+                      placeholder="Month"
+                      class="w-full bg-zinc-800 border border-white/10 text-white placeholder:text-zinc-400 text-xs rounded-2xl py-3.5 px-3 pr-9 cursor-pointer focus:outline-none focus:border-red-500/50"
+                    />
+                    <button
+                      type="button"
+                      id="dobMonthToggle"
+                      class="course-toggle"
+                    >
+                      <i class="fa-solid fa-chevron-down"></i>
+                    </button>
+                  </div>
+                  <div class="course-dropdown hidden" id="dobMonthDropdown">
+                    <div class="course-search-wrap">
+                      <i class="fa-solid fa-magnifying-glass"></i
+                      ><input
+                        type="text"
+                        id="dobMonthSearch"
+                        placeholder="Month..."
+                        autocomplete="off"
+                      />
+                    </div>
+                    <div id="dobMonthOptions" class="course-options"></div>
+                  </div>
+                </div>
+
+                <div class="course-picker" id="dobYearPicker">
+                  <div class="course-selected-wrap">
+                    <input
+                      type="text"
+                      id="selectedDobYear"
+                      readonly
+                      placeholder="Year"
+                      class="w-full bg-zinc-800 border border-white/10 text-white placeholder:text-zinc-400 text-xs rounded-2xl py-3.5 px-3 pr-9 cursor-pointer focus:outline-none focus:border-red-500/50"
+                    />
+                    <button
+                      type="button"
+                      id="dobYearToggle"
+                      class="course-toggle"
+                    >
+                      <i class="fa-solid fa-chevron-down"></i>
+                    </button>
+                  </div>
+                  <div class="course-dropdown hidden" id="dobYearDropdown">
+                    <div class="course-search-wrap">
+                      <i class="fa-solid fa-magnifying-glass"></i
+                      ><input
+                        type="text"
+                        id="dobYearSearch"
+                        placeholder="Year..."
+                        autocomplete="off"
+                      />
+                    </div>
+                    <div id="dobYearOptions" class="course-options"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Searchable Gender Dropdown -->
+            <div class="course-picker" id="genderPicker">
+              <label class="block text-sm text-zinc-400 mb-2"
+                >Select Gender</label
+              >
+              <div class="course-selected-wrap">
+                <input
+                  type="text"
+                  id="selectedGender"
+                  name="gender"
+                  required
+                  readonly
+                  placeholder="Select Gender"
+                  class="w-full bg-zinc-800 border border-white/10 text-white placeholder:text-zinc-400 text-sm rounded-2xl py-3.5 px-5 pr-12 cursor-pointer focus:outline-none focus:border-red-500/50"
+                />
+                <button type="button" id="genderToggle" class="course-toggle">
+                  <i class="fa-solid fa-chevron-down"></i>
+                </button>
+              </div>
+              <div class="course-dropdown hidden" id="genderDropdown">
+                <div class="course-search-wrap">
+                  <i class="fa-solid fa-magnifying-glass"></i
+                  ><input
+                    type="text"
+                    id="genderSearch"
+                    placeholder="Search gender..."
+                    autocomplete="off"
+                  />
+                </div>
+                <div id="genderOptions" class="course-options"></div>
+              </div>
+            </div>
+
+            <!-- Course Dropdown -->
+            <div class="course-picker" id="coursePicker">
+              <label class="block text-sm text-zinc-400 mb-2"
+                >Select Course</label
+              >
+              <div class="course-selected-wrap">
+                <input
+                  type="text"
+                  id="selectedCourse"
+                  name="branch"
+                  required
+                  readonly
+                  placeholder="Search and select your course"
+                  class="w-full bg-zinc-800 border border-white/10 text-white placeholder:text-zinc-400 text-sm rounded-2xl py-3.5 px-5 pr-12 cursor-pointer focus:outline-none focus:border-red-500/50"
+                />
+                <button type="button" id="courseToggle" class="course-toggle">
+                  <i class="fa-solid fa-chevron-down"></i>
+                </button>
+              </div>
+              <div class="course-dropdown hidden" id="courseDropdown">
+                <div class="course-search-wrap">
+                  <i class="fa-solid fa-magnifying-glass"></i
+                  ><input
+                    type="text"
+                    id="courseSearch"
+                    placeholder="Search course..."
+                    autocomplete="off"
+                  />
+                </div>
+                <div id="courseOptions" class="course-options"></div>
+              </div>
+            </div>
+
+            <!-- Year Dropdown -->
+            <div class="course-picker" id="yearPicker">
+              <label class="block text-sm text-zinc-400 mb-2"
+                >Select Year</label
+              >
+              <div class="course-selected-wrap">
+                <input
+                  type="text"
+                  id="selectedYear"
+                  name="year"
+                  required
+                  readonly
+                  placeholder="Select Year"
+                  class="w-full bg-zinc-800 border border-white/10 text-white placeholder:text-zinc-400 text-sm rounded-2xl py-3.5 px-5 pr-12 cursor-pointer focus:outline-none focus:border-red-500/50"
+                />
+                <button type="button" id="yearToggle" class="course-toggle">
+                  <i class="fa-solid fa-chevron-down"></i>
+                </button>
+              </div>
+              <div class="course-dropdown hidden" id="yearDropdown">
+                <div class="course-search-wrap">
+                  <i class="fa-solid fa-magnifying-glass"></i
+                  ><input
+                    type="text"
+                    id="yearSearch"
+                    placeholder="Search year..."
+                    autocomplete="off"
+                  />
+                </div>
+                <div id="yearOptions" class="course-options"></div>
+              </div>
+            </div>
+
+            <!-- Stay Type Dropdown -->
+            <div class="course-picker" id="stayPicker">
+              <label class="block text-sm text-zinc-400 mb-2"
+                >Hostel / Day Scholar</label
+              >
+              <div class="course-selected-wrap">
+                <input
+                  type="text"
+                  id="selectedStay"
+                  name="stay_type"
+                  required
+                  readonly
+                  placeholder="Select Stay Type"
+                  class="w-full bg-zinc-800 border border-white/10 text-white placeholder:text-zinc-400 text-sm rounded-2xl py-3.5 px-5 pr-12 cursor-pointer focus:outline-none focus:border-red-500/50"
+                />
+                <button type="button" id="stayToggle" class="course-toggle">
+                  <i class="fa-solid fa-chevron-down"></i>
+                </button>
+              </div>
+              <div class="course-dropdown hidden" id="stayDropdown">
+                <div class="course-search-wrap">
+                  <i class="fa-solid fa-magnifying-glass"></i
+                  ><input
+                    type="text"
+                    id="staySearch"
+                    placeholder="Search stay type..."
+                    autocomplete="off"
+                  />
+                </div>
+                <div id="stayOptions" class="course-options"></div>
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-sm text-zinc-400 mb-2"
+                >Profile Photo</label
+              >
+              <input
+                type="file"
+                name="profile_photo"
+                accept="image/*"
+                required
+                class="w-full bg-zinc-800 border border-white/10 text-white text-sm rounded-2xl py-3 px-5 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-red-600 file:text-white hover:file:bg-red-700"
+              />
+            </div>
+
+            <div class="flex items-start gap-3 pt-2">
+              <input
+                type="checkbox"
+                name="consent"
+                required
+                class="mt-1 accent-red-600"
+              />
+              <label class="text-sm text-zinc-400"
+                >I agree to receive updates and offers via WhatsApp/Email</label
+              >
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            class="mt-8 w-full bg-red-600 hover:bg-red-700 text-white font-bold py-[15px] px-6 rounded-2xl text-sm tracking-wider transition-all"
+          >
+            COMPLETE REGISTRATION
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <script>
+      const courseGroups = {
+        Collaboration: [
+          "B.Tech - CSE with AI & ML",
+          "B.Tech - CSE with Data Science",
+          "B.Tech - CSE Cyber Security",
+          "B.Tech - CSE with Cloud Computing",
+          "M.Tech - CSE with AI & ML",
+          "BBA Fintech + ACCA (International Accounting & Finance)",
+          "BBA(H) - Business Analytics",
+          "MBA - Applied Finance",
+          "MBA Fintech",
+          "MBA - Data Science & AI",
+          "MBA Business Analytics",
+          "MBA - Strategic HR",
+          "B.Com(H) + ACCA (International Accounting & Finance)",
+          "BCA(H) - Data Science",
+          "MCA - AI & ML",
+        ],
+        Engineering: [
+          "B.Tech - Civil Engineering",
+          "B.Tech - Mechanical Engineering",
+          "B.Tech - Aerospace Engineering",
+          "B.Tech - Electronics and Communication Engineering",
+          "B.Tech - Biotechnology",
+          "B.Tech - Electrical Engineering",
+          "B.Tech - Robotics & Automation",
+          "B.Tech - Computer Science & Engineering",
+          "B.Tech - Information Technology",
+          "B.Tech - CSE IoT & AI",
+          "M.Tech - CSE Data Science",
+        ],
+        "Applied Sciences": [
+          "B.Sc. (Hons./Hons. with Research) Data Science",
+          "B.Sc. (Hons./Hons. with Research) Biotechnology",
+          "B.Sc. (Hons./Hons. with Research) Forensic Science",
+          "B.Sc. (Hons. with Research) Microbiology",
+          "M.Sc. Data Science",
+          "M.Sc. Biotechnology",
+        ],
+        Business: [
+          "BBA (Hons)",
+          "BBA-DM (Hons)",
+          "BBA - Branding & Advertising (Hons)",
+          "MBA - Global Business Management",
+          "MBA",
+          "MBA (Digital Marketing)",
+        ],
+        "Liberal Arts & Behavioural Science": [
+          "B.A. Liberal Arts (Hons)",
+          "B.A. Psychology (Hons)",
+        ],
+        "Legal Studies": [
+          "Bachelor of Law (LLB)",
+          "B.A. LL.B. (Hons) Integrated",
+          "BBA.LL.B. (Hons) Integrated",
+          "LL.M. in Criminal Law",
+          "LL.M. in Constitutional Law",
+          "LL.M. in Corporate and Business Law",
+        ],
+        Computing: [
+          "BCA (Hons)",
+          "BCA (Hons) AI & ML",
+          "MCA",
+          "MCA Data Science",
+        ],
+        Design: [
+          "Bachelor of Design - Fashion & Design",
+          "Bachelor of Design - Interior Design",
+        ],
+        "Media Studies": ["BA-JMC", "B.Sc. (Hons) - Animation, VFX & Gaming"],
+        Commerce: ["B.Com (Hons)"],
+        Pharmacy: ["Bachelor of Pharmacy"],
+        Hospitality: ["B.Sc. - Hotel and Hospitality Management"],
+        "Travel and Tourism": ["B.Sc. - Airlines & Airport Management"],
+        "Architecture and Planning": ["B.Arch"],
+      };
+
+      function setupSimpleDropdown(config) {
+        const picker = document.getElementById(config.pickerId);
+        const selected = document.getElementById(config.selectedId);
+        const toggle = document.getElementById(config.toggleId);
+        const dropdown = document.getElementById(config.dropdownId);
+        const search = document.getElementById(config.searchId);
+        const optionsBox = document.getElementById(config.optionsId);
+
+        function render(filter = "") {
+          const items = config.options.filter((item) =>
+            item.toLowerCase().includes(filter.toLowerCase().trim()),
+          );
+          optionsBox.innerHTML = "";
+
+          if (!items.length) {
+            optionsBox.innerHTML =
+              '<div class="course-empty">No option found</div>';
+            return;
+          }
+
+          items.forEach((item) => {
+            const button = document.createElement("button");
+            button.type = "button";
+            button.className = "course-option";
+            button.textContent = item;
+            button.onclick = () => {
+              selected.value = item;
+              dropdown.classList.add("hidden");
+              search.value = "";
+              if (config.onSelect) config.onSelect(item);
+            };
+            optionsBox.appendChild(button);
+          });
+        }
+
+        function open() {
+          dropdown.classList.remove("hidden");
+          render(search.value);
+          search.focus();
+        }
+
+        toggle.addEventListener("click", open);
+        selected.addEventListener("click", open);
+        search.addEventListener("input", () => render(search.value));
+        document.addEventListener("click", (event) => {
+          if (!picker.contains(event.target)) dropdown.classList.add("hidden");
+        });
+
+        render();
+      }
+
+      const coursePicker = document.getElementById("coursePicker");
+      const selectedCourse = document.getElementById("selectedCourse");
+      const courseToggle = document.getElementById("courseToggle");
+      const courseDropdown = document.getElementById("courseDropdown");
+      const courseSearch = document.getElementById("courseSearch");
+      const courseOptions = document.getElementById("courseOptions");
+
+      function renderCourses(searchText = "") {
+        const keyword = searchText.toLowerCase().trim();
+        courseOptions.innerHTML = "";
+        let found = false;
+
+        Object.entries(courseGroups).forEach(([group, courses]) => {
+          const filtered = courses.filter(
+            (course) =>
+              course.toLowerCase().includes(keyword) ||
+              group.toLowerCase().includes(keyword),
+          );
+          if (!filtered.length) return;
+          found = true;
+
+          const title = document.createElement("div");
+          title.className = "course-group-title";
+          title.textContent = group;
+          courseOptions.appendChild(title);
+
+          filtered.forEach((course) => {
+            const button = document.createElement("button");
+            button.type = "button";
+            button.className = "course-option";
+            button.textContent = course;
+            button.onclick = () => {
+              selectedCourse.value = course;
+              courseDropdown.classList.add("hidden");
+              courseSearch.value = "";
+            };
+            courseOptions.appendChild(button);
+          });
+        });
+
+        if (!found)
+          courseOptions.innerHTML =
+            '<div class="course-empty">No course found</div>';
+      }
+
+      function openCourseDropdown() {
+        courseDropdown.classList.remove("hidden");
+        courseSearch.focus();
+        renderCourses(courseSearch.value);
+      }
+
+      courseToggle.addEventListener("click", openCourseDropdown);
+      selectedCourse.addEventListener("click", openCourseDropdown);
+      courseSearch.addEventListener("input", () =>
+        renderCourses(courseSearch.value),
+      );
+      document.addEventListener("click", (event) => {
+        if (!coursePicker.contains(event.target))
+          courseDropdown.classList.add("hidden");
+      });
+
+      renderCourses();
+
+      setupSimpleDropdown({
+        pickerId: "yearPicker",
+        selectedId: "selectedYear",
+        toggleId: "yearToggle",
+        dropdownId: "yearDropdown",
+        searchId: "yearSearch",
+        optionsId: "yearOptions",
+        options: ["1st Year", "2nd Year"],
+      });
+
+      setupSimpleDropdown({
+        pickerId: "stayPicker",
+        selectedId: "selectedStay",
+        toggleId: "stayToggle",
+        dropdownId: "stayDropdown",
+        searchId: "staySearch",
+        optionsId: "stayOptions",
+        options: ["Hostel", "Day Scholar"],
+      });
+
+      setupSimpleDropdown({
+        pickerId: "genderPicker",
+        selectedId: "selectedGender",
+        toggleId: "genderToggle",
+        dropdownId: "genderDropdown",
+        searchId: "genderSearch",
+        optionsId: "genderOptions",
+        options: ["Male", "Female", "Other"],
+      });
+
+      const dobMonthNumbers = {
+        January: "01",
+        February: "02",
+        March: "03",
+        April: "04",
+        May: "05",
+        June: "06",
+        July: "07",
+        August: "08",
+        September: "09",
+        October: "10",
+        November: "11",
+        December: "12",
+      };
+
+      function updateDobValue() {
+        const day = document.getElementById("selectedDobDay").value;
+        const month = document.getElementById("selectedDobMonth").value;
+        const year = document.getElementById("selectedDobYear").value;
+        const hiddenDob = document.getElementById("dobValue");
+
+        hiddenDob.value =
+          day && month && year
+            ? `${year}-${dobMonthNumbers[month]}-${day}`
+            : "";
+      }
+
+      setupSimpleDropdown({
+        pickerId: "dobDayPicker",
+        selectedId: "selectedDobDay",
+        toggleId: "dobDayToggle",
+        dropdownId: "dobDayDropdown",
+        searchId: "dobDaySearch",
+        optionsId: "dobDayOptions",
+        options: Array.from({ length: 31 }, (_, index) =>
+          String(index + 1).padStart(2, "0"),
+        ),
+        onSelect: updateDobValue,
+      });
+
+      setupSimpleDropdown({
+        pickerId: "dobMonthPicker",
+        selectedId: "selectedDobMonth",
+        toggleId: "dobMonthToggle",
+        dropdownId: "dobMonthDropdown",
+        searchId: "dobMonthSearch",
+        optionsId: "dobMonthOptions",
+        options: Object.keys(dobMonthNumbers),
+        onSelect: updateDobValue,
+      });
+
+      setupSimpleDropdown({
+        pickerId: "dobYearPicker",
+        selectedId: "selectedDobYear",
+        toggleId: "dobYearToggle",
+        dropdownId: "dobYearDropdown",
+        searchId: "dobYearSearch",
+        optionsId: "dobYearOptions",
+        options: Array.from({ length: 70 }, (_, index) =>
+          String(new Date().getFullYear() - 16 - index),
+        ),
+        onSelect: updateDobValue,
+      });
+
+      document
+        .getElementById("profileForm")
+        .addEventListener("submit", (event) => {
+          if (!document.getElementById("dobValue").value) {
+            event.preventDefault();
+            alert("Please select your complete Date of Birth.");
+          }
+        });
+    </script>
+  </body>
+</html>

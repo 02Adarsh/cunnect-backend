@@ -1,0 +1,37 @@
+LINK [frmMyTimeTable.aspx] 'account settings' -> javascript:__doPostBack('ctl00$LinkButton2','')
+LINK [frmMyTimeTable.aspx] 'accounts' -> javascript:void(0);
+LINK [frmMyTimeTable.aspx] 'accounts reciept' -> frmAccountsStudentReceiptList.aspx
+LINK [frmMyTimeTable.aspx] 'accounts statement/ fee payment' -> frmAccountStudentDetails.aspx
+LINK [frmStudentMarksView.aspx] 'account settings' -> javascript:__doPostBack('ctl00$LinkButton2','')
+LINK [frmStudentMarksView.aspx] 'accounts' -> javascript:void(0);
+LINK [frmStudentMarksView.aspx] 'accounts reciept' -> frmAccountsStudentReceiptList.aspx
+LINK [frmStudentMarksView.aspx] 'accounts statement/ fee payment' -> frmAccountStudentDetails.aspx
+GET https://student.culko.in/frmAccountsStudentOnlinePayment.aspx -> 404 https://student.culko.in/frmAccountsStudentOnlinePayment.aspx
+GET https://student.culko.in/frmAccountsStudentPayDetail.aspx -> 404 https://student.culko.in/frmAccountsStudentPayDetail.aspx
+GET https://student.culko.in/frmAccountsStudentLedger.aspx -> 404 https://student.culko.in/frmAccountsStudentLedger.aspx
+GET https://student.culko.in/frmAccountsStudentLedgerReport.aspx -> 404 https://student.culko.in/frmAccountsStudentLedgerReport.aspx
+GET https://student.culko.in/frmAccountsStudentDue.aspx -> 404 https://student.culko.in/frmAccountsStudentDue.aspx
+GET https://student.culko.in/frmAccountsStudentDueDetail.aspx -> 404 https://student.culko.in/frmAccountsStudentDueDetail.aspx
+GET https://student.culko.in/frmAccountsStudentDues.aspx -> 404 https://student.culko.in/frmAccountsStudentDues.aspx
+GET https://student.culko.in/frmFeeLedger.aspx -> 404 https://student.culko.in/frmFeeLedger.aspx
+GET https://student.culko.in/frmStudentLedger.aspx -> 404 https://student.culko.in/frmStudentLedger.aspx
+GET https://student.culko.in/frmLedger.aspx -> 404 https://student.culko.in/frmLedger.aspx
+GET https://student.culko.in/frmAccountsStudentReceiptList.aspx -> 200 https://student.culko.in/frmAccountsStudentReceiptList.aspx
+GET https://student.culko.in/frmFeeReceipt.aspx -> 404 https://student.culko.in/frmFeeReceipt.aspx
+GET https://student.culko.in/FeeReceipt.aspx -> 404 https://student.culko.in/FeeReceipt.aspx
+GET https://student.culko.in/frmAccountStudentDetails.aspx -> 200 https://student.culko.in/frmAccountStudentDetails.aspx
+GET https://student.culko.in/frmAccountsStudentFeeDetail.aspx -> 404 https://student.culko.in/frmAccountsStudentFeeDetail.aspx
+GET https://student.culko.in/frmAccountsFeeStructure.aspx -> 404 https://student.culko.in/frmAccountsFeeStructure.aspx
+GET https://student.culko.in/frmAccountsStudentFeeCard.aspx -> 404 https://student.culko.in/frmAccountsStudentFeeCard.aspx
+GET https://student.culko.in/frmFeeDetails.aspx -> 404 https://student.culko.in/frmFeeDetails.aspx
+GET https://student.culko.in/frmStudentFee.aspx -> 404 https://student.culko.in/frmStudentFee.aspx
+GET https://student.culko.in/frmFeePayment.aspx -> 404 https://student.culko.in/frmFeePayment.aspx
+GET https://student.culko.in/frmFees.aspx -> 404 https://student.culko.in/frmFees.aspx
+GET https://student.culko.in/FeeDetails.aspx -> 404 https://student.culko.in/FeeDetails.aspx
+GET https://student.culko.in/FeePayment.aspx -> 404 https://student.culko.in/FeePayment.aspx
+GET https://student.culko.in/frmStudentFeeDetail.aspx -> 404 https://student.culko.in/frmStudentFeeDetail.aspx
+GET https://student.culko.in/frmFeeRecipt.aspx -> 404 https://student.culko.in/frmFeeRecipt.aspx
+GET https://student.culko.in/frmOnlineFeePayment.aspx -> 404 https://student.culko.in/frmOnlineFeePayment.aspx
+GET https://student.culko.in/frmStudentAccount.aspx -> 404 https://student.culko.in/frmStudentAccount.aspx
+GET https://student.culko.in/frmAccountDetail.aspx -> 404 https://student.culko.in/frmAccountDetail.aspx
+GET https://student.culko.in/frmFeeStructure.aspx -> 404 https://student.culko.in/frmFeeStructure.aspx

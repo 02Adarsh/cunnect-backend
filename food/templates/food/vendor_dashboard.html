@@ -1,0 +1,833 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vendor Dashboard · CUnnect</title>
+
+  <style>
+    :root {
+      --page: #090909;
+      --panel: #151515;
+      --line: #292929;
+      --red: #f10b1d;
+      --green: #38b765;
+      --white: #f5f5f5;
+      --muted: #9d9d9d;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { min-height: 100%; margin: 0; }
+
+    body {
+      background: #050505;
+      color: var(--white);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    }
+
+    .app {
+      width: 100%;
+      max-width: 1180px;
+      min-height: 100vh;
+      margin: 0 auto;
+      padding: 0 17px 100px;
+      background: var(--page);
+    }
+
+    .header {
+      height: 68px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid #1e1e1e;
+    }
+
+    .brand {
+      font-size: 24px;
+      font-weight: 850;
+      letter-spacing: -1.3px;
+    }
+
+    .brand strong { color: var(--red); }
+
+    .vendor-label {
+      margin-left: 7px;
+      color: #aaa;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .6px;
+      vertical-align: middle;
+    }
+
+    .header-actions { display:flex; align-items:center; gap:7px; }
+    .profile {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .portal-bell, .alert-toggle {
+      position: relative;
+      min-height:31px;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      border:1px solid #373737;
+      border-radius:8px;
+      background:#151515;
+      color:#eee;
+      cursor:pointer;
+      font:inherit;
+      font-size:10px;
+      text-decoration:none;
+    }
+
+    .portal-bell { width:33px; font-size:15px; }
+    .alert-toggle { padding:0 8px; }
+    .notification-dot { position:absolute; top:-4px; right:-4px; min-width:14px; height:14px; display:none; place-items:center; border-radius:50%; background:var(--red); color:#fff; font-size:8px; font-weight:800; }
+    .notification-dot.show { display:grid; }
+    .portal-toast { position:fixed; z-index:50; right:14px; bottom:18px; width:min(calc(100% - 28px),380px); padding:12px 14px; border:1px solid rgba(241,11,29,.58); border-radius:12px; background:#1d1213; box-shadow:0 12px 28px rgba(0,0,0,.48); animation:toast-in .25s ease-out; }
+    .portal-toast strong { display:block; margin-bottom:3px; color:#ffabb2; font-size:12px; } .portal-toast span { color:#ddd; font-size:11px; }
+    @keyframes toast-in { from { opacity:0; transform:translateY(18px); } to { opacity:1; transform:translateY(0); } }
+
+    .profile-copy {
+      display: grid;
+      gap: 2px;
+      text-align: right;
+    }
+
+    .profile-copy strong { font-size: 12px; }
+    .profile-copy span { color: var(--muted); font-size: 10px; }
+
+    .avatar {
+      width: 35px;
+      height: 35px;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(241, 11, 29, .7);
+      border-radius: 50%;
+      background: #261014;
+      color: #ff9aa3;
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .dashboard-message {
+      margin-top: 13px;
+      padding: 10px 12px;
+      border: 1px solid rgba(56, 183, 101, .45);
+      border-radius: 9px;
+      background: rgba(56, 183, 101, .1);
+      color: #a8ebba;
+      font-size: 12px;
+    }
+
+    .dashboard-message.error {
+      border-color: rgba(241, 11, 29, .5);
+      background: rgba(241, 11, 29, .1);
+      color: #ffabb2;
+    }
+
+    .overview {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 24px 0 19px;
+    }
+
+    h1 {
+      margin: 0 0 5px;
+      font-size: 23px;
+      letter-spacing: -.7px;
+    }
+
+    .overview p { margin: 0; color: var(--muted); font-size: 12px; }
+
+    .store-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 10px;
+      border: 1px solid rgba(56, 183, 101, .35);
+      border-radius: 99px;
+      background: rgba(56, 183, 101, .08);
+      color: #8bddaa;
+      font-size: 11px;
+      font-weight: 750;
+      white-space: nowrap;
+    }
+
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 8px var(--green);
+    }
+
+    .header-actions form { margin: 0; }
+
+    .kitchen-control { margin: 0; }
+
+    .kitchen-toggle-button {
+      min-height: 34px;
+      padding: 0 11px;
+      border: 1px solid rgba(56, 183, 101, .45);
+      border-radius: 99px;
+      background: rgba(56, 183, 101, .09);
+      color: #9be7b4;
+      cursor: pointer;
+      font: inherit;
+      font-size: 10px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .kitchen-toggle-button.closed {
+      border-color: rgba(241, 11, 29, .65);
+      background: rgba(241, 11, 29, .12);
+      color: #ffabb2;
+    }
+
+    .kitchen-off-note {
+      margin: 0 0 13px;
+      padding: 10px 12px;
+      border: 1px solid rgba(241, 11, 29, .55);
+      border-radius: 10px;
+      background: rgba(241, 11, 29, .10);
+      color: #ffabb2;
+      font-size: 11px;
+    }
+
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+
+    .metric {
+      min-height: 96px;
+      padding: 14px 13px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: var(--panel);
+    }
+
+    .metric-label { color: var(--muted); font-size: 10.5px; font-weight: 600; }
+    .metric-value { margin-top: 7px; font-size: 21px; font-weight: 800; letter-spacing: -.7px; }
+    .metric-note { margin-top: 5px; color: #8bddaa; font-size: 10px; }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1.65fr) minmax(250px, .85fr);
+      gap: 15px;
+      margin-top: 18px;
+    }
+
+    .panel {
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: var(--panel);
+    }
+
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 15px 12px;
+    }
+
+    .panel-header h2 { margin: 0; font-size: 15px; }
+    .panel-header a { color: #ff7782; text-decoration: none; font-size: 11px; font-weight: 700; }
+
+    .orders { padding: 0 11px 11px; }
+
+    .order {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      padding: 12px 5px;
+      border-top: 1px solid var(--line);
+    }
+
+    .order:first-child { border-top: 0; }
+
+    .order-top { display: flex; align-items: center; gap: 8px; }
+    .order-id { color: #fff; font-size: 12px; font-weight: 800; }
+
+    .new-tag {
+      padding: 3px 6px;
+      border-radius: 5px;
+      background: rgba(241, 11, 29, .13);
+      color: #ff8c96;
+      font-size: 9px;
+      font-weight: 800;
+    }
+
+    .order-meta { margin-top: 4px; color: var(--muted); font-size: 10.5px; line-height: 1.35; }
+    .order-total { margin-top: 5px; color: #fff; font-size: 11px; font-weight: 700; }
+
+    .order-actions {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    .order-actions form { margin: 0; }
+
+    .order-btn {
+      min-width: 65px;
+      padding: 7px 8px;
+      border: 0;
+      border-radius: 7px;
+      cursor: pointer;
+      font-size: 10px;
+      font-weight: 800;
+    }
+
+    .accept { background: var(--red); color: #fff; }
+    .decline { border: 1px solid #444; background: transparent; color: #bbb; }
+    .next-action { background: #2e9d55; color: #fff; }
+
+    .status-pill {
+      display: inline-flex;
+      margin-top: 4px;
+      padding: 3px 6px;
+      border: 1px solid #4b4b4b;
+      border-radius: 99px;
+      color: #c7c7c7;
+      font-size: 9px;
+      font-weight: 800;
+    }
+
+    .status-pill.accepted { border-color: rgba(75,163,255,.5); color: #9ecbff; }
+    .status-pill.preparing { border-color: rgba(255,170,55,.5); color: #ffd394; }
+    .status-pill.ready { border-color: rgba(56,183,101,.5); color: #9be7b4; }
+    .status-pill.completed { border-color: rgba(56,183,101,.5); color: #9be7b4; }
+    .status-pill.cancelled { border-color: #555; color: #aaa; }
+
+    .history-list { padding: 0 13px 13px; }
+    .history-row { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:11px 0; border-top:1px solid var(--line); }
+    .history-row:first-child { border-top:0; }
+    .history-code { font-size:11px; font-weight:800; } .history-meta { margin-top:3px; color:var(--muted); font-size:10px; }
+    .history-right { display:grid; justify-items:end; gap:5px; } .history-amount { font-size:11px; font-weight:800; }
+
+    .empty-state {
+      padding: 22px 13px;
+      color: var(--muted);
+      text-align: center;
+      font-size: 11px;
+    }
+
+    .menu-list { padding: 0 13px 13px; }
+
+    .menu-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 11px 0;
+      border-top: 1px solid var(--line);
+    }
+
+    .menu-item:first-child { border-top: 0; }
+    .menu-item strong { display: block; font-size: 11.5px; }
+    .menu-item span { display: block; margin-top: 3px; color: var(--muted); font-size: 10px; }
+
+    .toggle-form { margin: 0; }
+
+    .toggle {
+      position: relative;
+      width: 33px;
+      height: 19px;
+      border: 0;
+      border-radius: 99px;
+      background: #444;
+      cursor: pointer;
+    }
+
+    .toggle::after {
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      width: 13px;
+      height: 13px;
+      border-radius: 50%;
+      background: #ddd;
+      content: "";
+      transition: .2s;
+    }
+
+    .toggle.active { background: var(--red); }
+    .toggle.active::after { left: 17px; background: #fff; }
+
+    .earnings-panel { margin-top: 15px; padding: 15px; }
+    .earnings-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+    .earnings-panel h2 { margin: 0 0 5px; font-size: 14px; }
+    .earnings-panel p { margin: 0; color: var(--muted); font-size: 10.5px; }
+    .earnings-amount { color: #fff; font-size: 23px; font-weight: 850; letter-spacing: -.7px; }
+    .earnings-caption { margin-top: 2px; color: #8bddaa; font-size: 9px; font-weight: 700; text-align: right; }
+
+    .chart {
+      display: flex;
+      align-items: flex-end;
+      gap: 8px;
+      height: 115px;
+      margin-top: 17px;
+      padding: 0 2px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .bar { flex: 1; border-radius: 5px 5px 0 0; background: linear-gradient(#f33746, #9d0d17); }
+    .bar span { position: relative; top: 100%; display: block; padding-top: 5px; color: #777; text-align: center; font-size: 9px; }
+
+    .mobile-nav {
+      position: fixed;
+      z-index: 20;
+      bottom: 0;
+      left: 50%;
+      width: min(100%, 1180px);
+      height: 72px;
+      display: flex;
+      align-items: center;
+      justify-content: space-around;
+      transform: translateX(-50%);
+      background: #141414;
+      border-top: 1px solid rgba(241, 11, 29, 0.45);
+      box-shadow: 0 -10px 28px rgba(0, 0, 0, 0.4);
+    }
+
+    .mobile-nav a { display: grid; gap: 5px; color: #aaa; text-align: center; text-decoration: none; font-size: 10px; }
+    .mobile-nav a b { font-size: 18px; line-height: 1; }
+    .mobile-nav a.active { color: var(--red); }
+
+    @media (min-width: 681px) {
+      .mobile-nav a {
+        min-width: 130px;
+        font-size: 13px;
+      }
+
+      .mobile-nav a b {
+        font-size: 22px;
+      }
+    }
+
+    @media (max-width: 680px) {
+      .app { max-width: 420px; padding: 0 12px 90px; }
+      .layout { grid-template-columns: 1fr; }
+      .metric { min-height: 87px; padding: 12px 10px; }
+      .metric-value { font-size: 18px; }
+      .overview { padding-top: 19px; }
+      .profile-copy { display: none; }
+      .panel-header { padding-top: 14px; }
+    }
+  </style>
+</head>
+
+<body>
+  <audio id="vendor-order-ringtone" loop preload="auto">
+    <source src="{% static 'sounds/vendor_order_ringtone.wav' %}" type="audio/wav">
+  </audio>
+  <main class="app">
+    <header class="header">
+      <div class="brand"><strong>CU</strong>nnect <span class="vendor-label">VENDOR</span></div>
+
+      <div class="header-actions">
+        <a class="alert-toggle" href="{% url 'vendor_earnings' %}">Earnings</a>
+        <a class="alert-toggle" href="{% url 'vendor_delivery_panel' %}">Delivery</a>
+        <button class="alert-toggle" id="vendor-alert-toggle" type="button">Enable Alerts</button>
+        <a class="portal-bell" href="{% url 'notifications_page' %}" aria-label="Notifications">🔔<span class="notification-dot" id="vendor-notification-dot">0</span></a>
+        <a class="profile" href="{% url 'vendor_profile' %}" style="text-decoration:none;color:inherit;">
+          <div class="profile-copy">
+            <strong>{{ vendor.business_name }}</strong>
+            <span>Approved Food Partner</span>
+          </div>
+          <div class="avatar">{{ vendor.business_name|slice:':2'|upper }}</div>
+        </a>
+      </div>
+    </header>
+
+    {% if messages %}
+      {% for message in messages %}
+        <div class="dashboard-message {{ message.tags }}">{{ message }}</div>
+      {% endfor %}
+    {% endif %}
+
+    <section class="overview">
+      <div>
+        <h1>Good evening, {{ user.username }}</h1>
+        <p>Here is what is happening with your store today.</p>
+      </div>
+
+      {% if available_item_count %}
+        <form class="kitchen-control" method="post" action="{% url 'vendor_kitchen_off' %}">
+          {% csrf_token %}
+          <button
+            class="kitchen-toggle-button closed"
+            type="submit"
+            onclick="return confirm('Kitchen Off karne par aapke saare menu items students ke liye unavailable ho jayenge. Continue?');"
+          >
+            ● Kitchen Open — Click to Close
+          </button>
+        </form>
+      {% else %}
+        <form class="kitchen-control" method="post" action="{% url 'vendor_kitchen_on' %}">
+          {% csrf_token %}
+          <button
+            class="kitchen-toggle-button"
+            type="submit"
+            onclick="return confirm('Kitchen On karne par aapke saare menu items available ho jayenge. Continue?');"
+          >
+            ● Kitchen Closed — Click to Open
+          </button>
+        </form>
+      {% endif %}
+    </section>
+
+    <section class="metrics">
+      <article class="metric">
+        <div class="metric-label">NEW ORDERS</div>
+        <div class="metric-value">{{ incoming_order_count }}</div>
+        <div class="metric-note">Waiting for your response</div>
+      </article>
+
+      <article class="metric">
+        <div class="metric-label">TODAY'S SALES</div>
+        <div class="metric-value">₹{{ today_sales|floatformat:0 }}</div>
+        <div class="metric-note">Confirmed order value</div>
+      </article>
+
+      <article class="metric">
+        <div class="metric-label">MENU ITEMS</div>
+        <div class="metric-value">{{ menu_count }}</div>
+        <div class="metric-note">{{ available_item_count }} currently live</div>
+      </article>
+    </section>
+
+    <section class="layout">
+      <div>
+        <section class="panel" id="incoming-orders">
+          <div class="panel-header">
+            <h2>Incoming Orders</h2>
+            <span style="color:#ff7782; font-size:11px; font-weight:700;">
+              {{ incoming_order_count }} Pending
+            </span>
+          </div>
+
+          <div class="orders">
+            {% for order in incoming_orders %}
+              <article class="order" data-pending-order="true" data-order-id="{{ order.id }}">
+                <div>
+                  <div class="order-top">
+                    <span class="order-id">{{ order.order_number }}</span>
+                    <span class="new-tag">NEW</span>
+                  </div>
+
+                  <div class="order-meta">
+                    {% for order_item in order.items.all %}
+                      {{ order_item.item_name }} × {{ order_item.quantity }}{% if not forloop.last %} · {% endif %}
+                    {% endfor %}
+                  </div>
+
+                  <div class="order-total">
+                    ₹{{ order.total_amount|floatformat:0 }} · {{ order.customer_name }}
+                  </div>
+                </div>
+
+                <div class="order-actions">
+                  <form method="post" action="{% url 'vendor_update_order_status' order.id 'accept' %}">
+                    {% csrf_token %}
+                    <button class="order-btn accept" type="submit">Accept</button>
+                  </form>
+
+                  <form method="post" action="{% url 'vendor_update_order_status' order.id 'reject' %}">
+                    {% csrf_token %}
+                    <button class="order-btn decline" type="submit">Reject</button>
+                  </form>
+                </div>
+              </article>
+            {% empty %}
+              <div class="empty-state">No new orders right now.</div>
+            {% endfor %}
+          </div>
+        </section>
+
+        <section class="panel" style="margin-top:15px;">
+          <div class="panel-header">
+            <h2>Active Orders</h2>
+            <span style="color:#aaa; font-size:11px; font-weight:700;">{{ active_order_count }} In Progress</span>
+          </div>
+
+          <div class="orders">
+            {% for order in active_orders %}
+              <article class="order">
+                <div>
+                  <div class="order-top">
+                    <span class="order-id">{{ order.order_number }}</span>
+                  </div>
+
+                  <span class="status-pill {{ order.status }}">{{ order.get_status_display }}</span>
+
+                  <div class="order-meta">
+                    {% for order_item in order.items.all %}
+                      {{ order_item.item_name }} × {{ order_item.quantity }}{% if not forloop.last %} · {% endif %}
+                    {% endfor %}
+                  </div>
+
+                  <div class="order-total">₹{{ order.total_amount|floatformat:0 }} · {{ order.customer_name }}</div>
+                </div>
+
+                <div class="order-actions">
+                  {% if order.status == "accepted" %}
+                    <form method="post" action="{% url 'vendor_update_order_status' order.id 'prepare' %}">
+                      {% csrf_token %}
+                      <button class="order-btn next-action" type="submit">Start Preparing</button>
+                    </form>
+                  {% elif order.status == "preparing" %}
+                    <form method="post" action="{% url 'vendor_update_order_status' order.id 'ready' %}">
+                      {% csrf_token %}
+                      <button class="order-btn next-action" type="submit">Mark Ready</button>
+                    </form>
+                  {% elif order.status == "ready" %}
+                    <a href="{% url 'vendor_delivery_panel' %}" style="color:#ff9da5; font-size:10px; font-weight:800; text-align:right; text-decoration:none;">Open Delivery<br>Panel</a>
+                  {% endif %}
+                </div>
+              </article>
+            {% empty %}
+              <div class="empty-state">No active orders right now.</div>
+            {% endfor %}
+          </div>
+        </section>
+
+        <section class="panel earnings-panel" id="earnings">
+          <div class="earnings-top">
+            <div>
+              <h2>Daily Earnings</h2>
+              <p>Completed orders only · Last 7 days</p>
+            </div>
+            <div>
+              <div class="earnings-amount">₹{{ today_earnings|floatformat:0 }}</div>
+              <div class="earnings-caption">TODAY</div>
+            </div>
+          </div>
+
+          <div class="chart">
+            {% for earning in weekly_earnings %}
+              <div class="bar" style="height:{{ earning.bar_height }}%">
+                <span>{{ earning.label }}</span>
+              </div>
+            {% endfor %}
+          </div>
+
+          <div class="mt-7 flex items-center justify-between border-t border-[#292929] pt-3">
+            <span style="color:#9d9d9d; font-size:10px;">Last 7 days total</span>
+            <strong style="font-size:13px;">₹{{ week_total|floatformat:0 }}</strong>
+          </div>
+        </section>
+
+        <section class="panel" style="margin-top:15px;">
+          <div class="panel-header">
+            <h2>Order History</h2>
+            <span style="color:#aaa; font-size:11px; font-weight:700;">Latest 10</span>
+          </div>
+
+          <div class="history-list">
+            {% for order in order_history %}
+              <article class="history-row">
+                <div>
+                  <div class="history-code">{{ order.order_number }}</div>
+                  <div class="history-meta">{{ order.customer_name }} · {{ order.updated_at|date:"d M, g:i A" }}</div>
+                </div>
+                <div class="history-right">
+                  <span class="history-amount">₹{{ order.total_amount|floatformat:0 }}</span>
+                  <span class="status-pill {{ order.status }}">{{ order.get_status_display }}</span>
+                </div>
+              </article>
+            {% empty %}
+              <div class="empty-state">Completed and cancelled orders will appear here.</div>
+            {% endfor %}
+          </div>
+        </section>
+      </div>
+
+      <section class="panel">
+        <div class="panel-header">
+          <h2>Menu availability</h2>
+          <a href="{% url 'vendor_menu' %}">Manage menu</a>
+        </div>
+
+        <div class="menu-list">
+          {% for item in menu_items %}
+            <article class="menu-item">
+              <div>
+                <strong>{{ item.name }}</strong>
+                <span>₹{{ item.price|floatformat:0 }} · {{ item.get_category_display }}</span>
+              </div>
+
+              <form class="toggle-form" method="post" action="{% url 'vendor_toggle_item' item.id %}">
+                {% csrf_token %}
+                <button class="toggle {% if item.is_available %}active{% endif %}"
+                        type="submit"
+                        aria-label="Toggle {{ item.name }} availability"></button>
+              </form>
+            </article>
+          {% empty %}
+            <div class="empty-state">No food items added yet.</div>
+          {% endfor %}
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <nav class="mobile-nav">
+    <a class="active" href="{% url 'vendor_dashboard' %}"><b>⌂</b><span>Home</span></a>
+    <a href="#incoming-orders"><b>▣</b><span>Orders</span></a>
+    <a href="{% url 'vendor_menu' %}"><b>☰</b><span>Menu</span></a>
+    <a href="{% url 'vendor_earnings' %}"><b>₹</b><span>Earnings</span></a>
+    <a href="{% url 'vendor_profile' %}"><b>◉</b><span>Profile</span></a>
+  </nav>
+
+  <script>
+    const vendorBell = document.getElementById('vendor-notification-dot');
+    const vendorAlertToggle = document.getElementById('vendor-alert-toggle');
+    const vendorRingtone = document.getElementById('vendor-order-ringtone');
+    const seenVendorNotifications = new Set(
+      JSON.parse(sessionStorage.getItem('vendor_seen_notifications') || '[]')
+    );
+
+    let alertsEnabled = sessionStorage.getItem('vendor_alerts_enabled') === 'true';
+
+    function updateAlertButton() {
+      vendorAlertToggle.textContent = alertsEnabled ? 'Alerts On' : 'Enable Alerts';
+      vendorAlertToggle.style.color = alertsEnabled ? '#9be7b4' : '';
+    }
+
+    function hasPendingOrders() {
+      return document.querySelectorAll('[data-pending-order="true"]').length > 0;
+    }
+
+    async function syncPendingOrderAlarm() {
+      if (!vendorRingtone) return;
+
+      if (!alertsEnabled || !hasPendingOrders()) {
+        vendorRingtone.pause();
+        vendorRingtone.currentTime = 0;
+        vendorAlertToggle.classList.remove('alarm-active');
+        return;
+      }
+
+      vendorAlertToggle.classList.add('alarm-active');
+      try {
+        vendorRingtone.volume = 1.0;
+        await vendorRingtone.play();
+      } catch (error) {
+        console.log('Browser needs one Enable Alerts click before ringtone can play.');
+      }
+    }
+
+    vendorAlertToggle.addEventListener('click', async function () {
+      alertsEnabled = true;
+      sessionStorage.setItem('vendor_alerts_enabled', 'true');
+      updateAlertButton();
+      await syncPendingOrderAlarm();
+    });
+
+    function showVendorToast(notification) {
+      document.querySelectorAll('.portal-toast').forEach((item) => item.remove());
+      const toast = document.createElement('div');
+      const title = document.createElement('strong');
+      const message = document.createElement('span');
+      toast.className = 'portal-toast';
+      title.textContent = notification.title;
+      message.textContent = notification.message;
+      toast.append(title, message);
+      document.body.appendChild(toast);
+      window.setTimeout(() => toast.remove(), 5000);
+    }
+
+    async function refreshVendorNotifications() {
+      try {
+        const response = await fetch("{% url 'notifications_api' %}", {
+          credentials: 'same-origin',
+          cache: 'no-store',
+        });
+        if (!response.ok) return;
+
+        const data = await response.json();
+        vendorBell.textContent = data.unread_count > 99 ? '99+' : data.unread_count;
+        vendorBell.classList.toggle('show', data.unread_count > 0);
+
+        data.notifications.forEach((notification) => {
+          if (!seenVendorNotifications.has(notification.id)) {
+            showVendorToast(notification);
+            seenVendorNotifications.add(notification.id);
+          }
+        });
+        sessionStorage.setItem(
+          'vendor_seen_notifications',
+          JSON.stringify([...seenVendorNotifications])
+        );
+      } catch (error) {
+        console.log('Vendor notification refresh unavailable.');
+      }
+    }
+
+    let foodOrdersSignature = "{{ food_orders_signature|escapejs }}";
+    let foodOrderCheckRunning = false;
+
+    function vendorIsEditingForm() {
+      const activeElement = document.activeElement;
+      return activeElement && ["INPUT", "TEXTAREA", "SELECT"].includes(activeElement.tagName);
+    }
+
+    async function refreshFoodVendorOrders() {
+      if (document.hidden || foodOrderCheckRunning) return;
+      foodOrderCheckRunning = true;
+
+      try {
+        const response = await fetch("{% url 'vendor_orders_realtime_api' %}", {
+          method: "GET",
+          credentials: "same-origin",
+          cache: "no-store",
+        });
+        if (!response.ok) return;
+
+        const data = await response.json();
+        if (
+          data.success &&
+          data.signature !== foodOrdersSignature &&
+          !vendorIsEditingForm()
+        ) {
+          window.location.reload();
+        }
+      } catch (error) {
+        console.log("Food order live refresh unavailable.");
+      } finally {
+        foodOrderCheckRunning = false;
+      }
+    }
+
+    document.querySelectorAll('[data-pending-order="true"] form').forEach((form) => {
+      form.addEventListener('submit', () => {
+        if (vendorRingtone) {
+          vendorRingtone.pause();
+          vendorRingtone.currentTime = 0;
+        }
+      });
+    });
+
+    updateAlertButton();
+    syncPendingOrderAlarm();
+    refreshVendorNotifications();
+    window.setInterval(refreshVendorNotifications, 3000);
+    window.setInterval(refreshFoodVendorOrders, 3000);
+    document.addEventListener("visibilitychange", function () {
+      if (!document.hidden) refreshFoodVendorOrders();
+    });
+  </script>
+</body>
+</html>

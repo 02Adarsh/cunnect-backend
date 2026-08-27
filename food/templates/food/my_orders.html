@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Orders · CUnnect</title>
+  <style>
+    @import url("https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&display=swap");
+    :root { --page:#090909; --black:#050505; --panel:#151515; --line:#292929; --red:#f10b1d; --green:#38b765; --muted:#a1a1a1; }
+    * { box-sizing:border-box; } html,body { min-height:100%; margin:0; }
+    body { background:#000; color:#f5f5f5; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif; }
+    .app { width:100%; max-width:420px; min-height:100vh; margin:0 auto; padding-bottom:30px; background:var(--page); }
+    .header { position:sticky; top:0; z-index:5; height:56px; display:grid; grid-template-columns:42px 1fr 42px; align-items:center; padding:0 9px; border-bottom:1px solid #1e1e1e; background:rgba(5,5,5,.98); }
+    .back { width:36px; height:36px; display:grid; place-items:center; border-radius:50%; color:#fff; font-size:25px; text-decoration:none; } .logo { justify-self:center; color:#eee; font-size:22px; font-weight:850; letter-spacing:-1.2px; } .logo strong { color:var(--red); }
+    .heading { padding:21px 14px 16px; border-bottom:1px solid var(--line); } h1 { margin:0 0 4px; font-size:21px; } .heading p { margin:0; color:var(--muted); font-size:12px; }
+    .live-note { display:flex; align-items:center; gap:6px; margin:12px 14px 0; color:#91e8ad; font-size:10.5px; } .live-dot { width:6px; height:6px; border-radius:50%; background:var(--green); box-shadow:0 0 8px var(--green); }
+    .order-list { padding:9px 14px; } .order-card { margin-top:11px; padding:14px; border:1px solid var(--line); border-radius:14px; background:var(--panel); }
+    .order-top { display:flex; align-items:flex-start; justify-content:space-between; gap:10px; } .order-number { font-size:12px; font-weight:800; } .vendor { margin-top:4px; color:var(--muted); font-size:11px; }
+    .status-chip { display:inline-flex; align-items:center; padding:5px 8px; border:1px solid #464646; border-radius:99px; color:#c7c7c7; font-size:9.5px; font-weight:800; white-space:nowrap; }
+    .status-chip.pending { border-color:rgba(241,11,29,.5); background:rgba(241,11,29,.1); color:#ff9ca4; } .status-chip.accepted { border-color:rgba(75,163,255,.48); background:rgba(75,163,255,.1); color:#9ecbff; } .status-chip.preparing { border-color:rgba(255,170,55,.5); background:rgba(255,170,55,.1); color:#ffd394; } .status-chip.ready { border-color:rgba(56,183,101,.5); background:rgba(56,183,101,.1); color:#9be7b4; } .status-chip.completed { border-color:rgba(56,183,101,.35); color:#9be7b4; } .status-chip.cancelled { border-color:#4b4b4b; color:#aaa; }
+    .items { margin:13px 0 0; padding:10px 0; border-top:1px solid var(--line); border-bottom:1px solid var(--line); color:#c8c8c8; font-size:11px; line-height:1.55; } .order-bottom { display:flex; align-items:center; justify-content:space-between; margin-top:11px; } .amount { font-size:13px; font-weight:800; } .updated { color:var(--muted); font-size:10px; }
+    .status-copy { margin:10px 0 0; color:var(--muted); font-size:10.5px; }
+    .delivery-otp { margin-top:11px; padding:11px; border:1px solid rgba(241,11,29,.5); border-radius:10px; background:rgba(241,11,29,.1); text-align:center; }
+    .delivery-otp span { display:block; color:#ffb0b7; font-size:10.5px; font-weight:700; } .delivery-otp strong { display:block; margin-top:5px; color:#fff; font-size:25px; letter-spacing:7px; }
+    .empty { padding:80px 22px; color:var(--muted); text-align:center; font-size:13px; } .empty strong { display:block; margin-bottom:8px; color:#eee; font-size:17px; } .browse { display:inline-block; margin-top:18px; padding:10px 16px; border-radius:22px; background:var(--red); color:#fff; font-size:12px; font-weight:800; text-decoration:none; }
+
+    /* Same premium CUnnect wordmark + mobile motion */
+    .app { animation:app-enter .32s ease-out both; }
+    .header { height:64px; animation:header-drop .36s cubic-bezier(.2,.8,.2,1) both; }
+    .back { transition:transform .18s ease,background .18s ease; -webkit-tap-highlight-color:transparent; }
+    .back:active { transform:scale(.90); background:rgba(241,11,29,.14); }
+    .logo { display:inline-flex; align-items:baseline; justify-self:center; font-family:"Poppins",system-ui,sans-serif; font-size:30px; font-weight:800; letter-spacing:-3px; line-height:1; }
+    .logo-cu { color:#ff1022; text-shadow:0 0 20px rgba(255,16,34,.45),0 0 60px rgba(255,16,34,.18); }
+    .logo-nnect { color:#fff; text-shadow:0 2px 10px rgba(255,255,255,.16); }
+    .heading { animation:card-rise .42s .06s cubic-bezier(.2,.8,.2,1) both; }
+    .live-note { animation:card-rise .42s .12s cubic-bezier(.2,.8,.2,1) both; }
+    .order-card { opacity:0; transform:translateY(13px); animation:order-enter .42s cubic-bezier(.2,.8,.2,1) forwards; transition:transform .18s ease,border-color .18s ease; }
+    .order-card:nth-child(1){animation-delay:.18s}.order-card:nth-child(2){animation-delay:.25s}.order-card:nth-child(3){animation-delay:.32s}.order-card:nth-child(4){animation-delay:.39s}.order-card:nth-child(5){animation-delay:.46s}
+    .order-card:active { transform:scale(.985); }
+    .browse { transition:transform .18s ease,background .18s ease; }
+    .browse:active { transform:scale(.94); background:#d90819; }
+    @keyframes app-enter{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
+    @keyframes header-drop{from{opacity:0;transform:translateY(-14px)}to{opacity:1;transform:translateY(0)}}
+    @keyframes card-rise{from{opacity:0;transform:translateY(14px) scale(.985)}to{opacity:1;transform:translateY(0) scale(1)}}
+    @keyframes order-enter{to{opacity:1;transform:translateY(0)}}
+    @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
+
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header class="header">
+      <a class="back" href="{% url 'food_home' %}" aria-label="Back to food">‹</a>
+      <div class="logo" aria-label="CUnnect"><span class="logo-cu">CU</span><span class="logo-nnect">nnect</span></div>
+      <span></span>
+    </header>
+    <section class="heading"><h1>My Orders</h1><p>Track your food order status live.</p></section>
+    <div class="live-note"><span class="live-dot"></span><span>Live status updates enabled</span></div>
+
+    {% if orders %}
+    <section class="order-list">
+      {% for order in orders %}
+      <article class="order-card" data-order-id="{{ order.id }}">
+        <div class="order-top">
+          <div><div class="order-number">{{ order.order_number }}</div><div class="vendor">{{ order.vendor.business_name }}</div></div>
+          <span class="status-chip {{ order.status }}" data-status>{{ order.get_status_display }}</span>
+        </div>
+        <div class="items">{% for item in order.items.all %}{{ item.item_name }} × {{ item.quantity }}{% if not forloop.last %}<br>{% endif %}{% endfor %}</div>
+        <p class="status-copy" data-status-copy>{% if order.status == 'pending' %}The vendor will review your order shortly.{% elif order.status == 'accepted' %}Your order has been accepted by the vendor.{% elif order.status == 'preparing' %}Your food is being prepared.{% elif order.status == 'ready' %}Your order is ready for pickup.{% elif order.status == 'out_for_delivery' %}Your delivery partner is on the way. Share the OTP only after receiving the order.{% elif order.status == 'completed' %}Order completed. Enjoy your meal!{% else %}This order was cancelled by the vendor.{% endif %}</p>
+        <div class="delivery-otp" data-otp-box {% if order.status != 'out_for_delivery' or order.otp_verified %}style="display:none;"{% endif %}>
+          <span>Share this OTP with the delivery partner at delivery</span>
+          <strong data-otp>{{ order.delivery_otp }}</strong>
+        </div>
+        <div class="order-bottom"><span class="amount">₹{{ order.total_amount|floatformat:0 }}</span><span class="updated" data-updated>Updated {{ order.updated_at|time:'g:i A' }}</span></div>
+      </article>
+      {% endfor %}
+    </section>
+    {% else %}
+    <section class="empty"><strong>No orders yet</strong>Your placed food orders will appear here.<br><a class="browse" href="{% url 'food_home' %}">Browse Food</a></section>
+    {% endif %}
+  </main>
+
+  <script>
+    const statusMessages = {
+      pending: 'The vendor will review your order shortly.',
+      accepted: 'Your order has been accepted by the vendor.',
+      preparing: 'Your food is being prepared.',
+      ready: 'Your order is ready for pickup.',
+      out_for_delivery: 'Your delivery partner is on the way. Share the OTP only after receiving the order.',
+      completed: 'Order completed. Enjoy your meal!',
+      cancelled: 'This order was cancelled by the vendor.'
+    };
+
+    async function refreshOrderStatus() {
+      try {
+        const response = await fetch("{% url 'my_orders_status_api' %}", {
+          headers: { "X-Requested-With": "XMLHttpRequest" },
+          cache: "no-store"
+        });
+
+        if (!response.ok) return;
+        const data = await response.json();
+
+        data.orders.forEach((order) => {
+          const card = document.querySelector(`[data-order-id="${order.id}"]`);
+          if (!card) return;
+
+          const chip = card.querySelector('[data-status]');
+          chip.className = `status-chip ${order.status}`;
+          chip.textContent = order.status_label;
+          card.querySelector('[data-status-copy]').textContent = statusMessages[order.status];
+          card.querySelector('[data-updated]').textContent = `Updated ${order.updated_at}`;
+
+          const otpBox = card.querySelector('[data-otp-box]');
+          if (order.delivery_otp) {
+            otpBox.style.display = 'block';
+            card.querySelector('[data-otp]').textContent = order.delivery_otp;
+          } else {
+            otpBox.style.display = 'none';
+          }
+        });
+      } catch (error) {
+        console.log('Order status refresh failed');
+      }
+    }
+
+    // Auto refresh every 3 seconds; customer does not need to reload the page.
+    window.setInterval(refreshOrderStatus, 3000);
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) refreshOrderStatus();
+    });
+  </script>
+</body>
+</html>

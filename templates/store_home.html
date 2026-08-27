@@ -1,0 +1,456 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CUnnect Store</title>
+
+  <style>
+    @import url("https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&display=swap");
+
+    :root {
+      --page: #090909;
+      --panel: #151515;
+      --line: #2b2b2b;
+      --red: #f10b1d;
+      --muted: #a1a1a1;
+      --white: #f7f7f7;
+    }
+
+    * { box-sizing: border-box; }
+
+    html,
+    body {
+      min-height: 100%;
+      margin: 0;
+    }
+
+    body {
+      background: #000;
+      color: var(--white);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    }
+
+    .app {
+      width: 100%;
+      max-width: 430px;
+      min-height: 100vh;
+      margin: 0 auto;
+      padding: 0 14px 34px;
+      background: var(--page);
+      animation: app-enter .32s ease-out both;
+    }
+
+    .header {
+      height: 66px;
+      display: grid;
+      grid-template-columns: 40px 1fr auto;
+      align-items: center;
+      border-bottom: 1px solid #1f1f1f;
+      animation: header-drop .36s cubic-bezier(.2, .8, .2, 1) both;
+    }
+
+    .back {
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      color: #fff;
+      font-size: 25px;
+      line-height: 1;
+      text-decoration: none;
+      transition: background .18s ease, transform .18s ease;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .back:active {
+      background: rgba(241, 11, 29, .14);
+      transform: scale(.90);
+    }
+
+    /* Same premium CUnnect logo as Vendor Login and Food Home. */
+    .brand {
+      display: inline-flex;
+      align-items: baseline;
+      justify-self: center;
+      font-family: "Poppins", system-ui, sans-serif;
+      font-size: 30px;
+      font-weight: 800;
+      letter-spacing: -3px;
+      line-height: 1;
+    }
+
+    .brand-cu {
+      color: #ff1022;
+      text-shadow:
+        0 0 20px rgba(255, 16, 34, .45),
+        0 0 60px rgba(255, 16, 34, .18);
+    }
+
+    .brand-nnect {
+      color: #fff;
+      text-shadow: 0 2px 10px rgba(255, 255, 255, .16);
+    }
+
+    .orders-link {
+      color: #ffabb2;
+      font-size: 10px;
+      font-weight: 800;
+      text-decoration: none;
+      transition: transform .18s ease, opacity .18s ease;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .orders-link:active {
+      opacity: .75;
+      transform: scale(.94);
+    }
+
+    .hero {
+      position: relative;
+      overflow: hidden;
+      margin-top: 17px;
+      padding: 20px 17px;
+      border: 1px solid rgba(241, 11, 29, .45);
+      border-radius: 18px;
+      background: linear-gradient(125deg, #341014, #171717 65%);
+      animation: card-rise .42s .06s cubic-bezier(.2, .8, .2, 1) both;
+    }
+
+    .hero::after {
+      position: absolute;
+      top: -38px;
+      right: -34px;
+      width: 145px;
+      height: 145px;
+      border: 20px solid rgba(241, 11, 29, .15);
+      border-radius: 50%;
+      content: "";
+    }
+
+    .hero-label {
+      position: relative;
+      z-index: 1;
+      display: inline-flex;
+      gap: 6px;
+      align-items: center;
+      padding: 5px 8px;
+      border: 1px solid rgba(241, 11, 29, .4);
+      border-radius: 99px;
+      color: #ffabb2;
+      font-size: 9px;
+      font-weight: 850;
+      letter-spacing: .6px;
+    }
+
+    .hero h1 {
+      position: relative;
+      z-index: 1;
+      margin: 11px 0 5px;
+      font-size: 24px;
+      letter-spacing: -.8px;
+    }
+
+    .hero p {
+      position: relative;
+      z-index: 1;
+      max-width: 270px;
+      margin: 0;
+      color: #c1c1c1;
+      font-size: 11px;
+      line-height: 1.45;
+    }
+
+    .search-wrap {
+      position: relative;
+      margin: 15px 0 20px;
+      animation: card-rise .42s .12s cubic-bezier(.2, .8, .2, 1) both;
+    }
+
+    .search-wrap span {
+      position: absolute;
+      top: 50%;
+      left: 13px;
+      color: var(--red);
+      transform: translateY(-50%);
+    }
+
+    .search {
+      width: 100%;
+      height: 43px;
+      padding: 0 14px 0 38px;
+      border: 1px solid #303030;
+      border-radius: 12px;
+      outline: none;
+      background: #151515;
+      color: #fff;
+      font: inherit;
+      font-size: 12px;
+      transition: border-color .2s ease, box-shadow .2s ease;
+    }
+
+    .search:focus {
+      border-color: var(--red);
+      box-shadow: 0 0 0 3px rgba(241, 11, 29, .10);
+    }
+
+    .search::placeholder { color: #777; }
+
+    .section-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin: 0 2px 10px;
+      animation: card-rise .42s .17s cubic-bezier(.2, .8, .2, 1) both;
+    }
+
+    .section-head h2 {
+      margin: 0;
+      font-size: 14px;
+    }
+
+    .section-head span {
+      color: var(--muted);
+      font-size: 10px;
+    }
+
+    .category-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .category-card {
+      min-height: 146px;
+      padding: 13px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: var(--panel);
+      color: #fff;
+      cursor: pointer;
+      font: inherit;
+      text-align: left;
+      opacity: 0;
+      transform: translateY(13px);
+      animation: category-enter .42s cubic-bezier(.2, .8, .2, 1) forwards;
+      transition: transform .18s ease, border-color .18s ease, background .18s ease;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .category-card:nth-child(1) { animation-delay: .22s; }
+    .category-card:nth-child(2) { animation-delay: .29s; }
+
+    .category-card:hover { border-color: #4a4a4a; }
+
+    .category-card:active {
+      background: #1c1314;
+      transform: scale(.97);
+    }
+
+    .category-icon {
+      display: grid;
+      place-items: center;
+      width: 42px;
+      height: 42px;
+      margin-bottom: 16px;
+      border-radius: 14px;
+      background: rgba(241, 11, 29, .14);
+      color: #ffabb2;
+      font-size: 19px;
+    }
+
+    .category-card h3 {
+      margin: 0;
+      font-size: 12px;
+    }
+
+    .category-card p {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 9.5px;
+      line-height: 1.35;
+    }
+
+    .coming-label {
+      display: inline-block;
+      margin-top: 8px;
+      padding: 3px 6px;
+      border: 1px solid #3e3e3e;
+      border-radius: 99px;
+      color: #aaa;
+      font-size: 8px;
+      font-weight: 800;
+      letter-spacing: .5px;
+    }
+
+    .no-results {
+      display: none;
+      padding: 38px 15px;
+      color: var(--muted);
+      text-align: center;
+      font-size: 12px;
+    }
+
+    .toast {
+      position: fixed;
+      z-index: 50;
+      right: 14px;
+      bottom: 18px;
+      left: 14px;
+      width: min(calc(100% - 28px), 400px);
+      margin: 0 auto;
+      padding: 13px 14px;
+      border: 1px solid rgba(241, 11, 29, .55);
+      border-radius: 12px;
+      background: #201215;
+      box-shadow: 0 14px 34px rgba(0, 0, 0, .5);
+      color: #ffb1b8;
+      font-size: 12px;
+      font-weight: 700;
+      text-align: center;
+      animation: toast-in .2s ease-out;
+    }
+
+    @keyframes app-enter {
+      from { opacity: 0; transform: translateY(5px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes header-drop {
+      from { opacity: 0; transform: translateY(-14px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes card-rise {
+      from { opacity: 0; transform: translateY(14px) scale(.985); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    @keyframes category-enter {
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes toast-in {
+      from { opacity: 0; transform: translateY(14px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: .01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: .01ms !important;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <main class="app">
+    <header class="header">
+      <a class="back" href="{% url 'dashboard' %}" aria-label="Back to dashboard">‹</a>
+
+      <div class="brand" aria-label="CUnnect">
+        <span class="brand-cu">CU</span><span class="brand-nnect">nnect</span>
+      </div>
+
+      <a class="orders-link" href="{% url 'my_print_orders' %}">My Orders</a>
+    </header>
+
+    <section class="hero">
+      <span class="hero-label">🛍 CAMPUS MARKETPLACE</span>
+      <h1>CUnnect Store</h1>
+      <p>
+        Everything you need around campus, in one place. Select a category to explore.
+      </p>
+    </section>
+
+    <div class="search-wrap">
+      <span>⌕</span>
+      <input
+        id="storeSearch"
+        class="search"
+        type="search"
+        placeholder="Search store categories..."
+        autocomplete="off"
+      >
+    </div>
+
+    <section id="storeCategories">
+      <div class="section-head">
+        <h2>Shop by Category</h2>
+        <span>5 categories</span>
+      </div>
+
+      <div class="category-grid">
+        <!-- Printout -->
+        <a
+          href="{% url 'printout_home' %}"
+          class="category-card category-search-item"
+          data-category="printout print photocopy binding lamination documents"
+          style="text-decoration: none; color: inherit; display: block"
+        >
+          <div class="category-icon">🖨</div>
+          <h3>Printout Services</h3>
+          <p>PDF print, color print, photocopy, binding and lamination.</p>
+        </a>
+
+        <!-- FMCG -->
+        <button
+          class="category-card category-search-item"
+          type="button"
+          data-category="fmcg groceries snacks drinks daily essentials"
+        >
+          <div class="category-icon">🛒</div>
+          <h3>FMCG &amp; Groceries</h3>
+          <p>Snacks, drinks and daily essentials.</p>
+          <span class="coming-label">COMING SOON</span>
+        </button>
+      </div>
+
+      <div id="noResults" class="no-results">
+        No category found. Try another search term.
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const searchInput = document.getElementById("storeSearch");
+    const categoryItems = Array.from(
+      document.querySelectorAll(".category-search-item")
+    );
+    const noResults = document.getElementById("noResults");
+
+    function showComingSoon(categoryName) {
+      document.querySelectorAll(".toast").forEach((toast) => toast.remove());
+
+      const toast = document.createElement("div");
+      toast.className = "toast";
+      toast.textContent = `${categoryName} store is coming soon on CUnnect.`;
+      document.body.appendChild(toast);
+
+      window.setTimeout(() => toast.remove(), 3200);
+    }
+
+    document.querySelectorAll("button.category-card").forEach((card) => {
+      card.addEventListener("click", () => {
+        showComingSoon(card.querySelector("h3").textContent);
+      });
+    });
+
+    searchInput.addEventListener("input", () => {
+      const query = searchInput.value.toLowerCase().trim();
+      let visibleItems = 0;
+
+      categoryItems.forEach((item) => {
+        const matches = !query || item.dataset.category.includes(query);
+        item.style.display = matches ? "" : "none";
+        if (matches) visibleItems += 1;
+      });
+
+      noResults.style.display = visibleItems ? "none" : "block";
+    });
+  </script>
+</body>
+</html>

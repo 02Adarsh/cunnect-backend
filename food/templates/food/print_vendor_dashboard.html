@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Print Dashboard · CUnnect</title>
+  <style>
+    :root{--page:#090909;--panel:#151515;--line:#292929;--red:#f10b1d;--green:#38b765;--muted:#9d9d9d}*{box-sizing:border-box}html,body{min-height:100%;margin:0}body{background:#000;color:#f5f5f5;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}.app{width:100%;max-width:880px;min-height:100vh;margin:0 auto;padding:0 16px 35px;background:var(--page)}.header{height:65px;display:grid;grid-template-columns:42px 1fr auto;align-items:center;border-bottom:1px solid #1e1e1e}.back{width:36px;height:36px;display:grid;place-items:center;color:#fff;font-size:25px;text-decoration:none}.brand{justify-self:center;font-size:22px;font-weight:850;letter-spacing:-1.2px}.brand strong{color:var(--red)}.vendor{justify-self:end;color:var(--muted);font-size:10px}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:18px 0}.stat{min-height:90px;padding:13px;border:1px solid var(--line);border-radius:14px;background:var(--panel)}.stat label{display:block;color:var(--muted);font-size:9px;font-weight:700}.stat strong{display:block;margin-top:8px;font-size:20px}.panel{margin-top:16px;overflow:hidden;border:1px solid var(--line);border-radius:16px;background:var(--panel)}.panel-head{display:flex;justify-content:space-between;align-items:center;padding:15px 14px 10px}.panel-head h2{margin:0;font-size:14px}.orders{padding:0 14px 13px}.order{display:grid;grid-template-columns:1fr auto;gap:10px;padding:12px 0;border-top:1px solid var(--line)}.order:first-child{border-top:0}.order h3{margin:0;font-size:12px}.order p{margin:4px 0 0;color:var(--muted);font-size:10px;line-height:1.35}.price{margin-top:5px;color:#fff;font-size:11px;font-weight:800}.actions{display:grid;align-content:center;gap:6px}.btn{padding:8px 10px;border:0;border-radius:8px;background:var(--red);color:#fff;cursor:pointer;font-size:10px;font-weight:800}.btn.alt{border:1px solid #444;background:transparent;color:#bbb}.status{display:inline-block;margin-top:5px;padding:3px 6px;border:1px solid #444;border-radius:99px;color:#ccc;font-size:9px;font-weight:800}.empty{padding:22px;color:var(--muted);text-align:center;font-size:11px}.message{margin:12px 0;padding:10px 12px;border:1px solid rgba(56,183,101,.45);border-radius:9px;background:rgba(56,183,101,.1);color:#a8ebba;font-size:12px}.price-form{display:grid;grid-template-columns:1fr 1fr auto;gap:9px;align-items:end;padding:0 14px 14px}.field-label{display:block;margin:0 0 5px;color:#bbb;font-size:10px;font-weight:700}.price-input{width:100%;padding:10px;border:1px solid #383838;border-radius:9px;outline:none;background:#0d0d0d;color:#fff;font:inherit;font-size:12px}.price-input:focus{border-color:var(--red)}.price-note{margin:0 14px 11px;color:var(--muted);font-size:10px;line-height:1.35}@media(max-width:500px){.stats{gap:7px}.stat{padding:11px 9px}.stat strong{font-size:16px}.vendor{display:none}.price-form{grid-template-columns:1fr 1fr}.price-form .btn{grid-column:1/-1}}
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header class="header">
+      <a class="back" href="{% url 'dashboard' %}" aria-label="Back">‹</a>
+      <div class="brand"><strong>CU</strong>nnect</div>
+      <span class="vendor">{{ vendor.business_name }}</span>
+    </header>
+
+    {% if messages %}{% for message in messages %}<div class="message">{{ message }}</div>{% endfor %}{% endif %}
+
+    <section class="stats">
+      <article class="stat"><label>NEW PRINT ORDERS</label><strong>{{ pending_orders.count }}</strong></article>
+      <article class="stat"><label>TODAY'S EARNINGS</label><strong>₹{{ today_earnings|floatformat:0 }}</strong></article>
+      <article class="stat"><label>ACTIVE JOBS</label><strong>{{ active_orders.count }}</strong></article>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head"><h2>Print Price Settings</h2><span style="color:#ff9ca5;font-size:10px">Per Page</span></div>
+      <p class="price-note">Students see these prices automatically before placing an order. Existing orders keep their saved total.</p>
+      <form class="price-form" method="post" action="{% url 'print_update_prices' %}">
+        {% csrf_token %}
+        <div><label class="field-label" for="bw_price">B&W Price / Page</label><input class="price-input" id="bw_price" name="bw_price_per_page" type="number" min="0" step="0.01" value="{{ vendor.bw_price_per_page }}" required></div>
+        <div><label class="field-label" for="color_price">Color Price / Page</label><input class="price-input" id="color_price" name="color_price_per_page" type="number" min="0" step="0.01" value="{{ vendor.color_price_per_page }}" required></div>
+        <button class="btn" type="submit">SAVE PRICES</button>
+      </form>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head"><h2>New Print Orders</h2><span style="color:#ff9ca5;font-size:10px">{{ pending_orders.count }} Pending</span></div>
+      <div class="orders">
+        {% for order in pending_orders %}
+          <article class="order">
+            <div>
+              <h3>Print #{{ order.id }} · {{ order.student.get_full_name|default:order.student.username }}</h3>
+              <p>{{ order.file_name }} · {{ order.pages }} pages × {{ order.copies }} copies · {{ order.get_print_type_display }} · {{ order.get_print_side_display }}{% if order.bw_page_ranges %}<br>B&W: {{ order.bw_page_ranges }}{% endif %}{% if order.color_page_ranges %}<br>Color: {{ order.color_page_ranges }}{% endif %}</p>
+              {% if order.binding %}<p>Spiral Binding</p>{% endif %}{% if order.lamination %}<p>Lamination</p>{% endif %}
+              <div class="price">Auto Price: ₹{{ order.final_amount|floatformat:2 }}</div>
+            </div>
+            <div class="actions">
+              <form method="post" action="{% url 'print_update_order' order.id 'accept' %}">{% csrf_token %}<button class="btn" type="submit">Accept</button></form>
+              <form method="post" action="{% url 'print_update_order' order.id 'reject' %}">{% csrf_token %}<button class="btn alt" type="submit">Reject</button></form>
+            </div>
+          </article>
+        {% empty %}<div class="empty">No new print orders.</div>{% endfor %}
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head"><h2>Active Print Jobs</h2></div>
+      <div class="orders">
+        {% for order in active_orders %}
+          <article class="order">
+            <div><h3>Print #{{ order.id }} · {{ order.student.get_full_name|default:order.student.username }}</h3><p>{{ order.file_name }} · ₹{{ order.final_amount|floatformat:2 }}</p><span class="status">{{ order.get_status_display }}</span></div>
+            <div class="actions">
+              {% if order.status == 'accepted' %}<form method="post" action="{% url 'print_update_order' order.id 'printing' %}">{% csrf_token %}<button class="btn" type="submit">Start Printing</button></form>
+              {% elif order.status == 'printing' %}<form method="post" action="{% url 'print_update_order' order.id 'ready' %}">{% csrf_token %}<button class="btn" type="submit">Mark Ready</button></form>
+              {% elif order.status == 'ready' %}<form method="post" action="{% url 'print_update_order' order.id 'complete' %}">{% csrf_token %}<button class="btn" type="submit">Complete</button></form>{% endif %}
+            </div>
+          </article>
+        {% empty %}<div class="empty">No active print jobs.</div>{% endfor %}
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head"><h2>Print History</h2></div>
+      <div class="orders">
+        {% for order in history_orders %}
+          <article class="order"><div><h3>Print #{{ order.id }} · {{ order.student.get_full_name|default:order.student.username }}</h3><p>{{ order.updated_at|date:"d M, g:i A" }}</p></div><div class="price">₹{{ order.final_amount|floatformat:2 }}<br><span class="status">{{ order.get_status_display }}</span></div></article>
+        {% empty %}<div class="empty">No completed print orders.</div>{% endfor %}
+      </div>
+    </section>
+  </main>
+
+  <script>
+    (function () {
+      let currentSignature = "{{ print_realtime_signature|escapejs }}";
+      let checking = false;
+
+      async function refreshPrintOrders() {
+        if (document.hidden || checking) return;
+        checking = true;
+        try {
+          const response = await fetch("{% url 'print_realtime_api' %}?scope=vendor", {credentials:"same-origin", cache:"no-store"});
+          if (!response.ok) return;
+          const data = await response.json();
+          if (data.success && data.signature !== currentSignature) window.location.reload();
+        } catch (error) {
+          console.log("Print dashboard live refresh unavailable.");
+        } finally {
+          checking = false;
+        }
+      }
+
+      window.setInterval(refreshPrintOrders, 2000);
+      document.addEventListener("visibilitychange", () => { if (!document.hidden) refreshPrintOrders(); });
+    })();
+  </script>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a256f66b0baa25cd',t:'MTc4NTc3NzMwNw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>

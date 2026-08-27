@@ -1,0 +1,4 @@
+HOME status=200 url=https://student.culko.in/StudentHome.aspx len=189425
+TRY https://student.culko.in/frmStudenHostelDetails.aspx -> status=200 final=https://student.culko.in/frmStudenHostelDetails.aspx title='Chandigarh University Management System |  Unnao Campus' len=93240
+  parsed kv=5 sections=0
+RESULT found=True kv=5 sections=0

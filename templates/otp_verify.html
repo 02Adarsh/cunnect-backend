@@ -1,0 +1,183 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Verify OTP · CUnnect</title>
+
+  <style>
+    @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@600;700;800&display=swap");
+
+    :root { --red:#ef1022; --line:rgba(255,255,255,.12); }
+    * { box-sizing:border-box; }
+    html,body { min-height:100%; margin:0; }
+
+    body {
+      min-height:100vh;
+      display:grid;
+      place-items:center;
+      padding:24px 16px;
+      overflow:hidden;
+      background:#050505;
+      color:#fff;
+      font-family:"Inter",system-ui,sans-serif;
+    }
+
+    body::before {
+      position:fixed;
+      top:-180px;
+      right:-150px;
+      width:480px;
+      height:480px;
+      border-radius:50%;
+      background:rgba(239,16,34,.22);
+      content:"";
+      filter:blur(130px);
+      pointer-events:none;
+    }
+
+    .verify-card {
+      position:relative;
+      width:min(100%,390px);
+      padding:31px 25px 25px;
+      border:1px solid var(--line);
+      border-radius:25px;
+      background:rgba(19,19,19,.94);
+      box-shadow:0 18px 55px rgba(0,0,0,.55);
+      backdrop-filter:blur(18px);
+      text-align:center;
+    }
+
+    .logo-wrap { margin-bottom:29px; }
+    .cunnect-logo { display:inline-flex; align-items:baseline; font-family:"Poppins",system-ui,sans-serif; font-size:40px; font-weight:800; letter-spacing:-3px; line-height:1; }
+    .logo-cu { color:#ff1022; text-shadow:0 0 10px rgba(255,16,34,.85),0 0 22px rgba(255,16,34,.35); }
+    .logo-nnect { color:#fff; text-shadow:0 2px 10px rgba(255,255,255,.16); }
+    .logo-tagline { margin:10px 0 0; margin-left:10px;  color:#a3a3a3; font-size:9px; font-weight:700; letter-spacing:2px; }
+
+    .shield {
+      width:52px;
+      height:52px;
+      display:grid;
+      place-items:center;
+      margin:0 auto 15px;
+      border:1px solid rgba(239,16,34,.65);
+      border-radius:17px;
+      background:rgba(239,16,34,.12);
+      color:#ff9ca5;
+      font-size:24px;
+    }
+
+    h1 { margin:0; font-family:"Poppins",system-ui,sans-serif; font-size:24px; letter-spacing:-.5px; }
+    .subtitle { margin:8px auto 22px; max-width:280px; color:#aaa; font-size:12px; line-height:1.45; }
+
+    .message { margin:0 0 16px; padding:10px 12px; border-radius:10px; font-size:12px; line-height:1.35; text-align:left; }
+    .message.error { border:1px solid rgba(239,16,34,.5); background:rgba(239,16,34,.12); color:#ffb0b7; }
+    .message.success { border:1px solid rgba(56,183,101,.45); background:rgba(56,183,101,.1); color:#a8ebba; }
+
+    .otp-row { display:flex; justify-content:center; gap:8px; margin:0 0 21px; }
+    .otp-box { width:43px; height:51px; border:1px solid rgba(255,255,255,.14); border-radius:12px; outline:0; background:#262626; color:#fff; font:700 20px "Inter",sans-serif; text-align:center; transition:.2s ease; }
+    .otp-box:focus { border-color:rgba(239,16,34,.8); box-shadow:0 0 0 3px rgba(239,16,34,.12); }
+
+    .verify-btn { width:100%; height:50px; border:0; border-radius:14px; background:var(--red); box-shadow:0 9px 20px rgba(239,16,34,.25); color:#fff; cursor:pointer; font:800 13px "Inter",sans-serif; letter-spacing:1px; transition:.2s ease; }
+    .verify-btn:hover { background:#d90a1b; transform:translateY(-1px); }
+
+    .resend-form { margin-top:19px; }
+    .resend-btn { border:0; background:transparent; color:#a3a3a3; cursor:pointer; font:500 12px "Inter",sans-serif; }
+    .resend-btn strong { color:#ff8994; text-decoration:underline; }
+    .resend-btn:hover strong { color:#fff; }
+    .secure-note { margin:19px 0 0; color:#707070; font-size:10px; }
+
+    @media (max-width:380px) { .verify-card { padding:27px 20px 22px; } .otp-row { gap:6px; } .otp-box { width:39px; height:48px; } }
+  </style>
+</head>
+
+<body>
+  <main class="verify-card">
+    <div class="logo-wrap">
+      <div class="cunnect-logo"><span class="logo-cu">CU</span><span class="logo-nnect">nnect</span></div>
+      <p class="logo-tagline">YOUR CAMPUS. CONNECTED.</p>
+    </div>
+
+    <h1>Verify Your Email</h1>
+    <p class="subtitle">Enter the 6-digit OTP sent to your registered email address.</p>
+
+    {% if messages %}
+      {% for message in messages %}
+        <div class="message {% if message.tags == 'error' %}error{% else %}success{% endif %}">
+          {{ message }}
+        </div>
+      {% endfor %}
+    {% endif %}
+
+    <form method="post" action="{% url 'otp_verify' %}" id="otpForm">
+      {% csrf_token %}
+      <input type="hidden" name="otp" id="finalOtp">
+
+      <div class="otp-row" id="otpRow">
+        <input class="otp-box" type="text" inputmode="numeric" maxlength="1" autocomplete="one-time-code" aria-label="OTP digit 1">
+        <input class="otp-box" type="text" inputmode="numeric" maxlength="1" aria-label="OTP digit 2">
+        <input class="otp-box" type="text" inputmode="numeric" maxlength="1" aria-label="OTP digit 3">
+        <input class="otp-box" type="text" inputmode="numeric" maxlength="1" aria-label="OTP digit 4">
+        <input class="otp-box" type="text" inputmode="numeric" maxlength="1" aria-label="OTP digit 5">
+        <input class="otp-box" type="text" inputmode="numeric" maxlength="1" aria-label="OTP digit 6">
+      </div>
+
+      <button type="submit" class="verify-btn">VERIFY OTP</button>
+    </form>
+
+    <form method="post" action="{% url 'resend_otp' %}" class="resend-form">
+      {% csrf_token %}
+      <button type="submit" class="resend-btn">
+        Didn't receive OTP? <strong>Resend OTP</strong>
+      </button>
+    </form>
+
+    <p class="secure-note">Secure email verification</p>
+  </main>
+
+  <script>
+    const otpInputs = Array.from(document.querySelectorAll('.otp-box'));
+    const finalOtp = document.getElementById('finalOtp');
+    const otpForm = document.getElementById('otpForm');
+
+    function updateOtp() {
+      finalOtp.value = otpInputs.map((input) => input.value).join('');
+    }
+
+    otpInputs.forEach((input, index) => {
+      input.addEventListener('input', (event) => {
+        input.value = input.value.replace(/[^0-9]/g, '').slice(0, 1);
+        updateOtp();
+        if (input.value && otpInputs[index + 1]) otpInputs[index + 1].focus();
+      });
+
+      input.addEventListener('keydown', (event) => {
+        if (event.key === 'Backspace' && !input.value && otpInputs[index - 1]) {
+          otpInputs[index - 1].focus();
+        }
+      });
+
+      input.addEventListener('paste', (event) => {
+        event.preventDefault();
+        const digits = (event.clipboardData.getData('text') || '').replace(/[^0-9]/g, '').slice(0, 6);
+        digits.split('').forEach((digit, digitIndex) => {
+          if (otpInputs[digitIndex]) otpInputs[digitIndex].value = digit;
+        });
+        updateOtp();
+        otpInputs[Math.min(digits.length, 5)].focus();
+      });
+    });
+
+    otpForm.addEventListener('submit', (event) => {
+      updateOtp();
+      if (finalOtp.value.length !== 6) {
+        event.preventDefault();
+        alert('Please enter the complete 6-digit OTP.');
+      }
+    });
+
+    otpInputs[0].focus();
+  </script>
+</body>
+</html>

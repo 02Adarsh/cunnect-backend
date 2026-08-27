@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Delivery Dashboard · CUnnect</title>
+  <style>
+    :root { --page:#090909; --panel:#151515; --line:#292929; --red:#f10b1d; --green:#38b765; --muted:#9d9d9d; }
+    * { box-sizing:border-box; } html,body { min-height:100%; margin:0; }
+    body { background:#000; color:#f5f5f5; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif; }
+    .app { width:100%; max-width:620px; min-height:100vh; margin:0 auto; padding-bottom:30px; background:var(--page); }
+    .header { height:62px; display:flex; align-items:center; justify-content:space-between; padding:0 14px; border-bottom:1px solid #202020; background:#050505; } .brand { font-size:22px; font-weight:850; letter-spacing:-1.2px; } .brand strong { color:var(--red); } .partner { color:var(--muted); font-size:11px; }
+    .header-actions { display:flex; align-items:center; gap:7px; } .portal-bell, .alert-toggle { position:relative; min-height:31px; display:inline-flex; align-items:center; justify-content:center; border:1px solid #373737; border-radius:8px; background:#151515; color:#eee; cursor:pointer; font:inherit; font-size:10px; text-decoration:none; } .portal-bell { width:33px; font-size:15px; } .alert-toggle { padding:0 8px; } .notification-dot { position:absolute; top:-4px; right:-4px; min-width:14px; height:14px; display:none; place-items:center; border-radius:50%; background:var(--red); color:#fff; font-size:8px; font-weight:800; } .notification-dot.show { display:grid; } .portal-toast { position:fixed; z-index:50; right:14px; bottom:18px; width:min(calc(100% - 28px),380px); padding:12px 14px; border:1px solid rgba(241,11,29,.58); border-radius:12px; background:#1d1213; box-shadow:0 12px 28px rgba(0,0,0,.48); animation:toast-in .25s ease-out; } .portal-toast strong { display:block; margin-bottom:3px; color:#ffabb2; font-size:12px; } .portal-toast span { color:#ddd; font-size:11px; } @keyframes toast-in { from { opacity:0; transform:translateY(18px); } to { opacity:1; transform:translateY(0); } }
+    .heading { padding:21px 14px 14px; border-bottom:1px solid var(--line); } h1 { margin:0 0 4px; font-size:21px; } .heading p { margin:0; color:var(--muted); font-size:12px; }
+    .message { margin:12px 14px 0; padding:10px 12px; border:1px solid rgba(56,183,101,.45); border-radius:9px; background:rgba(56,183,101,.1); color:#a8ebba; font-size:12px; } .message.error { border-color:rgba(241,11,29,.5); background:rgba(241,11,29,.1); color:#ffabb2; }
+    .section { padding:17px 14px 0; } .section-title { display:flex; align-items:center; justify-content:space-between; margin:0 0 10px; font-size:14px; } .section-title span { color:#ff8791; font-size:10px; }
+    .order-card { margin-bottom:10px; padding:14px; border:1px solid var(--line); border-radius:14px; background:var(--panel); } .top { display:flex; justify-content:space-between; gap:10px; } .order-id { font-size:12px; font-weight:800; } .vendor { margin-top:4px; color:var(--muted); font-size:10.5px; } .amount { color:#fff; font-size:12px; font-weight:800; } .items { margin:12px 0; padding:10px 0; border-top:1px solid var(--line); border-bottom:1px solid var(--line); color:#c9c9c9; font-size:11px; line-height:1.5; } .address { color:#d6d6d6; font-size:11px; line-height:1.45; } .address strong { color:#ff9da5; }
+    .claim { width:100%; margin-top:13px; padding:10px; border:0; border-radius:9px; background:var(--red); color:#fff; cursor:pointer; font-size:12px; font-weight:800; }
+    .otp-form { display:flex; gap:8px; margin-top:13px; } .otp-input { min-width:0; flex:1; height:40px; padding:0 11px; border:1px solid #3b3b3b; border-radius:9px; outline:0; background:#0c0c0c; color:#fff; font:inherit; letter-spacing:4px; text-align:center; } .otp-input:focus { border-color:var(--red); } .verify { min-width:88px; border:0; border-radius:9px; background:var(--green); color:#fff; cursor:pointer; font-size:11px; font-weight:800; }
+    .history-row { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:12px 0; border-bottom:1px solid var(--line); } .history-row:last-child { border-bottom:0; } .history-code { font-size:11.5px; font-weight:800; } .history-meta { margin-top:4px; color:var(--muted); font-size:10px; } .delivered { color:#93e7ae; font-size:10px; font-weight:800; }
+    .empty { padding:28px 12px; border:1px dashed #363636; border-radius:12px; color:var(--muted); text-align:center; font-size:11.5px; }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header class="header"><div class="brand"><strong>CU</strong>nnect</div><div class="header-actions"><button class="alert-toggle" id="delivery-alert-toggle" type="button">Enable Alerts</button><a class="portal-bell" href="{% url 'notifications_page' %}" aria-label="Notifications">🔔<span class="notification-dot" id="delivery-notification-dot">0</span></a><span class="partner">{{ user.username }}</span></div></header>
+    <section class="heading"><h1>Delivery Dashboard</h1><p>Claim ready orders and verify the customer's delivery OTP.</p></section>
+    {% if messages %}{% for message in messages %}<div class="message {{ message.tags }}">{{ message }}</div>{% endfor %}{% endif %}
+
+    <section class="section">
+      <h2 class="section-title">Ready to Deliver <span>{{ ready_orders|length }} Available</span></h2>
+      {% for order in ready_orders %}
+      <article class="order-card">
+        <div class="top"><div><div class="order-id">{{ order.order_number }}</div><div class="vendor">{{ order.vendor.business_name }}</div></div><div class="amount">₹{{ order.total_amount|floatformat:0 }}</div></div>
+        <div class="items">{% for item in order.items.all %}{{ item.item_name }} × {{ item.quantity }}{% if not forloop.last %}<br>{% endif %}{% endfor %}</div>
+        <div class="address"><strong>Deliver to:</strong><br>{{ order.customer_name }} · {{ order.customer_phone }}<br>{{ order.delivery_address }}{% if order.landmark %}<br>{{ order.landmark }}{% endif %}</div>
+        <form method="post" action="{% url 'delivery_claim_order' order.id %}">{% csrf_token %}<button class="claim" type="submit">Claim This Delivery</button></form>
+      </article>
+      {% empty %}<div class="empty">No ready orders available right now.</div>{% endfor %}
+    </section>
+
+    <section class="section">
+      <h2 class="section-title">My Active Deliveries <span>{{ active_orders|length }} Active</span></h2>
+      {% for order in active_orders %}
+      <article class="order-card">
+        <div class="top"><div><div class="order-id">{{ order.order_number }}</div><div class="vendor">{{ order.vendor.business_name }}</div></div><div class="amount">₹{{ order.total_amount|floatformat:0 }}</div></div>
+        <div class="items">{% for item in order.items.all %}{{ item.item_name }} × {{ item.quantity }}{% if not forloop.last %}<br>{% endif %}{% endfor %}</div>
+        <div class="address"><strong>Deliver to:</strong><br>{{ order.customer_name }} · {{ order.customer_phone }}<br>{{ order.delivery_address }}{% if order.landmark %}<br>{{ order.landmark }}{% endif %}</div>
+        <form class="otp-form" method="post" action="{% url 'delivery_verify_otp' order.id %}">{% csrf_token %}<input class="otp-input" type="text" name="delivery_otp" inputmode="numeric" maxlength="4" placeholder="OTP" required><button class="verify" type="submit">Verify OTP</button></form>
+      </article>
+      {% empty %}<div class="empty">You have no active deliveries.</div>{% endfor %}
+    </section>
+
+    <section class="section">
+      <h2 class="section-title">Delivery History <span>Latest 10</span></h2>
+      <article class="order-card">
+        {% for order in delivery_history %}
+          <div class="history-row">
+            <div>
+              <div class="history-code">{{ order.order_number }}</div>
+              <div class="history-meta">{{ order.vendor.business_name }} · {{ order.customer_name }}<br>{{ order.delivered_at|date:"d M, g:i A" }}</div>
+            </div>
+            <div style="text-align:right;"><div class="amount">₹{{ order.total_amount|floatformat:0 }}</div><div class="delivered">Delivered ✓</div></div>
+          </div>
+        {% empty %}
+          <div class="empty">Verified deliveries will appear here.</div>
+        {% endfor %}
+      </article>
+    </section>
+  </main>
+
+  <script>
+    const deliveryBell = document.getElementById('delivery-notification-dot');
+    const deliveryToggle = document.getElementById('delivery-alert-toggle');
+    const seenDeliveryNotifications = new Set(JSON.parse(sessionStorage.getItem('delivery_seen_notifications') || '[]'));
+    let deliveryAudioContext;
+
+    deliveryToggle.addEventListener('click', async () => {
+      deliveryAudioContext = deliveryAudioContext || new (window.AudioContext || window.webkitAudioContext)();
+      await deliveryAudioContext.resume();
+      deliveryToggle.textContent = 'Alerts On';
+      deliveryToggle.style.color = '#9be7b4';
+    });
+
+    function playDeliveryRing() {
+      if (!deliveryAudioContext || deliveryAudioContext.state !== 'running') return;
+      const oscillator = deliveryAudioContext.createOscillator();
+      const gain = deliveryAudioContext.createGain();
+      oscillator.frequency.value = 760;
+      gain.gain.setValueAtTime(.09, deliveryAudioContext.currentTime);
+      gain.gain.exponentialRampToValueAtTime(.001, deliveryAudioContext.currentTime + .28);
+      oscillator.connect(gain).connect(deliveryAudioContext.destination);
+      oscillator.start();
+      oscillator.stop(deliveryAudioContext.currentTime + .28);
+    }
+
+    function showDeliveryToast(notification) {
+      document.querySelectorAll('.portal-toast').forEach((item) => item.remove());
+      const toast = document.createElement('div');
+      const title = document.createElement('strong');
+      const message = document.createElement('span');
+      toast.className = 'portal-toast';
+      title.textContent = notification.title;
+      message.textContent = notification.message;
+      toast.append(title, message);
+      document.body.appendChild(toast);
+      playDeliveryRing();
+      window.setTimeout(() => toast.remove(), 5000);
+    }
+
+    async function refreshDeliveryNotifications() {
+      try {
+        const response = await fetch("{% url 'notifications_api' %}", { cache: 'no-store' });
+        if (!response.ok) return;
+        const data = await response.json();
+        deliveryBell.textContent = data.unread_count > 99 ? '99+' : data.unread_count;
+        deliveryBell.classList.toggle('show', data.unread_count > 0);
+        data.notifications.forEach((notification) => {
+          if (!seenDeliveryNotifications.has(notification.id)) {
+            showDeliveryToast(notification);
+            seenDeliveryNotifications.add(notification.id);
+          }
+        });
+        sessionStorage.setItem('delivery_seen_notifications', JSON.stringify([...seenDeliveryNotifications]));
+      } catch (error) { console.log('Delivery notification refresh failed'); }
+    }
+
+    refreshDeliveryNotifications();
+    window.setInterval(refreshDeliveryNotifications, 3000);
+  </script>
+</body>
+</html>

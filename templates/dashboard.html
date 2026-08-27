@@ -1,0 +1,914 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CUnnect</title>
+
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      height: 100dvh;
+      overflow: hidden;
+      background: #050505;
+      color: #fff;
+      font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    }
+
+    body::before {
+      position: fixed;
+      top: 120px;
+      right: -150px;
+      width: 500px;
+      height: 500px;
+      background: red;
+      content: "";
+      filter: blur(180px);
+      opacity: .18;
+      pointer-events: none;
+    }
+
+    header {
+      position: relative;
+      z-index: 2;
+      height: 62px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 20px;
+    }
+
+    .dashboard-logo-wrap {
+      text-align: left;
+    }
+
+    .dashboard-cunnect-logo {
+      display: inline-flex;
+      align-items: baseline;
+      font-family: "Poppins", system-ui, sans-serif;
+      font-size: 30px;
+      font-weight: 800;
+      letter-spacing: -2.5px;
+      line-height: 1;
+    }
+
+    .dashboard-logo-cu {
+      color: #ff1022;
+      text-shadow: 0 0 8px rgba(255, 16, 34, 0.8), 0 0 18px rgba(255, 16, 34, 0.3);
+    }
+
+    .dashboard-logo-nnect {
+      color: #ffffff;
+      text-shadow: 0 2px 8px rgba(255, 255, 255, 0.15);
+    }
+
+    .profile {
+      width: 48px;
+      height: 48px;
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+      padding: 0;
+      border: 2px solid white;
+      border-radius: 50%;
+      background: transparent;
+      color: white;
+      cursor: pointer;
+      font-size: 17px;
+      transition: .25s ease;
+    }
+
+    .profile:hover {
+      border-color: red;
+      color: #ff9ca5;
+      box-shadow: 0 0 20px red;
+    }
+
+    .profile-top-photo {
+      width: 100%;
+      height: 100%;
+      display: block;
+      border-radius: 50%;
+      object-fit: cover;
+    }
+
+    .dashboard-flash {
+      position: fixed;
+      z-index: 70;
+      top: 86px;
+      left: 50%;
+      width: min(calc(100% - 32px), 380px);
+      padding: 11px 13px;
+      transform: translateX(-50%);
+      border: 1px solid rgba(56,183,101,.5);
+      border-radius: 10px;
+      background: #122318;
+      color: #a8ebba;
+      box-shadow: 0 10px 25px rgba(0,0,0,.35);
+      font-size: 12px;
+      text-align: center;
+      animation: flash-in .25s ease-out;
+    }
+
+    .dashboard-flash.error {
+      border-color: rgba(241,11,29,.55);
+      background: #2a1114;
+      color: #ffabb2;
+    }
+
+    @keyframes flash-in {
+      from { opacity: 0; transform: translate(-50%, -10px); }
+      to { opacity: 1; transform: translate(-50%, 0); }
+    }
+
+    .greeting {
+      position: relative;
+      z-index: 1;
+      padding: 0 20px;
+      margin: -2px 0 12px;
+    }
+
+    .greeting h2 { font-size: 20px; font-weight: 500; line-height: 32px; }
+
+    .banner-wrapper {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      height: calc(100dvh - 224px);
+      min-height: 300px;
+      display: flex;
+      justify-content: center;
+      padding: 0 15px;
+    }
+
+    .slider {
+      position: relative;
+      width: 100%;
+      max-width: 450px;
+      height: 100%;
+      overflow: hidden;
+      border: 1px solid #252525;
+      border-radius: 24px;
+      background: #111;
+      box-shadow: 0 15px 40px rgba(0, 0, 0, .7);
+      touch-action: pan-y;
+      cursor: pointer;
+    }
+
+    .slide {
+      position: absolute;
+      inset: 0;
+      visibility: hidden;
+      opacity: 0;
+      transition: opacity .5s ease, visibility .5s ease;
+    }
+
+    .slide.active { visibility: visible; opacity: 1; }
+
+    .slide img,
+    .slide video {
+      width: 100%;
+      height: 100%;
+      display: block;
+      background: #000;
+      object-fit: contain;
+      object-position: center;
+    }
+
+    .empty-banner {
+      display: grid;
+      height: 100%;
+      place-items: center;
+      color: #777;
+      font-size: 13px;
+      text-align: center;
+    }
+
+    .indicators {
+      position: absolute;
+      z-index: 5;
+      bottom: 18px;
+      left: 50%;
+      display: flex;
+      gap: 8px;
+      transform: translateX(-50%);
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      padding: 0;
+      border: 0;
+      border-radius: 50%;
+      background: #555;
+      cursor: pointer;
+    }
+
+    .dot.active { background: red; }
+
+    .video-sound-toggle {
+      position: absolute;
+      z-index: 8;
+      top: 12px;
+      right: 12px;
+      width: 36px;
+      height: 36px;
+      display: none;
+      place-items: center;
+      border: 1px solid rgba(255,255,255,.28);
+      border-radius: 50%;
+      background: rgba(0,0,0,.55);
+      color: #fff;
+      cursor: pointer;
+      font-size: 15px;
+      backdrop-filter: blur(6px);
+    }
+
+    .video-sound-toggle.show { display: grid; }
+
+    .bottom-nav {
+      position: fixed;
+      z-index: 20;
+      bottom: 20px;
+      left: 50%;
+      width: 95%;
+      max-width: 420px;
+      display: flex;
+      gap: 10px;
+      overflow-x: auto;
+      overflow-y: hidden;
+      padding: 12px;
+      transform: translateX(-50%);
+      border: 1px solid rgba(255, 0, 0, .15);
+      border-radius: 25px;
+      background: rgba(20, 20, 20, .95);
+      backdrop-filter: blur(20px);
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+
+    .bottom-nav::-webkit-scrollbar { display: none; }
+
+    .bottom-nav a {
+      min-width: 80px;
+      flex: 0 0 25%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 10px;
+      border-radius: 15px;
+      color: #ddd;
+      font-size: 12px;
+      text-decoration: none;
+      transition: .25s ease;
+    }
+
+    .bottom-nav a i { margin-bottom: 5px; font-size: 24px; }
+
+    /* Hover/active par sirf icon red hoga, surrounding background/text same rahenge */
+    /* On mobile the red color shows only during a finger press.
+       It disappears as soon as the finger is released. */
+    .bottom-nav a:active {
+      background: transparent;
+      color: #ddd;
+    }
+
+    .bottom-nav a:active i {
+      color: #f10b1d;
+      text-shadow: 0 0 10px rgba(241, 11, 29, 0.55);
+    }
+
+    /* Desktop mouse hover effect only. */
+    @media (hover: hover) {
+      .bottom-nav a:hover {
+        background: transparent;
+        color: #ddd;
+      }
+
+      .bottom-nav a:hover i {
+        color: #f10b1d;
+        text-shadow: 0 0 10px rgba(241, 11, 29, 0.55);
+      }
+    }
+
+    /* Profile popup */
+    .profile-overlay {
+      position: fixed;
+      z-index: 30;
+      inset: 0;
+      visibility: hidden;
+      opacity: 0;
+      background: rgba(0, 0, 0, .63);
+      backdrop-filter: blur(3px);
+      transition: .25s ease;
+    }
+
+    .profile-panel {
+      position: fixed;
+      z-index: 35;
+      top: 18px;
+      right: 18px;
+      width: min(330px, calc(100% - 36px));
+      padding: 32px 18px 18px;
+      visibility: hidden;
+      opacity: 0;
+      transform: translateY(-14px) scale(.96);
+      border: 1px solid rgba(255, 0, 0, .55);
+      border-radius: 20px;
+      background: #161616;
+      box-shadow: 0 18px 50px rgba(0, 0, 0, .62);
+      text-align: center;
+      transition: .25s ease;
+    }
+
+    .profile-overlay.open,
+    .profile-panel.open { visibility: visible; opacity: 1; }
+
+    .profile-panel.open { transform: translateY(0) scale(1); }
+
+    .profile-close {
+      position: absolute;
+      top: 10px;
+      right: 12px;
+      width: 30px;
+      height: 30px;
+      border: 0;
+      border-radius: 50%;
+      background: #373737;
+      color: white;
+      cursor: pointer;
+      font-size: 22px;
+    }
+
+    .profile-avatar {
+      width: 66px;
+      height: 66px;
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+      padding: 0;
+      margin: 0 auto 10px;
+      border: 2px solid red;
+      border-radius: 50%;
+      background: rgba(255, 0, 0, .12);
+      color: #ff9ca5;
+      font-size: 25px;
+      font-weight: 800;
+    }
+
+    .profile-avatar img {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      object-fit: cover;
+    }
+
+    .profile-name { font-size: 18px; font-weight: 800; }
+    .profile-email { margin-top: 4px; color: #aaa; font-size: 11px; }
+
+    .profile-links {
+      display: grid;
+      gap: 8px;
+      margin-top: 21px;
+      text-align: left;
+    }
+
+    .profile-links a,
+    .profile-links button {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      padding: 11px 12px;
+      border: 1px solid #303030;
+      border-radius: 10px;
+      background: #101010;
+      color: #e8e8e8;
+      cursor: pointer;
+      font: inherit;
+      font-size: 12px;
+      font-weight: 650;
+      text-align: left;
+      text-decoration: none;
+    }
+
+    .profile-links i { width: 16px; color: red; text-align: center; }
+    .profile-links .logout-link { border-color: rgba(255, 0, 0, .38); color: #ff9ca5; }
+
+    /* Support form popup */
+    .support-overlay {
+      position: fixed;
+      z-index: 50;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+      background: rgba(0, 0, 0, .72);
+      backdrop-filter: blur(4px);
+    }
+
+    .support-overlay.open {
+      display: flex;
+    }
+
+    .support-card {
+      position: relative;
+      width: min(100%, 370px);
+      padding: 28px 20px 20px;
+      border: 1px solid rgba(241, 0, 13, .55);
+      border-radius: 20px;
+      background: #161616;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, .62);
+    }
+
+    .support-card h3 {
+      margin: 0 0 5px;
+      font-size: 20px;
+    }
+
+    .support-card p {
+      margin: 0 0 18px;
+      color: #a5a5a5;
+      font-size: 11px;
+      line-height: 1.4;
+    }
+
+    .support-close {
+      position: absolute;
+      top: 10px;
+      right: 12px;
+      width: 30px;
+      height: 30px;
+      border: 0;
+      border-radius: 50%;
+      background: #373737;
+      color: white;
+      cursor: pointer;
+      font-size: 22px;
+    }
+
+    .support-field {
+      width: 100%;
+      margin-bottom: 11px;
+      padding: 11px 12px;
+      border: 1px solid #353535;
+      border-radius: 10px;
+      outline: none;
+      background: #0d0d0d;
+      color: #fff;
+      font: inherit;
+      font-size: 12px;
+    }
+
+    .support-field:focus {
+      border-color: #f10b1d;
+    }
+
+    .support-field[readonly] {
+      color: #aaa;
+      cursor: not-allowed;
+    }
+
+    .support-submit {
+      width: 100%;
+      padding: 12px;
+      border: 0;
+      border-radius: 11px;
+      background: #f10b1d;
+      color: #fff;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    /* Full screen banner */
+    .banner-lightbox {
+      position: fixed;
+      z-index: 60;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: #000;
+    }
+
+    .banner-lightbox.open { display: flex; }
+
+    .banner-lightbox img,
+    .banner-lightbox video {
+      width: 100vw;
+      height: 100dvh;
+      background: #000;
+      object-fit: contain;
+      object-position: center;
+    }
+
+    .hidden { display: none !important; }
+
+    .banner-lightbox-close {
+      position: absolute;
+      z-index: 2;
+      top: 18px;
+      right: 18px;
+      width: 42px;
+      height: 42px;
+      border: 1px solid #4a4a4a;
+      border-radius: 50%;
+      background: rgba(25, 25, 25, .9);
+      color: #fff;
+      cursor: pointer;
+      font-size: 27px;
+      line-height: 1;
+    }
+
+    @media (min-width: 768px) {
+      .slider { max-width: 620px; }
+    }
+  
+
+    /* Premium dashboard logo and mobile-style motion */
+    header { animation: header-drop .38s cubic-bezier(.2,.8,.2,1) both; }
+    .dashboard-cunnect-logo { font-size: 42px; }
+    .dashboard-logo-cu {
+      text-shadow: 0 0 20px rgba(255,16,34,.45), 0 0 60px rgba(255,16,34,.18);
+    }
+    .profile { -webkit-tap-highlight-color: transparent; }
+    .profile:active { transform: scale(.90); }
+    .greeting { animation: card-rise .42s .08s cubic-bezier(.2,.8,.2,1) both; }
+    .banner-wrapper { animation: card-rise .46s .15s cubic-bezier(.2,.8,.2,1) both; }
+    .bottom-nav { animation: nav-up .45s .22s cubic-bezier(.2,.8,.2,1) both; }
+    .bottom-nav a { -webkit-tap-highlight-color: transparent; }
+    .bottom-nav a:active { transform: scale(.92); }
+    .dot { transition: transform .18s ease, background .18s ease; }
+    .dot:active { transform: scale(1.4); }
+    .video-sound-toggle { transition: transform .18s ease, background .18s ease; }
+    .video-sound-toggle:active { transform: scale(.88); }
+    @keyframes header-drop { from { opacity:0; transform:translateY(-16px); } to { opacity:1; transform:translateY(0); } }
+    @keyframes card-rise { from { opacity:0; transform:translateY(16px) scale(.985); } to { opacity:1; transform:translateY(0) scale(1); } }
+    @keyframes nav-up { from { opacity:0; transform:translate(-50%, 24px); } to { opacity:1; transform:translate(-50%, 0); } }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration:.01ms !important; animation-iteration-count:1 !important; transition-duration:.01ms !important; }
+    }
+
+  </style>
+</head>
+
+<body>
+  <header>
+    <div class="dashboard-logo-wrap">
+      <div class="dashboard-cunnect-logo">
+        <span class="dashboard-logo-cu">CU</span><span class="dashboard-logo-nnect">nnect</span>
+      </div>
+    </div>
+
+    <button class="profile" id="profileToggle" type="button" aria-label="Open profile">
+      {% if profile and profile.profile_photo %}
+        <img class="profile-top-photo" src="{{ profile.profile_photo.url }}" alt="{{ display_name }}">
+      {% else %}
+        <i class="fa-solid fa-user"></i>
+      {% endif %}
+    </button>
+  </header>
+
+  {% if messages %}
+    {% for message in messages %}
+      <div class="dashboard-flash {{ message.tags }}">{{ message }}</div>
+    {% endfor %}
+  {% endif %}
+
+  <section class="greeting">
+    <h2>Good Evening, {{ display_name }}</h2>
+  </section>
+
+  <main class="banner-wrapper">
+    <section class="slider" id="slider" aria-label="Campus banners">
+      {% for banner in banners %}
+        <article class="slide {% if forloop.first %}active{% endif %}">
+          {% if banner.video %}
+            <video autoplay muted loop playsinline>
+              <source src="{{ banner.video.url }}" type="video/mp4">
+            </video>
+          {% elif banner.image %}
+            <img src="{{ banner.image.url }}" alt="{{ banner.title }}">
+          {% endif %}
+        </article>
+      {% empty %}
+        <div class="empty-banner">No banner is available right now.</div>
+      {% endfor %}
+
+      <button class="video-sound-toggle" id="videoSoundToggle" type="button" aria-label="Turn video sound on">🔇</button>
+
+      {% if banners|length > 1 %}
+        <div class="indicators">
+          {% for banner in banners %}
+            <button
+              class="dot {% if forloop.first %}active{% endif %}"
+              type="button"
+              data-index="{{ forloop.counter0 }}"
+              aria-label="Show banner {{ forloop.counter }}"
+            ></button>
+          {% endfor %}
+        </div>
+      {% endif %}
+    </section>
+  </main>
+
+  <nav class="bottom-nav" aria-label="Main navigation">
+    <a href="{% url 'scraper_app:login' %}" aria-label="Academics">
+      <i class="fa-solid fa-user-graduate"></i>
+      <span>UMS</span>
+    </a>
+
+    <a href="{% url 'food_home' %}">
+      <i class="fa-solid fa-utensils"></i>
+      <span>Food</span>
+    </a>
+
+    
+    <a href="{% url 'store_home' %}">
+      <i class="fa-solid fa-bag-shopping"></i>
+      <span>Store</span>
+      <a href="{% url 'chat_under_construction' %}">
+        <i class="fa-solid fa-comments"></i>
+        <span>Chat</span>
+      </a>
+    </a>
+
+    <a href="{% url 'vendor_login' %}">
+      <i class="fa-solid fa-store"></i>
+      <span>Partner</span>
+    </a>
+
+    <!-- UI-only Academics tab. Add a verified official destination later if needed. -->
+  </nav>
+
+  <div class="profile-overlay" id="profileOverlay"></div>
+
+  <aside class="profile-panel" id="profilePanel">
+    <button class="profile-close" id="profileClose" type="button" aria-label="Close profile">
+      ×
+    </button>
+
+    <div class="profile-avatar">
+      {% if profile and profile.profile_photo %}
+        <img src="{{ profile.profile_photo.url }}" alt="{{ display_name }}">
+      {% else %}
+        {{ display_name|first|upper }}
+      {% endif %}
+    </div>
+
+    <div class="profile-name">{{ display_name }}</div>
+
+    <div class="profile-email">
+      {% if user.email %}
+        {{ user.email }}
+      {% else %}
+        CUnnect Campus Member
+      {% endif %}
+    </div>
+
+    <div class="profile-links">
+      <a href="{% url 'my_orders' %}">
+        <i class="fa-solid fa-receipt"></i>
+        My Orders
+      </a>
+
+      <button class="support-link" id="supportOpen" type="button">
+        <i class="fa-solid fa-headset"></i>
+        Support Us
+      </button>
+
+      <a href="{% url 'chat_home' %}">
+        <i class="fa-solid fa-comments"></i>
+        Chat
+      </a>
+
+      <a class="logout-link" href="{% url 'user_logout' %}">
+        <i class="fa-solid fa-right-from-bracket"></i>
+        Logout
+      </a>
+    </div>
+  </aside>
+
+  <!-- Support form: email is pre-filled from backend -->
+  <div class="support-overlay" id="supportOverlay">
+    <section class="support-card">
+      <button class="support-close" id="supportClose" type="button" aria-label="Close support form">×</button>
+      <h3>Support Us</h3>
+      <p>Tell us how we can help. Our team will review your request.</p>
+
+      <form method="post" action="{% url 'support_request' %}">
+        {% csrf_token %}
+        <input class="support-field" type="email" name="email" value="{{ user.email }}" readonly>
+        <input class="support-field" type="text" name="subject" placeholder="Subject" required>
+        <textarea class="support-field" name="message" rows="5" placeholder="Write your issue or suggestion..." required></textarea>
+        <button class="support-submit" type="submit">SEND REQUEST</button>
+      </form>
+    </section>
+  </div>
+
+  <div class="banner-lightbox" id="bannerLightbox">
+    <button class="banner-lightbox-close" id="bannerLightboxClose" type="button" aria-label="Close full screen banner">
+      ×
+    </button>
+
+    <img id="bannerLightboxImage" src="" alt="Full screen banner">
+    <video id="bannerLightboxVideo" controls playsinline class="hidden">
+      <source id="bannerLightboxVideoSource" src="" type="video/mp4">
+    </video>
+  </div>
+
+  <script>
+    const slides = Array.from(document.querySelectorAll(".slide"));
+    const dots = Array.from(document.querySelectorAll(".dot"));
+    const slider = document.getElementById("slider");
+
+    let current = 0;
+    let startX = 0;
+    let videoSoundEnabled = false;
+    const videoSoundToggle = document.getElementById("videoSoundToggle");
+
+    function updateVideoSoundButton() {
+      const activeVideo = slides[current] && slides[current].querySelector("video");
+
+      videoSoundToggle.classList.toggle("show", Boolean(activeVideo));
+      videoSoundToggle.textContent = videoSoundEnabled ? "🔊" : "🔇";
+      videoSoundToggle.setAttribute(
+        "aria-label",
+        videoSoundEnabled ? "Turn video sound off" : "Turn video sound on"
+      );
+
+      slides.forEach((slide, index) => {
+        const video = slide.querySelector("video");
+        if (!video) return;
+
+        video.muted = !(videoSoundEnabled && index === current);
+        if (index === current) video.play().catch(() => {});
+      });
+    }
+
+    function showSlide(index) {
+      if (!slides.length) return;
+
+      current = (index + slides.length) % slides.length;
+
+      slides.forEach((slide, slideIndex) => {
+        slide.classList.toggle("active", slideIndex === current);
+      });
+
+      dots.forEach((dot, dotIndex) => {
+        dot.classList.toggle("active", dotIndex === current);
+      });
+
+      updateVideoSoundButton();
+    }
+
+    dots.forEach((dot) => {
+      dot.addEventListener("click", () => {
+        showSlide(Number(dot.dataset.index));
+      });
+    });
+
+    videoSoundToggle.addEventListener("click", () => {
+      videoSoundEnabled = !videoSoundEnabled;
+      updateVideoSoundButton();
+    });
+
+    updateVideoSoundButton();
+
+    if (slider) {
+      slider.addEventListener(
+        "touchstart",
+        (event) => {
+          startX = event.changedTouches[0].screenX;
+        },
+        { passive: true }
+      );
+
+      slider.addEventListener(
+        "touchend",
+        (event) => {
+          const distance = event.changedTouches[0].screenX - startX;
+
+          if (Math.abs(distance) < 45) return;
+
+          slider.dataset.justSwiped = "true";
+
+          showSlide(distance < 0 ? current + 1 : current - 1);
+
+          window.setTimeout(() => {
+            delete slider.dataset.justSwiped;
+          }, 250);
+        },
+        { passive: true }
+      );
+    }
+
+    const bannerLightbox = document.getElementById("bannerLightbox");
+    const bannerLightboxImage = document.getElementById("bannerLightboxImage");
+    const bannerLightboxVideo = document.getElementById("bannerLightboxVideo");
+    const bannerLightboxVideoSource = document.getElementById("bannerLightboxVideoSource");
+    const bannerLightboxClose = document.getElementById("bannerLightboxClose");
+
+    slides.forEach((slide) => {
+      slide.addEventListener("click", () => {
+        if (slider.dataset.justSwiped) return;
+
+        const image = slide.querySelector("img");
+        const video = slide.querySelector("video");
+
+        bannerLightboxImage.classList.add("hidden");
+        bannerLightboxVideo.classList.add("hidden");
+
+        if (video) {
+          bannerLightboxVideoSource.src = video.currentSrc || video.querySelector("source").src;
+          bannerLightboxVideo.load();
+          bannerLightboxVideo.muted = false;
+          bannerLightboxVideo.volume = 1;
+          bannerLightboxVideo.classList.remove("hidden");
+          bannerLightboxVideo.play().catch(() => {});
+        } else if (image) {
+          bannerLightboxImage.src = image.src;
+          bannerLightboxImage.alt = image.alt || "Full screen banner";
+          bannerLightboxImage.classList.remove("hidden");
+        } else {
+          return;
+        }
+
+        bannerLightbox.classList.add("open");
+      });
+    });
+
+    function closeBannerLightbox() {
+      bannerLightbox.classList.remove("open");
+      bannerLightboxImage.src = "";
+      bannerLightboxVideo.pause();
+      bannerLightboxVideoSource.src = "";
+      bannerLightboxVideo.load();
+    }
+
+    bannerLightboxClose.addEventListener("click", closeBannerLightbox);
+
+    bannerLightbox.addEventListener("click", (event) => {
+      if (event.target === bannerLightbox) {
+        closeBannerLightbox();
+      }
+    });
+
+    const profileToggle = document.getElementById("profileToggle");
+    const profilePanel = document.getElementById("profilePanel");
+    const profileOverlay = document.getElementById("profileOverlay");
+    const profileClose = document.getElementById("profileClose");
+
+    function openProfile() {
+      profilePanel.classList.add("open");
+      profileOverlay.classList.add("open");
+    }
+
+    function closeProfile() {
+      profilePanel.classList.remove("open");
+      profileOverlay.classList.remove("open");
+    }
+
+    profileToggle.addEventListener("click", openProfile);
+    profileClose.addEventListener("click", closeProfile);
+    profileOverlay.addEventListener("click", closeProfile);
+
+    const supportOpen = document.getElementById("supportOpen");
+    const supportOverlay = document.getElementById("supportOverlay");
+    const supportClose = document.getElementById("supportClose");
+
+    supportOpen.addEventListener("click", () => {
+      closeProfile();
+      supportOverlay.classList.add("open");
+    });
+
+    supportClose.addEventListener("click", () => {
+      supportOverlay.classList.remove("open");
+    });
+
+    supportOverlay.addEventListener("click", (event) => {
+      if (event.target === supportOverlay) {
+        supportOverlay.classList.remove("open");
+      }
+    });
+
+    document.querySelectorAll(".dashboard-flash").forEach((flash) => {
+      window.setTimeout(() => {
+        flash.style.transition = "opacity .25s ease, transform .25s ease";
+        flash.style.opacity = "0";
+        flash.style.transform = "translate(-50%, -10px)";
+        window.setTimeout(() => flash.remove(), 250);
+      }, 3500);
+    });
+  </script>
+</body>
+</html>

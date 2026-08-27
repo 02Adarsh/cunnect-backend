@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CUconnect | Dashboard</title>
+    <!-- Tailwind CSS for Layout and Utility -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --bg-color: #0a0a0a;
+            --primary-red: #ff0000;
+            --accent-red: #8b0000;
+            --card-bg: linear-gradient(135deg, #1a0000 0%, #000000 100%);
+            --text-white: #ffffff;
+            --text-gray: #a0a0a0;
+            --glass: rgba(255, 255, 255, 0.05);
+        }
+
+        body {
+            background-color: var(--bg-color);
+            background-image: 
+                radial-gradient(circle at 20% 20%, rgba(255, 0, 0, 0.07) 0%, transparent 40%),
+                radial-gradient(circle at 80% 80%, rgba(255, 0, 0, 0.07) 0%, transparent 40%);
+            color: var(--text-white);
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Custom Brand Styling */
+        .logo-text {
+            font-size: 28px;
+            font-weight: bold;
+            letter-spacing: -1px;
+        }
+        .logo-text span { color: var(--primary-red); }
+
+        .profile-icon {
+            width: 45px;
+            height: 45px;
+            border: 2px solid var(--text-white);
+            border-radius: 50%;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        .profile-icon:hover {
+            border-color: var(--primary-red);
+            transform: scale(1.1);
+            box-shadow: 0 0 15px rgba(255,0,0,0.4);
+        }
+
+        .profile-dropdown {
+            display: none;
+            position: absolute;
+            right: 0;
+            top: 60px;
+            background: rgba(26, 26, 26, 0.95);
+            backdrop-filter: blur(15px);
+            border: 1px solid #333;
+            border-radius: 20px;
+            width: 240px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.7);
+            z-index: 1000;
+            overflow: hidden;
+            animation: slideDown 0.3s ease-out;
+        }
+
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Banner Styling - Optimized for Portrait Images */
+        .banner-slide {
+            transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            transform: scale(1.05);
+        }
+        .banner-slide.active {
+            opacity: 1;
+            transform: scale(1);
+        }
+        .banner-overlay {
+            background: linear-gradient(to right, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.2) 100%);
+        }
+
+        /* Bottom Navigation Dock */
+        .bottom-nav-container {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: auto;
+            max-width: 90%;
+            background: rgba(17, 17, 17, 0.85);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 40px;
+            padding: 12px 25px;
+            z-index: 100;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.6);
+        }
+
+        .scroll-menu {
+            display: flex;
+            overflow-x: auto;
+            gap: 10px;
+            scroll-snap-type: x mandatory;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+        }
+        .scroll-menu::-webkit-scrollbar { display: none; }
+
+        .menu-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-width: 85px;
+            color: var(--text-gray);
+            text-decoration: none;
+            scroll-snap-align: start;
+            transition: all 0.3s ease;
+            padding: 10px;
+            border-radius: 20px;
+        }
+        .menu-item:hover {
+            background: var(--glass);
+            color: white;
+        }
+        .menu-item.active {
+            color: var(--primary-red);
+            background: rgba(255, 0, 0, 0.1);
+        }
+        .menu-item svg {
+            width: 26px;
+            height: 26px;
+            margin-bottom: 6px;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+        .menu-item span {
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        @media (min-width: 1024px) {
+            .app-container {
+                max-width: 1400px;
+                margin: 0 auto;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="app-container py-6 flex flex-col min-h-screen pb-32">
+        <!-- Header -->
+        <header class="flex justify-between items-center w-full mb-8 px-6">
+            <div class="logo-text"><span>CU</span>nnect</div>
+            
+            <div class="relative">
+                <div class="profile-icon flex justify-center items-center" onclick="toggleProfileDropdown()">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                </div>
+                
+                <div id="profileDropdown" class="profile-dropdown">
+                    <div class="p-4 border-b border-zinc-800">
+                        <div class="font-bold text-lg">{{ user.username }}</div>
+                        <div class="text-xs text-zinc-500">{{ user.email|default:user.username }}</div>
+                    </div>
+                    <div class="py-2">
+                        <a href="#" class="flex items-center gap-3 px-4 py-3 text-sm text-zinc-300 hover:bg-zinc-800 hover:text-white transition-colors">
+                            <i class="fa-solid fa-user w-5"></i> View Profile
+                        </a>
+                        <a href="#" class="flex items-center gap-3 px-4 py-3 text-sm text-zinc-300 hover:bg-zinc-800 hover:text-white transition-colors">
+                            <i class="fa-solid fa-cog w-5"></i>} Settings
+                        </a>
+                        <a href="#" class="flex items-center gap-3 px-4 py-3 text-sm text-zinc-300 hover:bg-zinc-800 hover:text-white transition-colors">
+                            <i class="fa-solid fa-wallet w-5"></i> Wallet
+                        </a>
+                    </div>
+                    <div class="border-t border-zinc-800 py-2">
+                        <a href="{% url 'login_step1' %}" class="flex items-center gap-3 px-4 py-3 text-sm text-red-500 hover:bg-red-500/10 transition-colors">
+                            <i class="fa-solid fa-sign-out-alt w-5"></i> Logout
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Greeting -->
+        <div class="mb-8 px-6">
+            <h1 class="text-3xl md:text-5xl font-bold mb-2 uppercase tracking-tight">Hello, {{ user.username }}.</h1>
+            <p class="text-lg md:text-xl text-zinc-400">What do you need today?</p>
+        </div>
+
+        <!-- Automatic Swipeable Banners - Height increased for Portrait images -->
+        <div id="banner-slider" class="relative w-full h-[500px] md:h-[750px] rounded-[32px] overflow-hidden shadow-2xl border border-zinc-800 mb-12 mx-0 sm:mx-6">
+            {% for banner in banners %}
+            <div class="banner-slide {% if forloop.first %}active{% endif %}" 
+                 style="background-image: url('{{ banner.image.url }}'); background-size: cover; background-position: center center;">
+                
+                <div class="banner-overlay absolute inset-0 flex items-center px-8 md:px-16">
+                    <div class="max-w-2xl">
+                        <h2 class="text-4xl md:text-6xl font-extrabold leading-tight text-white mb-4">
+                            {{ banner.title|linebreaksbr }}
+                        </h2>
+                        
+                        {% if banner.subtitle %}
+                        <p class="text-lg md:text-xl text-zinc-300 mb-6">{{ banner.subtitle }}</p>
+                        {% endif %}
+                        
+                        {% if banner.button_text %}
+                        <a href="{{ banner.button_link }}" 
+                           class="inline-block px-8 py-3 bg-white text-black font-bold rounded-2xl hover:bg-zinc-200 transition-all transform hover:scale-105 shadow-lg">
+                            {{ banner.button_text }}
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="absolute inset-0 bg-zinc-900 flex items-center justify-center">
+                <p class="text-zinc-500">No active banners at the moment.</p>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Bottom Navigation Dock -->
+        <div class="bottom-nav-container">
+            <div class="scroll-menu">
+                <a href="{% url 'food_home' %}" class="menu-item active">
+                    <svg viewBox="0 0 24 24"><path d="M3 15h18M12 15V9a3 3 0 0 1 6 0v6M12 15a3 3 0 0 0 0-6 3 3 0 0 0 0 6zM12 15a3 3ed 0 0 0-6 0v-6a3 3 0 0 0 6 0v6z"></path></svg>
+                    <span>Food</span>
+                </a>
+                <a href="#" class="menu-item">
+                    <svg viewBox="0 0 24 24"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"></path><line x1="3" y1="6" x2="21" y2="6"></line><path d="M16 10a4 4 0 0 1-8 0"></path></svg>
+                    <span>Shop</span>
+                </a>
+                <a href="#" class="menu-item">
+                    <svg viewBox="0 0 24 24"><rect x="1" y="11" width="22" height="10" rx="2" ry="2"></rect><circle cx="7" cy="21" r="2"></circle><circle cx="17" cy="21" r="2"></circle></svg>
+                    <span>Ride</span>
+                </a>
+                <a href="{% url 'chat_home' %}" class="menu-item">
+                    <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                    <span>Chatroom</span>
+                </a>
+                <a href="#" class="menu-item">
+                    <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5z"></path><path d="M2 17l10 5 10-5"></path><path d="M2 12l10 5 10-5"></path></svg>
+                    <span>Wallet</span>
+                </a>
+                <a href="#" class="menu-item">
+                <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                    <span>Offers</span>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function toggleProfileDropdown() {
+            const dropdown = document.getElementById("profileDropdown");
+            dropdown.style.display = (dropdown.style.display === "block") ? "none" : "block";
+        }
+
+        document.addEventListener("click", function (event) {
+            const dropdown = document.getElementById("profileDropdown");
+            const profileIcon = document.querySelector(".profile-icon");
+            if (!profileIcon.contains(event.target) and !dropdown.contains(event.target)) {
+                dropdown.style.display = "none";
+            }
+        });
+
+        let currentBanner = 0;
+        const banners = document.querySelectorAll(".banner-slide");
+        const totalBanners = banners.length;
+        let startX = 0;
+        let isDragging = false;
+
+        function showBanner(index) {
+            banners.forEach((banner) => banner.classList.remove("active"));
+            banners[index].classList.add("active");
+        }
+
+        function nextBanner() {
+            currentBanner = (currentBanner + 1) % totalBanners;
+            showBanner(currentBanner);
+        }
+
+        function prevBanner() {
+            currentBanner = (currentBanner - 1 + totalBanners) % totalBanners;
+            showBanner(currentBanner);
+        }
+
+        if (totalBanners > 1) {
+            setInterval(nextBanner, 5000);
+        }
+
+        const slider = document.getElementById("banner-slider");
+        
+        slider.addEventListener("touchstart", (e) => {
+            startX = e.touches[0].clientX;
+            startX = e.touches[0].clientX;
+            isDragging = true;
+        });
+
+        slider.addEventListener("touchend", (e) => {
+            if (!isDragging) return;
+            const endX = e.changedTouches[0].clientX;
+            const diff = startX - endX;
+            if (diff > 50) nextBanner();
+            else if (diff < -50) prevBanner();
+            isDragging = false;
+        });
+
+        slider.addEventListener("mousedown", (e) => {
+            startX = e.clientX;
+            isDragging = true;
+        });
+
+        slider.addEventListener("mouseup", (e) => {
+            if (!isDragging) return;
+            const endX = e.clientX;
+            const diff = startX - endX;
+            if (diff > 50) nextBanner();
+            else if (diff < -50) prevBanner();
+            isDragging = false;
+        }
+    </script>
+</body>
+</html>

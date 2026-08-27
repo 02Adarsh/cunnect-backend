@@ -1,0 +1,2078 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>CUnnect · UMS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            surface:'#0F0F11', surface2:'#151518', hair:'rgba(255,255,255,0.09)',
+            red:'#EC1C24', reddim:'rgba(236,28,36,0.10)', muted:'#87878D', soft:'#B7B7BC',
+            grn:'#16A34A'
+          },
+          fontFamily: {
+            display:['Archivo Black','system-ui','sans-serif'],
+            sans:['Inter','system-ui','sans-serif'],
+            mono:['IBM Plex Mono','ui-monospace','monospace']
+          },
+          borderRadius:{card:'12px',badge:'8px'}
+        }
+      }
+    };
+  </script>
+  <style>
+    html,body{background:#000} body{font-family:Inter,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+    .noscroll::-webkit-scrollbar{display:none}.noscroll{scrollbar-width:none;-ms-overflow-style:none}
+    .ledger{position:relative;overflow:hidden}
+    .ledger::before{position:absolute;top:0;bottom:0;left:0;width:2px;background:#EC1C24;content:"";z-index:2}
+    .ledger-mute::before{background:rgba(255,255,255,.15)}
+    .eyebrow{color:#87878D;font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase}
+    .bar{height:5px;overflow:hidden;border-radius:3px;background:rgba(255,255,255,.09)}
+    .bar>i{display:block;height:100%;border-radius:3px;transition:width .45s ease,background-color .3s ease}
+    .tabnum{font-variant-numeric:tabular-nums lining-nums}
+    .tab-underline{transition:transform .28s cubic-bezier(.22,.61,.36,1),width .28s cubic-bezier(.22,.61,.36,1)}
+
+    /* ⭐ FOOTER RED: active tab ka icon + label red (JS wahi
+       text-white class toggle karta hai - hum use red paint karte
+       hain + halka red glow) */
+    #tab-strip button.text-white{color:#EC1C24}
+    #tab-strip button.text-white span{text-shadow:0 0 14px rgba(236,28,36,.40)}
+    /* ⭐ tab strip ke top pe bahut halki red hairline glow */
+    #tab-strip::before{content:"";position:absolute;top:0;left:0;right:0;height:1px;z-index:1;
+      background:linear-gradient(90deg, rgba(236,28,36,0), rgba(236,28,36,.45), rgba(236,28,36,0))}
+
+    /* ⭐ Footer tab ICONS bade (16px -> 21px) - labels 9px waise hi */
+    #tab-strip button>span:first-child{font-size:21px;line-height:1}
+
+    /* ══ ⭐ v6.4 COURSE MODAL THEME: red-glass look (layout wahi, sirf
+       rang/gradient/cards naye - user request). App ka black+red
+       identity rakhte hue modal ko warm crimson treatment. ══ */
+    /* Sheet: warm dark-red base + upar se red glow, top-border red */
+    #course-sheet{
+      background:radial-gradient(120% 42% at 50% 0%, rgba(236,28,36,.15), rgba(236,28,36,0) 62%),
+                 linear-gradient(180deg, #16090B 0%, #0F0F11 40%)!important;
+      border-top:1px solid rgba(236,28,36,.35)!important;
+    }
+    /* Hero card: crimson gradient glass + top-right glow */
+    .cm-hero{
+      position:relative;overflow:hidden;border-radius:14px;
+      border:1px solid rgba(236,28,36,.24);padding:14px;
+      background:linear-gradient(135deg, rgba(236,28,36,.16), rgba(236,28,36,.03) 55%, rgba(255,255,255,.02));
+    }
+    .cm-hero::before{
+      content:"";position:absolute;inset:0;pointer-events:none;
+      background:radial-gradient(75% 95% at 100% 0%, rgba(236,28,36,.20), rgba(236,28,36,0) 62%);
+    }
+    .cm-hero>*{position:relative;z-index:1}
+    /* % ring arc ko halki glow */
+    .cm-ring-arc{filter:drop-shadow(0 0 5px rgba(236,28,36,.60))}
+    .cm-ring-arc.g-safe{filter:drop-shadow(0 0 5px rgba(255,255,255,.35))}
+    /* Recovery/safety pills: gradient borders (safe = theme-white) */
+    .cm-pill-low{background:linear-gradient(90deg, rgba(236,28,36,.28), rgba(236,28,36,.08));
+      border:1px solid rgba(236,28,36,.38);color:#FF737B}
+    .cm-pill-safe{background:linear-gradient(90deg, rgba(255,255,255,.14), rgba(255,255,255,.05));
+      border:1px solid rgba(255,255,255,.25);color:#EDEDEF}
+    /* ⭐ v6.5 THEME-MATCH: present = soft WHITE (app ke safe-bars wali
+       language), absent = RED pop - red+green christmas hata diya */
+    .cm-dot-p{background:#D7D7DC}
+    .cm-dot-a{background:#EC1C24;box-shadow:0 0 9px rgba(236,28,36,.65)}
+    .cm-st-p{border:1px solid rgba(255,255,255,.22);color:#B7B7BC}
+    .cm-st-a{background:#EC1C24;color:#fff;box-shadow:0 3px 12px -4px rgba(236,28,36,.7)}
+    /* Tabs bar: warm red-tinted + active tab = RED gradient pill glow */
+    .cm-tabs{border-radius:12px;background:rgba(236,28,36,.055);
+      border:1px solid rgba(236,28,36,.17)}
+    .ctab-on{background:linear-gradient(135deg,#EC1C24,#B01218)!important;
+      color:#fff!important;box-shadow:0 5px 16px -6px rgba(236,28,36,.65)}
+    /* Timeline entry rows: subtle gradient glass card */
+    .cm-row{background:linear-gradient(180deg, rgba(255,255,255,.035), rgba(255,255,255,0)), #141416;
+      border:1px solid rgba(255,255,255,.08)}
+    /* Day headers display-font me (screenshot jaisa heavier) */
+    .cm-day{font-family:'Archivo Black',system-ui,sans-serif;font-weight:400;letter-spacing:.01em}
+    /* Course Plan CTA: red gradient + glow */
+    .cm-cta{background:linear-gradient(135deg,#EC1C24,#B01218);
+      box-shadow:0 8px 22px -8px rgba(236,28,36,.7)}
+    /* ⭐ v6.6 SLIDER PREDICTION (user screenshot): red-tint planner
+       card + custom range slider (white knob, red ring - theme) */
+    .cm-plan{background:linear-gradient(160deg, rgba(236,28,36,.12), rgba(236,28,36,.02));
+      border:1px solid rgba(236,28,36,.22);border-radius:12px}
+    .cm-slider{-webkit-appearance:none;appearance:none;height:18px;
+      background:transparent;cursor:pointer}
+    .cm-slider::-webkit-slider-runnable-track{height:4px;border-radius:2px;
+      background:rgba(255,255,255,.12)}
+    .cm-slider::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;
+      width:18px;height:18px;margin-top:-7px;border-radius:50%;
+      background:#fff;border:3px solid #EC1C24;
+      box-shadow:0 0 10px rgba(236,28,36,.65)}
+    .cm-slider::-moz-range-track{height:4px;border-radius:2px;
+      background:rgba(255,255,255,.12)}
+    .cm-slider::-moz-range-thumb{width:12px;height:12px;border-radius:50%;
+      background:#fff;border:3px solid #EC1C24;
+      box-shadow:0 0 10px rgba(236,28,36,.65)}
+
+    /* ── Subject names in red — SCHEDULE PAGE ONLY ───────────────── */
+    #panel-timetable .subject-name{color:#EC1C24}
+
+    /* ── Schedule cards ──────────────────────────────────────────── */
+    .schedule-slot{position:relative;transition:border-color .3s ease,background .3s ease,opacity .3s ease,box-shadow .3s ease}
+    .schedule-slot>*{position:relative;z-index:1}
+
+    /* ONGOING: translucent red vignette over the whole card */
+    .schedule-slot.slot-live{
+      border-color:rgba(236,28,36,.55)!important;
+      background:#0F0F11!important;
+      box-shadow:0 0 0 1px rgba(236,28,36,.22), 0 10px 30px -12px rgba(236,28,36,.45);
+    }
+    .schedule-slot.slot-live::after{
+      content:"";position:absolute;inset:0;z-index:0;pointer-events:none;border-radius:inherit;
+      background:
+        radial-gradient(120% 90% at 50% 50%, rgba(236,28,36,0) 30%, rgba(236,28,36,.14) 68%, rgba(236,28,36,.30) 100%),
+        radial-gradient(60% 55% at 50% 45%, rgba(236,28,36,.07) 0%, rgba(236,28,36,0) 100%);
+      box-shadow:inset 0 0 44px rgba(236,28,36,.22);
+    }
+    .schedule-slot.slot-live::before{width:4px;background:#EC1C24}
+
+    /* FINISHED: dimmed */
+    .schedule-slot.schedule-finished{opacity:.55}
+    .schedule-slot.schedule-finished::before{background:rgba(255,255,255,.18)}
+
+    /* ── Live badges ─────────────────────────────────────────────── */
+    .slot-live-badge{
+      display:inline-block;border-radius:999px;padding:4px 9px;
+      font-size:9px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;
+      color:#fff;background:#343434;line-height:1;
+    }
+    .slot-live-badge.hidden{display:none}
+    .slot-live-badge.badge-done{background:#EC1C24;color:#fff}                     /* DONE  → red pill, white text */
+    .slot-live-badge.badge-next{background:#16A34A;color:#fff;                     /* UP NEXT → green pill, white text */
+      box-shadow:0 0 0 1px rgba(22,163,74,.35), 0 6px 16px -8px rgba(22,163,74,.8)}
+    .slot-live-badge.badge-current{background:#EC1C24;color:#fff;
+      box-shadow:0 0 0 1px rgba(236,28,36,.4), 0 6px 16px -8px rgba(236,28,36,.9)}
+
+    @media(min-width:640px){.device{height:900px;max-height:calc(100vh - 48px);overflow:hidden;border:1px solid rgba(255,255,255,.1);border-radius:28px;box-shadow:0 0 0 1px #000}}
+
+    /* ══ ⭐ THEME POLISH: ambient glow + card depth + red title accents ══ */
+    /* Scroll area ko glow ke UPAR rakho (paint order fix) */
+    main{position:relative;z-index:0}
+    /* Ambient red glow: device ke top aur bottom-right me bahut halki warmth */
+    .device::before{content:"";position:absolute;inset:0;pointer-events:none;z-index:0;
+      background:
+        radial-gradient(85% 34% at 50% 0%, rgba(236,28,36,.06), rgba(236,28,36,0) 62%),
+        radial-gradient(60% 20% at 88% 100%, rgba(236,28,36,.045), rgba(236,28,36,0) 65%)}
+    /* Header ke neeche hairline red gradient (footer wali ka mirror) */
+    header::after{content:"";position:absolute;left:0;right:0;bottom:0;height:1px;z-index:1;
+      background:linear-gradient(90deg, rgba(236,28,36,0), rgba(236,28,36,.35), rgba(236,28,36,0))}
+    /* Har page ke bade title ke neeche red accent dash (SCHEDULE wali language sab jagah) */
+    main h1::after{content:"";display:block;margin-top:12px;height:2px;width:26px;background:#EC1C24}
+    /* Cards pe halka top-light depth + tap feedback */
+    main .rounded-card{background-image:linear-gradient(180deg,rgba(255,255,255,.028),rgba(255,255,255,0) 42%)}
+    main article{transition:transform .15s ease,border-color .25s ease}
+    main article:active{transform:scale(.996)}
+
+    /* ══ ⭐ v7.7 APP ANIMATIONS: poora UMS mobile-app jaisa feel -
+       modal/predict slide-up open + slide-down close, tab panels
+       fade-up, attendance cards stagger-pop, rings/bars glide,
+       chips smooth highlight, buttons press feedback. ══ */
+    @keyframes cuFadeIn{from{opacity:0}to{opacity:1}}
+    @keyframes cuFadeOut{from{opacity:1}to{opacity:0}}
+    @keyframes cuSheetIn{from{transform:translateY(48px);opacity:0}to{transform:translateY(0);opacity:1}}
+    @keyframes cuSheetOut{from{transform:translateY(0)}to{transform:translateY(104%)}}
+    @keyframes cuPageIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+    @keyframes cuPop{from{opacity:0;transform:translateY(10px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}
+
+    /* bottom-sheet + predict page: open slide-up, close slide-down */
+    #course-overlay:not(.hidden),#predict-overlay:not(.hidden){animation:cuFadeIn .2s ease}
+    #course-overlay.closing,#predict-overlay.closing{animation:cuFadeOut .2s ease}
+    #course-overlay:not(.hidden) #course-sheet,
+    #predict-overlay:not(.hidden) #predict-sheet{animation:cuSheetIn .3s cubic-bezier(.32,.72,.35,1)}
+    #course-overlay.closing #course-sheet,
+    #predict-overlay.closing #predict-sheet{animation:cuSheetOut .22s cubic-bezier(.32,.72,.35,1) forwards}
+    /* ⭐ v7.8 LAGFIX: composited layers - transform/opacity GPU pe smooth */
+    #course-overlay:not(.hidden) #course-sheet,
+    #predict-overlay:not(.hidden) #predict-sheet,
+    #course-overlay.closing,#course-overlay.closing #course-sheet,
+    #predict-overlay.closing,#predict-overlay.closing #predict-sheet{will-change:transform,opacity}
+
+    /* tab panels: switch pe fade-up (pehli load pe bhi smooth) */
+    section[id^="panel-"]:not(.hidden){animation:cuPageIn .3s cubic-bezier(.22,.68,.35,1)}
+
+    /* modal ke andar tabs: Prediction/Timeline/Plan switch pe fade */
+    [data-ctab]:not(.hidden){animation:cuPageIn .25s ease}
+    .cm-tabs button{transition:background .2s ease,color .2s ease,box-shadow .2s ease}
+
+    /* attendance course cards: staggered pop on load */
+    #panel-attendance .space-y-3>article{animation:cuPop .38s cubic-bezier(.22,.68,.35,1) both}
+    #panel-attendance .space-y-3>article:nth-child(2){animation-delay:.05s}
+    #panel-attendance .space-y-3>article:nth-child(3){animation-delay:.10s}
+    #panel-attendance .space-y-3>article:nth-child(4){animation-delay:.15s}
+    #panel-attendance .space-y-3>article:nth-child(5){animation-delay:.20s}
+    #panel-attendance .space-y-3>article:nth-child(n+6){animation-delay:.25s}
+
+    /* rings + chips: values/highlight glide */
+    .cm-ring-arc,[data-pm-arc],[data-pm-ring]{transition:stroke-dashoffset .35s ease,stroke .25s ease}
+    [data-pm-days] button,[data-pred-days] button{transition:background-color .18s ease,border-color .18s ease,color .18s ease}
+
+    /* buttons: press feedback (app jaisa) + tap highlight off */
+    button{-webkit-tap-highlight-color:transparent;transition:transform .12s ease,color .15s ease,border-color .15s ease}
+    button:active{transform:scale(.965)}
+    a{-webkit-tap-highlight-color:transparent}
+
+    /* ⭐ v7.9 ID card viewer animation */
+    #idc-viewer:not(.hidden){animation:cuFadeIn .2s ease}
+    #idc-viewer:not(.hidden) img{animation:cuPop .3s cubic-bezier(.22,.68,.35,1)}
+    @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+  </style>
+</head>
+
+<body class="bg-black text-white antialiased">
+  <!-- ⭐ Portal session mar jaye to sync JS ye banner dikhata hai - ek tap se re-login = wapas live -->
+  <a id="session-expired-banner" href="{% url 'scraper_app:logout' %}"
+     class="fixed inset-x-0 top-0 z-50 hidden items-center justify-center gap-2 bg-red px-4 py-2.5 text-center font-mono text-[11px] font-bold uppercase tracking-[.18em] text-white shadow-lg">
+    Session expired · Tap to re-login &amp; go live
+  </a>
+  <div class="flex min-h-screen w-full items-start justify-center sm:py-6">
+    <div class="device relative flex h-[100dvh] w-full flex-col overflow-hidden bg-black sm:max-w-[430px]">
+
+      <header class="sticky top-0 z-30 border-b border-hair bg-black/90 backdrop-blur-md">
+        <div class="flex h-16 items-center justify-between px-5">
+          <div class="flex items-baseline gap-2 select-none"><span class="font-display text-[22px] leading-none tracking-[-0.02em]"><span class="text-red">CU</span>nnect</span><span class="rounded-badge border border-hair px-1.5 py-[3px] font-mono text-[9px] leading-none tracking-[.22em] text-muted">UMS</span></div>
+          <div class="flex items-center gap-2"><a href="{% url 'dashboard' %}" class="grid h-10 w-10 place-items-center text-soft transition hover:text-white" aria-label="Back">⌂</a><a href="{% url 'dashboard' %}" class="grid h-10 place-items-center px-1.5 font-mono text-[9px] font-bold uppercase tracking-[.18em] text-muted transition hover:text-red" aria-label="Logout" title="Logout — session ends fully; fresh login next time"></a><button type="button" onclick="switchDashboardTab('profile',7)" class="grid h-9 w-9 place-items-center rounded-full border border-hair bg-surface2 font-mono text-[11px] font-bold text-soft transition hover:border-red/50 hover:text-white" aria-label="Profile" title="My Profile">{{ display_name|default:user.username|first|upper }}</button></div>
+        </div>
+      </header>
+
+      <main class="noscroll min-h-0 flex-1 overflow-y-auto pb-28">
+
+        <!-- ══════════ ATTENDANCE ══════════ -->
+        <section id="panel-attendance" class="{% if active_tab and active_tab != 'attendance' %}hidden{% endif %}">
+          <div class="px-5 pb-5 pt-6"><h1 class="font-display text-[28px] leading-[1.1]">Attendance</h1><p class="mt-1.5 text-[13px] text-muted"> <span class="font-mono text-[9px] text-soft"></span></p></div>
+          <div class="px-5">
+            <div class="ledger rounded-card border border-hair bg-surface p-5">
+              <div class="flex items-start justify-between gap-4">
+                <div>
+                  <p class="eyebrow">Aggregate</p>
+                  <p class="mt-2 font-mono text-[42px] font-bold leading-none tabnum"><span id="agg-pct">{{ global_percentage|default:0 }}</span><span class="text-[18px] text-soft">%</span></p>
+                  <p class="mt-2 font-mono text-[10px] tracking-wider text-muted"><span id="agg-counts">{{ total_attended|default:0 }} / {{ total_held|default:0 }}</span> CLASSES ATTENDED</p>
+                </div>
+                <div class="text-right">
+                  <p class="eyebrow text-[9px]">Status</p>
+                  <p id="agg-status" class="mt-1 font-mono text-[14px] font-bold {% if global_percentage >= 75 %}text-emerald-500{% else %}text-red{% endif %}">{% if global_percentage >= 75 %}SAFE{% else %}LOW{% endif %}</p>
+                  <button type="button" onclick="openPredict()" class="mt-2.5 rounded-badge border border-hair px-2.5 py-1 font-mono text-[9px] font-bold uppercase tracking-[.12em] text-soft transition hover:text-red" title="Open attendance prediction">Predict ↗</button>
+                </div>
+              </div>
+              <div class="bar mt-4"><i id="agg-bar" class="{% if global_percentage >= 75 %}bg-white{% else %}bg-red{% endif %}" style="width:{{ global_percentage|default:0 }}%"></i></div>
+              <div class="mt-2 flex justify-between font-mono text-[9px] tracking-wider text-muted"><span>0%</span><span>SAFE LINE · 75%</span><span>100%</span></div>
+            </div>
+          </div>
+
+          <div class="mt-6 px-5">
+            <div class="mb-3 flex items-center justify-between"><p class="eyebrow">By course</p><a href="?tab=attendance&amp;refresh_daily=1" class="rounded-badge border border-hair px-2.5 py-1.5 font-mono text-[9px] font-bold uppercase tracking-[.18em] text-muted transition hover:text-red" title="Re-fetch subject-wise P/A log from the portal">↻ Sync</a></div>
+            <div class="space-y-3">
+              {% for c in records %}
+                <article class="ledger rounded-card border border-hair bg-surface {% if c.percentage >= 75 %}ledger-mute{% endif %}">
+                  <button onclick="openCourse({{ forloop.counter0 }})" class="w-full p-4 pl-5 text-left">
+                    <div class="flex items-start justify-between gap-3">
+                      <div class="min-w-0 flex-1">
+                        <p class="eyebrow">Course</p>
+                        <p class="mt-1 truncate text-[16px] font-semibold">{{ c.title }}</p>
+                        <p class="mt-1 font-mono text-[10px] tracking-wider text-muted">{{ c.code }}</p>
+                      </div>
+                      <div class="shrink-0 text-right">
+                        <span data-att-badge="{{ forloop.counter0 }}" class="rounded-full px-2.5 py-1 text-[9px] font-bold uppercase tracking-[.12em] {% if c.percentage < 75 %}bg-red text-white{% else %}border border-white/25 text-soft{% endif %}">{% if c.percentage < 75 %}Low{% else %}Safe{% endif %}</span>
+                        <p class="mt-2 font-mono text-[24px] font-bold leading-none {% if c.percentage < 75 %}text-red{% endif %}" data-att-pctwrap="{{ forloop.counter0 }}"><span data-att-pct="{{ forloop.counter0 }}">{{ c.percentage|floatformat:0 }}</span><span class="text-[12px] text-muted">%</span></p>
+                      </div>
+                    </div>
+                    <div class="bar mt-4"><i data-att-bar="{{ forloop.counter0 }}" class="{% if c.percentage < 75 %}bg-red{% else %}bg-white{% endif %}" style="width:{{ c.percentage }}%"></i></div>
+                    {# ⭐ Per-subject totals: ATTENDED / DELIVERED (na mile to —) - realtime in-place update #}
+                    <div class="mt-3 grid grid-cols-3 gap-2 border-t border-hair pt-3 font-mono">
+                      <div>
+                        <p class="eyebrow text-[8px]">Attended</p>
+                        <p class="mt-1 text-[15px] font-bold leading-none tabnum {% if c.percentage < 75 %}text-red{% else %}text-white{% endif %}"><span data-att-att="{{ forloop.counter0 }}">{% if c.attended or c.total %}{{ c.attended|default:0 }}{% else %}—{% endif %}</span></p>
+                      </div>
+                      <div>
+                        <p class="eyebrow text-[8px]">Delivered</p>
+                        <p class="mt-1 text-[15px] font-bold leading-none tabnum text-soft"><span data-att-tot="{{ forloop.counter0 }}">{% if c.attended or c.total %}{{ c.total|default:0 }}{% else %}—{% endif %}</span></p>
+                      </div>
+                      <div class="text-right">
+                        <p class="eyebrow text-[8px]">Details</p>
+                        <p class="mt-1 text-[14px] leading-none text-muted">⌄</p>
+                      </div>
+                    </div>
+                  </button>
+                  {% comment %} ⭐ v6.0 COURSE MODAL SOURCE: course card click
+                     pe full modal khulta hai (screenshot layout: ring +
+                     recovery pill + Prediction/Timeline/Course Plan tabs).
+                     openCourse() iska innerHTML #course-sheet me clone
+                     karta hai. data-att-* spans YAHIN hain - hidden
+                     source bhi realtime sync JS ko milta hai (clone
+                     sirf display copy hai). {% endcomment %}
+                  <div id="course-src-{{ forloop.counter0 }}" class="hidden" data-attended="{{ c.attended }}" data-total="{{ c.total }}">
+                    <div class="relative mb-3 flex justify-center">
+                      <span class="h-1 w-9 rounded-full bg-white/15"></span>
+                      <button type="button" onclick="closeCourse()" class="absolute -top-1 right-0 grid h-7 w-7 place-items-center rounded-full border border-hair font-mono text-[11px] text-muted transition hover:text-white" aria-label="Close">&#10005;</button>
+                    </div>
+
+                    {# ── HEADER: title + code/credits + recovery pill + % ring #}
+                    <div class="cm-hero flex items-start justify-between gap-4">
+                      <div class="min-w-0 flex-1">
+                        <p class="truncate text-[18px] font-semibold">{{ c.title }}</p>
+                        <p class="mt-1 font-mono text-[10px] tracking-wider text-muted">{{ c.code }}{% if c.dplan_credits %} · {{ c.dplan_credits }}{% endif %}</p>
+                        {% if c.percentage >= 75 %}
+                          <p class="cm-pill-safe mt-3 inline-flex items-center gap-1.5 rounded-badge px-2.5 py-1.5 font-mono text-[9px] font-bold uppercase tracking-[.12em]">Safe · {{ c.miss|default:0 }} bunk left</p>
+                        {% else %}
+                          <p class="cm-pill-low mt-3 inline-flex items-center gap-1.5 rounded-badge px-2.5 py-1.5 font-mono text-[9px] font-bold uppercase tracking-[.12em]">Attend {{ c.need|default:0 }} to recover</p>
+                        {% endif %}
+                      </div>
+                      <div class="relative h-[76px] w-[76px] shrink-0">
+                        <svg viewBox="0 0 72 72" class="h-full w-full -rotate-90">
+                          <circle cx="36" cy="36" r="30" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="7"></circle>
+                          <circle cx="36" cy="36" r="30" fill="none" stroke="{% if c.percentage >= 75 %}#FFFFFF{% else %}#EC1C24{% endif %}" stroke-width="7" stroke-linecap="round" stroke-dasharray="188.5" stroke-dashoffset="{% if c.ring_off is None %}188.5{% else %}{{ c.ring_off }}{% endif %}" class="cm-ring-arc {% if c.percentage >= 75 %}g-safe{% endif %}"></circle>
+                        </svg>
+                        <div class="absolute inset-0 flex flex-col items-center justify-center">
+                          <p class="font-mono text-[18px] font-bold leading-none tabnum">{{ c.percentage|floatformat:0 }}<span class="text-[10px] text-muted">%</span></p>
+                          <p class="mt-1 font-mono text-[9px] tracking-wider text-muted tabnum">{{ c.attended|default:0 }}/{{ c.total|default:0 }}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {# ── TABS BAR: Prediction | Timeline | Course Plan #}
+                    <div class="cm-tabs mt-5 grid grid-cols-3 gap-1 p-1">
+                      <button type="button" data-ctab-btn="pred" onclick="courseTab('pred')" class="rounded-badge px-1 py-2 font-mono text-[9px] font-bold uppercase tracking-[.12em] text-muted transition">Prediction</button>
+                      <button type="button" data-ctab-btn="time" onclick="courseTab('time')" class="rounded-badge px-1 py-2 font-mono text-[9px] font-bold uppercase tracking-[.12em] text-muted transition">Timeline</button>
+                      <button type="button" data-ctab-btn="plan" onclick="courseTab('plan')" class="rounded-badge px-1 py-2 font-mono text-[9px] font-bold uppercase tracking-[.12em] text-muted transition">Course Plan</button>
+                    </div>
+
+                    {# ── TAB 1 - PREDICTION: margin + next-k projection #}
+                    <div data-ctab="pred" class="hidden pt-4">
+                      {% if c.percentage >= 75 %}
+                        <p class="eyebrow" data-att-eyebrow="{{ forloop.counter0 }}">Safety Margin</p>
+                        <p class="mt-2 text-[13px] leading-relaxed text-soft">You can miss <b class="font-mono text-white" data-att-miss="{{ forloop.counter0 }}">{{ c.miss|default:0 }}</b> more classes before dropping below 75%.</p>
+                      {% else %}
+                        <p class="eyebrow text-red" data-att-eyebrow="{{ forloop.counter0 }}">Recovery Required</p>
+                        <p class="mt-2 text-[13px] leading-relaxed text-soft">Attend the next <b class="font-mono text-red" data-att-need="{{ forloop.counter0 }}">{{ c.need|default:0 }}</b> classes to reach 75%.</p>
+                      {% endif %}
+                      {% comment %} ⭐ v7.1 DAY-WISE CLASS PLANNER: slider ghumao ->
+                         projected % LIVE + niche is subject ke CLASS-DAY
+                         chips hi-light (timetable se). Model: AAJ se is
+                         subject ki k classes attend karoge; 0 = abhi jaisa
+                         (current), max = is week ki sab classes attend. {% endcomment %}
+                      {% if c.total or c.attended %}
+                        <div class="cm-plan cm-pred mt-5 px-4 py-4" data-att="{{ c.attended|default:0 }}" data-tot="{{ c.total|default:0 }}" data-days="{% for short_day, item in timetable.items %}{% for slot in item.slots %}{% if slot.code == c.code %}{{ short_day }},{% endif %}{% endfor %}{% endfor %}">
+                          <p class="eyebrow text-[8px]">Class Planner · Live</p>
+                          <div class="mt-3 flex items-end justify-between gap-3">
+                            <div class="min-w-0 flex-1">
+                              <p class="font-mono text-[30px] font-bold leading-none tabnum"><span data-pred-pct>{{ c.percentage|floatformat:1 }}</span><span class="text-[13px] text-muted">%</span></p>
+                            </div>
+                            <span data-pred-status class="shrink-0 rounded-badge px-2.5 py-1 font-mono text-[8px] font-bold uppercase tracking-[.12em] {% if c.percentage >= 75 %}cm-st-p{% else %}cm-st-a{% endif %}">{% if c.percentage >= 75 %}Safe{% else %}Low{% endif %}</span>
+                          </div>
+                          <input type="range" min="0" max="5" value="0" step="1" oninput="predSlide(this)" data-pred-slider class="cm-slider mt-4 block w-full">
+                          <div class="mt-1.5 flex justify-between font-mono text-[8px] font-bold uppercase tracking-wider text-muted" data-pred-lohi><span>Now</span><span>Attend all</span></div>
+                          {% comment %} ⭐ v7.1 DAY CHIPS: jin din IS subject ki class hai wo
+                             niche dikhte hain - slide karte hi hi-light hote hain
+                             (chip tap = us din tak attend). JS fill karta hai. {% endcomment %}
+                          <div class="mt-3 flex flex-wrap gap-1.5" data-pred-days></div>
+                          <p class="mt-3 font-mono text-[11px] font-bold tracking-wider text-soft" data-pred-delta></p>
+                          <p class="mt-1.5 font-mono text-[10px] leading-relaxed tracking-wider text-muted" data-pred-leave></p>
+                        </div>
+                      {% else %}
+                        <p class="mt-4 font-mono text-[10px] leading-relaxed text-muted">No attended/delivered data available for prediction.</p>
+                      {% endif %}
+                    </div>
+
+                    {# ── TAB 2 - TIMELINE: day-wise P/A rail (screenshot) #}
+                    <div data-ctab="time" class="pt-4">
+                      {% if c.dlog_days %}
+                        <div class="flex items-center gap-4 font-mono text-[9px] font-bold tracking-wider text-muted">
+                          <span class="flex items-center gap-1.5"><i class="cm-dot-p inline-block h-2 w-2 rounded-full"></i>Present ({{ c.dlog.present }})</span>
+                          <span class="flex items-center gap-1.5"><i class="cm-dot-a inline-block h-2 w-2 rounded-full"></i>Absent ({{ c.dlog.absent }})</span>
+                        </div>
+                        <div class="relative mt-4 space-y-5 pl-4">
+                          <span class="absolute bottom-1.5 left-[7px] top-1 w-px bg-white/15"></span>
+                          {% for g in c.dlog_days %}
+                            <div class="relative">
+                              <span class="absolute -left-[13px] top-1.5 h-2.5 w-2.5 rounded-full {% if g.a %}cm-dot-a{% else %}cm-dot-p{% endif %}"></span>
+                              <p class="cm-day text-[14px]">{% if g.wday %}{{ g.wday }}, {% endif %}{{ g.date }}</p>
+                              <div class="mt-2 space-y-1.5">
+                                {% for e in g.entries %}
+                                  <div class="cm-row flex items-center justify-between gap-3 rounded-card px-3 py-2.5" style="border-left:2px solid {% if e.tone == 'absent' %}#EC1C24{% elif e.tone == 'present' %}rgba(255,255,255,.30){% else %}rgba(255,255,255,.14){% endif %}">
+                                    <p class="min-w-0 flex-1 truncate font-mono text-[10px] tracking-wider text-soft">{% if e.time %}◷ {{ e.time }}{% endif %}{% if e.by %} <span class="text-muted">· {{ e.by|truncatechars:24 }}</span>{% endif %}</p>
+                                    <span class="shrink-0 rounded-badge px-2.5 py-1 font-mono text-[8px] font-bold uppercase tracking-[.12em] {% if e.tone == 'present' %}cm-st-p{% elif e.tone == 'absent' %}cm-st-a{% else %}cm-st-p opacity-70{% endif %}">{% if e.tone == 'present' %}✓ {% elif e.tone == 'absent' %}✕ {% endif %}{{ e.status }}</span>
+                                  </div>
+                                {% endfor %}
+                              </div>
+                            </div>
+                          {% endfor %}
+                        </div>
+                      {% else %}
+                      {% endif %}
+                    </div>
+
+                    {# ── TAB 3 - COURSE PLAN: official lecture-plan PDF proxy #}
+                    <div data-ctab="plan" class="hidden pt-4">
+                      {% if c.dplan_url %}
+                        <a href="{{ c.dplan_url }}" target="_blank" rel="noopener" class="cm-cta flex items-center justify-between rounded-card px-4 py-3.5 active:opacity-80">
+                          <span class="font-mono text-[10px] font-bold tracking-[.14em] text-white">▤ LECTURE PLAN · OPEN PDF</span>
+                          <span class="font-mono text-[14px] font-bold text-white">↗</span>
+                        </a>
+                        <p class="mt-2 font-mono text-[8px] tracking-wider text-muted">OFFICIAL PORTAL PDF · NEW TAB</p>
+                      {% else %}
+                        <p class="rounded-card border border-hair bg-surface2 p-4 font-mono text-[10px] leading-relaxed text-muted">No lecture-plan PDF link found for this course (faculty upload may be pending)</p>
+                      {% endif %}
+                    </div>
+                  </div>
+                </article>
+              {% empty %}
+                <div class="rounded-card border border-hair bg-surface p-8 text-center text-sm text-muted">No attendance records added yet.</div>
+              {% endfor %}
+            </div>
+          </div>
+
+
+          {% comment %} ⭐ v6.7 PREDICT PAGE SOURCE (screenshot layout, CUnnect
+             theme): Predict ↗ pe full view - top avg ring + totals chips
+             + MASTER slider (collegia-wala hi scenario function: har
+             course ke agle N me se k attend) + subjects mini-ring grid.
+             openPredict() isko #predict-sheet me clone karta hai. {% endcomment %}
+          <div id="predict-src" class="hidden">
+            <div class="pm-root" data-att="{{ total_attended|default:0 }}" data-tot="{{ total_held|default:0 }}" data-days='[{% for short_day, item in timetable.items %}["{{ short_day }}",[{% for slot in item.slots %}"{{ slot.code }}"{% if not forloop.last %},{% endif %}{% endfor %}]]{% if not forloop.last %},{% endif %}{% endfor %}]'>
+              {# ── TOP: avg % ring + totals chips #}
+              <div class="flex items-center gap-5">
+                <div class="relative h-[104px] w-[104px] shrink-0">
+                  <svg viewBox="0 0 72 72" class="h-full w-full -rotate-90">
+                    <circle cx="36" cy="36" r="30" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="6"></circle>
+                    <circle data-pm-ring cx="36" cy="36" r="30" fill="none" stroke="{% if global_percentage >= 75 %}#FFFFFF{% else %}#EC1C24{% endif %}" stroke-width="6" stroke-linecap="round" stroke-dasharray="188.5" stroke-dashoffset="188.5"></circle>
+                  </svg>
+                  <div class="absolute inset-0 flex flex-col items-center justify-center">
+                    <p class="font-mono text-[20px] font-bold leading-none tabnum"><span data-pm-pct>{{ global_percentage|floatformat:1 }}</span></p>
+                    <p class="mt-1 font-mono text-[7px] font-bold tracking-[.2em] text-muted">AVG %</p>
+                  </div>
+                </div>
+                <div class="min-w-0 flex-1 space-y-2">
+                  <p class="font-mono text-[11px] font-bold tracking-wider text-soft">Total: <span class="text-white">{{ total_held|default:0 }}</span> classes</p>
+                  <div class="flex flex-wrap gap-1.5">
+                    <span class="rounded-badge px-2.5 py-1 font-mono text-[9px] font-bold cm-st-p">✓ {{ total_attended|default:0 }}</span>
+                    <span class="rounded-badge px-2.5 py-1 font-mono text-[9px] font-bold cm-st-a">✗ {{ total_missed|default:0 }}</span>
+                  </div>
+                  <p class="font-mono text-[8px] tracking-wider text-muted">overall · ab tak</p>
+                </div>
+              </div>
+
+              {# ── MASTER SLIDER: har course ke agle 10 me se k attend #}
+              {% comment %} ── ⭐ v7.0 DAY-WISE PLAN: AAJ se k din ki SARI classes attend
+                 karoge to AVG kitna badhega (timetable se live). Bunk side
+                 HATA di gayi - 0 = abhi jaisa, right = aur din attend. {% endcomment %}
+              <input type="range" min="0" max="7" value="0" step="1" oninput="pmSlide(this)" data-pm-master class="cm-slider mt-6 block w-full">
+              <div class="mt-3 flex gap-1.5 overflow-x-auto noscroll pb-1" data-pm-days>
+                {% for short_day, item in timetable.items %}
+                  <button type="button" data-pm-day="{{ short_day }}" onclick="pmDayTap(this)" class="shrink-0 rounded-badge border border-hair px-2.5 py-1.5 font-mono text-[9px] font-bold uppercase tracking-wider text-muted">{{ short_day }} · <span class="font-bold">{{ item.slots|length }}</span></button>
+                {% endfor %}
+              </div>
+              <div class="mt-3 flex items-center justify-end gap-3">
+                <div class="flex shrink-0 gap-1.5 font-mono text-[9px] font-bold">
+                  <span class="rounded-badge px-2 py-1 cm-st-p" data-pm-k>✓ 0</span>
+                  <span class="rounded-badge px-2 py-1 border border-hair text-soft" data-pm-din>0 days</span>
+                </div>
+              </div>
+
+              {# ── SUBJECTS GRID: mini-rings + live need/miss notes #}
+              <div class="mt-6 flex items-center justify-between"><p class="eyebrow">Your Subjects</p><p class="font-mono text-[9px] tracking-wider text-muted">{{ records|length }} COURSES</p></div>
+              <div class="mt-3 grid grid-cols-2 gap-2.5">
+                {% for c in records %}
+                  <div class="cm-row pm-sub rounded-card p-3.5" data-att="{{ c.attended|default:0 }}" data-tot="{{ c.total|default:0 }}" data-code="{{ c.code }}">
+                    <div class="flex items-center gap-2.5">
+                      <div class="relative h-[44px] w-[44px] shrink-0">
+                        <svg viewBox="0 0 72 72" class="h-full w-full -rotate-90">
+                          <circle cx="36" cy="36" r="30" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="8"></circle>
+                          <circle data-pm-arc cx="36" cy="36" r="30" fill="none" stroke="{% if c.percentage >= 75 %}#FFFFFF{% else %}#EC1C24{% endif %}" stroke-width="8" stroke-linecap="round" stroke-dasharray="188.5" stroke-dashoffset="{% if c.ring_off is None %}188.5{% else %}{{ c.ring_off }}{% endif %}"></circle>
+                        </svg>
+                        <div class="absolute inset-0 grid place-items-center"><span data-pm-pct-sub class="font-mono text-[11px] font-bold tabnum">{{ c.percentage|floatformat:0 }}</span></div>
+                      </div>
+                      <div class="min-w-0 flex-1">
+                        <p class="truncate font-mono text-[11px] font-bold tracking-wider">{{ c.code }}</p>
+                        <p class="mt-0.5 truncate text-[10px] text-muted">{{ c.title }}</p>
+                        <p class="mt-0.5 font-mono text-[8px] tracking-wider text-muted tabnum">{{ c.attended|default:0 }}/{{ c.total|default:0 }} <span data-pm-plus class="hidden rounded-badge px-1 py-0.5 font-bold cm-st-p">+0</span></p>
+                      </div>
+                    </div>
+                    <p class="mt-2.5 font-mono text-[9px] font-bold uppercase tracking-[.1em] {% if c.percentage >= 75 %}text-soft{% else %}text-red{% endif %}" data-pm-note>{% if c.percentage >= 75 %}Can miss {{ c.miss|default:0 }}{% else %}⚠ Attend next {{ c.need|default:0 }}{% endif %}</p>
+                  </div>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+
+        </section>
+
+        <!-- ══════════ SCHEDULE ══════════ -->
+        <section id="panel-timetable" class="{% if active_tab != 'timetable' %}hidden{% endif %}">
+          <div class="px-5 pb-5 pt-6"><h1 class="font-display text-[28px] leading-[1.1]">Schedule</h1><p class="mt-1.5 text-[13px] text-muted">Current and upcoming lectures update automatically.</p></div>
+          <div class="px-5">
+            <div class="flex gap-2 overflow-x-auto noscroll pb-1" data-no-swipe>
+              {% for short_day, item in timetable.items %}
+                <button onclick="switchTimetableDay('{{ short_day }}')" id="day-btn-{{ short_day }}" data-schedule-day="{{ short_day }}" class="day-btn shrink-0 rounded-badge border border-hair px-4 py-3 font-mono text-[10px] tracking-wider text-muted {% if forloop.first %}bg-white !text-black !border-white font-bold{% endif %}">{{ short_day }}</button>
+              {% endfor %}
+            </div>
+          </div>
+          <div class="mt-7 space-y-8 px-5">
+            {% for short_day, item in timetable.items %}
+              <div id="timetable-day-{{ short_day }}" data-schedule-day="{{ short_day }}" class="timetable-day-panel {% if not forloop.first %}hidden{% endif %}">
+                <div class="mb-4">
+                  <h2 class="font-display text-[18px]">{{ item.full_day }}</h2>
+                  <i class="mt-2 block h-[2px] w-6 bg-red"></i>
+                  <p class="mt-2 font-mono text-[9px] tracking-wider text-muted">{{ item.slots|length }} SESSIONS</p>
+                </div>
+                <div class="space-y-3">
+                  {% for slot in item.slots %}
+                    <article class="schedule-slot ledger ledger-mute rounded-card border border-hair bg-surface p-4 pl-5" data-day="{{ short_day }}" data-time="{{ slot.time }}">
+                      <div class="flex items-start justify-between gap-3">
+                        <span class="rounded-full px-2.5 py-1 text-[9px] font-bold uppercase tracking-[.12em] {% if slot.type == 'PRACTICAL' %}border border-red/30 bg-reddim text-red{% else %}border border-white/25 text-soft{% endif %}">{{ slot.type }}</span>
+                        <span class="slot-live-badge hidden"></span>
+                      </div>
+                      <h3 class="subject-name mt-3 text-[16px] font-bold">{{ slot.title }}</h3>
+                      <p class="mt-1 text-[12px] text-muted">{{ slot.teacher }} · <span class="font-mono">{{ slot.code }}</span></p>
+                      <div class="mt-4 flex gap-5 border-t border-hair pt-3 font-mono text-[11px] text-soft"><span>◷ {{ slot.time }}</span><span>⌖ {{ slot.room }}</span></div>
+                    </article>
+                  {% empty %}
+                    <p class="rounded-card border border-hair bg-surface py-5 text-center text-[11px] text-muted">No lectures scheduled for this day.</p>
+                  {% endfor %}
+                </div>
+              </div>
+            {% empty %}
+              <div class="ledger ledger-mute rounded-card border border-hair bg-surface p-7 text-center text-sm text-muted">No timetable data added yet.</div>
+            {% endfor %}
+          </div>
+        </section>
+
+        <!-- ══════════ MY COURSES ══════════ -->
+        <section id="panel-courses" class="{% if active_tab != 'courses' %}hidden{% endif %}">
+          <div class="px-5 pb-5 pt-6"><h1 class="font-display text-[28px] leading-[1.1]">My Courses</h1><p class="mt-1.5 text-[13px] text-muted">All your subjects · lecture plan opens as official PDF. Tap a course.</p></div>
+
+          {% if course_plan.page_pdfs %}
+            {# ⭐ Page-level plan links (kisi ek course se attach na hue) #}
+            <div class="px-5 pb-5">
+              <div class="mb-3 flex justify-between"><p class="eyebrow">Lecture Plan PDFs</p><p class="font-mono text-[9px] tracking-wider text-muted">OFFICIAL</p></div>
+              <div class="space-y-2">
+                {% for p in course_plan.page_pdfs %}
+                  <a href="{{ p.view_url }}" target="_blank" rel="noopener" class="ledger flex items-center justify-between rounded-card border border-hair bg-surface px-4 py-3.5">
+                    <span class="truncate pr-3 text-[13px] font-semibold">{{ p.label }}</span>
+                    <span class="shrink-0 rounded-full bg-red px-3 py-1.5 font-mono text-[9px] font-bold tracking-[.12em] text-white">PDF ↗</span>
+                  </a>
+                {% endfor %}
+              </div>
+            </div>
+          {% endif %}
+
+          {% if course_plan.found and course_plan.courses %}
+            <div class="px-5">
+              <div class="mb-3 flex justify-between"><p class="eyebrow">This Semester</p><p class="font-mono text-[9px] tracking-wider text-muted">{{ course_plan.courses|length }} COURSES</p></div>
+              <div class="space-y-3">
+                {% for c in course_plan.courses %}
+                  <article class="ledger rounded-card border border-hair bg-surface">
+                    <button onclick="toggleDetails('course-{{ forloop.counter0 }}')" class="w-full p-4 pl-5 text-left">
+                      <div class="flex items-start justify-between gap-3">
+                        <div class="min-w-0 flex-1">
+                          <p class="truncate text-[16px] font-semibold">{{ c.title }}</p>
+                          <p class="mt-1 font-mono text-[10px] tracking-wider text-muted">{{ c.code }}</p>
+                          {% if c.meta %}
+                            <div class="mt-2 flex flex-wrap gap-1.5">
+                              {% for m in c.meta %}<span class="rounded-badge border border-hair px-2 py-0.5 font-mono text-[8px] tracking-wider text-soft">{{ m }}</span>{% endfor %}
+                            </div>
+                          {% endif %}
+                        </div>
+                        <span class="mt-1 shrink-0 font-mono text-[13px] text-muted">⌄</span>
+                      </div>
+                    </button>
+                    {# ⭐ Lecture Plan: expandable - portal ki plan tables (unit/lecture/topic/date) raw WYSIWYG #}
+                    <div id="course-{{ forloop.counter0 }}" class="hidden border-t border-hair px-5 py-4">
+                      {% if c.plan_view_url %}
+                        {# ⭐ Lecture plan = OFFICIAL PORTAL PDF - click pe proxy (course_plan_pdf_view) se new tab me khulta hai #}
+                        <a href="{{ c.plan_view_url }}" target="_blank" rel="noopener" class="flex items-center justify-between rounded-card bg-red px-4 py-3 active:opacity-80">
+                          <span class="font-mono text-[10px] font-bold tracking-[.14em] text-white">▤ LECTURE PLAN · OPEN PDF</span>
+                          <span class="font-mono text-[13px] font-bold text-white">↗</span>
+                        </a>
+                        <p class="mt-1.5 font-mono text-[8px] tracking-wider text-muted">OFFICIAL PORTAL PDF · NEW TAB</p>
+                      {% endif %}
+                      {% if c.plan %}
+                        <p class="eyebrow mb-3 {% if c.plan_view_url %}mt-4{% endif %}">Lecture Plan</p>
+                        {% for sec in c.plan %}
+                          <div class="{% if not forloop.last %}mb-4{% endif %} overflow-x-auto noscroll rounded-card bg-black/30 border border-hair px-3 py-1">
+                            <table class="w-full text-left border-collapse">
+                              {% for row in sec.rows %}
+                                <tr class="{% if not forloop.last %}border-b border-hair{% endif %}">
+                                  {% for cell in row %}<td class="py-2.5 pr-3 {% if forloop.first %}text-[11px] text-muted{% else %}font-mono text-[11px] text-white{% endif %}">{{ cell }}</td>{% endfor %}
+                                </tr>
+                              {% endfor %}
+                            </table>
+                          </div>
+                        {% endfor %}
+                      {% elif not c.plan_view_url %}
+                        <p class="text-[12px] leading-relaxed text-muted">No lecture plan on the portal yet for this course (faculty upload may be pending). Try other courses — or send the <b class="text-soft">course_plan_debug.txt</b> from the project folder.</p>
+                      {% endif %}
+                    </div>
+                  </article>
+                {% endfor %}
+              </div>
+            </div>
+          {% else %}
+            <div class="px-5">
+              <div class="ledger ledger-mute rounded-card border border-hair bg-surface p-7 text-center">
+                <p class="text-sm font-semibold text-white">No Course Plan Found</p>
+                <p class="mt-2 font-mono text-[11px] leading-relaxed text-muted">The portal's My Courses page (frmMyCourse.aspx) came back empty or failed to parse. After logging in, send the <b class="text-soft">course_plan_debug.txt</b> file from the project folder — I'll wire the exact structure.</p>
+              </div>
+            </div>
+          {% endif %}
+        </section>
+
+        <!-- ══════════ RESULTS ══════════ -->
+        <section id="panel-marks" class="{% if active_tab != 'marks' %}hidden{% endif %}">
+          <div class="px-5 pb-5 pt-6 flex justify-between items-center">
+            <div>
+              <h1 class="font-display text-[28px] leading-[1.1]">Results <span class="font-mono text-[10px] font-bold tracking-[.18em] text-red align-middle"></span></h1>
+              <p class="mt-1.5 text-[13px] text-muted">Official semester grade sheets and SGPAs.</p>
+            </div>
+            {% if available_sessions %}
+            <div class="shrink-0 z-50">
+               <form method="GET" id="sem-form">
+                   <input type="hidden" name="tab" value="marks">
+                   <select name="session_id" onchange="document.getElementById('sem-form').submit()" class="px-2.5 py-2 rounded-lg text-[10px] font-black bg-zinc-900 text-zinc-100 border border-hair focus:outline-none focus:ring-1 focus:ring-red font-mono uppercase">
+                       {% for sess in available_sessions %}
+                       <option value="{{ sess.id }}" {% if sess.id == active_session %}selected{% endif %}>{{ sess.name }}{% if sess.pending %} · Pending{% endif %}</option>
+                       {% endfor %}
+                   </select>
+               </form>
+            </div>
+            {% endif %}
+          </div>
+
+          <div class="px-5 pb-4">
+            <div class="rounded-card bg-surface border border-hair ledger p-5">
+              <div class="flex items-start justify-between gap-4">
+                <div class="min-w-0">
+                  <p class="font-mono text-[11px] text-muted tracking-[0.12em]">{{ uid }}</p>
+                  <p class="mt-1.5 text-[18px] font-semibold leading-snug">End Semester Examination</p>
+                  <p class="mt-1 text-[12px] text-muted">Academic Grade Sheet Summary</p>
+                </div>
+                <div class="shrink-0 text-right space-y-3 font-mono">
+                  <div>
+                    <p class="eyebrow text-[10px]">SGPA</p>
+                    <p class="font-bold text-[26px] leading-none tabnum text-white mt-1">{{ active_sgpa|default:"0.00" }}</p>
+                  </div>
+                  <div>
+                    <p class="eyebrow text-[10px]">CGPA</p>
+                    <p class="font-bold text-[32px] leading-none tabnum text-red mt-1">{{ student_cgpa }}</p>
+                  </div>
+                </div>
+              </div>
+              <div class="mt-5 pt-4 border-t border-hair grid grid-cols-3">
+                <div><p class="eyebrow text-[10px]">Result</p><p class="mt-1 font-mono text-[14px] tracking-wider">PASS</p></div>
+                <div><p class="eyebrow text-[10px]">Status</p><p class="mt-1 font-mono text-[14px] tracking-wider text-emerald-500">GOOD</p></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Semester-wise SGPA History -->
+          {% if exam_results %}
+          <div class="px-5 pb-5">
+            <p class="eyebrow mb-2">SGPA History</p>
+            <div class="grid grid-cols-3 gap-2">
+              {% for res in exam_results %}
+              <div class="rounded-card bg-surface border border-hair p-3 text-center">
+                <p class="font-mono text-[9px] text-muted tracking-wider uppercase truncate">
+                  {% if "Semester 1" in res.semester %}Sem 1{% elif "Semester 2" in res.semester %}Sem 2{% elif "Semester 3" in res.semester %}Sem 3{% elif "Semester 4" in res.semester %}Sem 4{% elif "Semester 5" in res.semester %}Sem 5{% elif "Semester 6" in res.semester %}Sem 6{% elif "Semester 7" in res.semester %}Sem 7{% elif "Semester 8" in res.semester %}Sem 8{% else %}{{ res.semester }}{% endif %}
+                </p>
+                <p class="mt-1.5 font-mono text-[16px] font-bold text-white tabnum">{{ res.sgpa }}</p>
+                <p class="font-mono text-[8px] text-muted mt-0.5">SGPA</p>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+          {% endif %}
+
+          <!-- Sessional Marks / Internal Assessments -->
+          <div class="px-5 pb-5">
+            <p class="eyebrow mb-3">Sessional Marks</p>
+            {% if marks %}
+              <div class="space-y-3">
+                {% for item in marks %}
+                <div class="rounded-card bg-surface border border-hair p-4 pl-5 ledger ledger-mute">
+                  <div class="flex justify-between items-start gap-4">
+                    <div class="min-w-0 flex-1">
+                      <p class="font-mono text-[9px] tracking-wider text-muted">{{ item.code }}</p>
+                      <h3 class="text-[15px] font-semibold text-white mt-1 truncate">{{ item.title }}</h3>
+                    </div>
+                    <button onclick="toggleDetails('sessional-{{ forloop.counter0 }}')" class="shrink-0 rounded-badge border border-hair px-2.5 py-1 text-[9px] font-bold text-muted hover:text-soft font-mono uppercase tracking-wider">
+                      View Marks ⌄
+                    </button>
+                  </div>
+
+                  <div id="sessional-{{ forloop.counter0 }}" class="hidden mt-4 pt-3 border-t border-hair space-y-2.5">
+                    {% for m in item.marks %}
+                    <div class="flex justify-between items-center text-[13px]">
+                      <span class="text-soft font-medium">{{ m.element }}</span>
+                      <span class="font-mono text-white font-bold">{{ m.obtained }}<span class="text-muted text-[11px]">/{{ m.total }}</span></span>
+                    </div>
+                    {% empty %}
+                    <p class="text-[11px] text-muted font-mono">No marks declared for this subject yet.</p>
+                    {% endfor %}
+                  </div>
+                </div>
+                {% endfor %}
+              </div>
+            {% else %}
+              {% comment %}⭐ Marks page purane semesters archive kar deta
+              hai -> result page ke Internal/External records hi sessional
+              marks ka source hain. Portal-jaisi table dikhao.{% endcomment %}
+              {% if subject_grades %}
+              <div class="rounded-card bg-surface border border-hair px-4 py-1">
+                <table class="w-full text-left border-collapse">
+                  <thead>
+                    <tr class="border-b border-hair">
+                      <th class="py-3 eyebrow font-semibold text-[10px]">Subject</th>
+                      <th class="py-3 eyebrow font-semibold text-[10px] text-right">Internal</th>
+                      <th class="py-3 eyebrow font-semibold text-[10px] text-right">External</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for sub in subject_grades %}
+                    <tr {% if not forloop.last %}class="border-b border-hair"{% endif %}>
+                      <td class="py-3 pr-3 text-[13px] text-white font-medium max-w-[150px]">
+                        <span class="block truncate">{{ sub.subject }}</span>
+                        <span class="block font-mono text-[8px] text-muted tracking-wider">{{ sub.code }}</span>
+                      </td>
+                      <td class="py-3 font-mono text-[13px] font-bold text-white tabnum text-right">{{ sub.internal|default:"—" }}</td>
+                      <td class="py-3 font-mono text-[13px] text-soft tabnum text-right">{{ sub.external|default:"—" }}</td>
+                    </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+                <p class="py-3 font-mono text-[8px] text-muted tracking-[0.12em] uppercase">Source · Result.aspx Records (Sessional Page Archived)</p>
+              </div>
+              {% else %}
+              <div class="ledger ledger-mute rounded-card border border-hair bg-surface p-7 text-center">
+                <p class="text-sm font-semibold text-white">No Sessional Marks Declared</p>
+                <p class="text-[11px] text-muted font-mono mt-1 uppercase tracking-wider">UMS · Archived or Undeclared Records</p>
+              </div>
+              {% endif %}
+            {% endif %}
+          </div>
+
+          <div class="space-y-3 px-5">
+            <p class="eyebrow mb-1">Subject breakdown</p>
+            {% for sub in subject_grades %}
+              <article class="ledger ledger-mute rounded-card border border-hair bg-surface p-4 pl-5">
+                <div class="flex justify-between gap-4">
+                  <div class="min-w-0 flex-1">
+                    <p class="font-mono text-[9px] tracking-wider text-muted">{{ sub.code }}</p>
+                    <p class="mt-1 truncate text-[15px] font-semibold text-white">{{ sub.subject }}</p>
+                    <p class="mt-1 font-mono text-[9px] text-muted">CREDITS: {{ sub.credits }}</p>
+                    {% if sub.internal or sub.external %}
+                    <p class="mt-1 font-mono text-[9px] text-soft">INT: {{ sub.internal|default:"—" }} · EXT: {{ sub.external|default:"—" }}</p>
+                    {% endif %}
+                  </div>
+                  <div class="shrink-0 flex items-start gap-5 text-right font-mono">
+                    <div>
+                      <p class="eyebrow text-[8px]">Score</p>
+                      <p class="font-bold text-[18px] leading-none text-white mt-1">{{ sub.score }}</p>
+                    </div>
+                    <div>
+                      <p class="eyebrow text-[8px]">Grade</p>
+                      <p class="font-bold text-[18px] leading-none text-red mt-1">{{ sub.grade }}</p>
+                    </div>
+                  </div>
+                </div>
+                <div class="bar mt-4"><i class="bg-white" style="width:{{ sub.score }}%"></i></div>
+              </article>
+            {% empty %}
+              {% if result_pending %}
+              <div class="ledger ledger-mute rounded-card border border-hair bg-surface p-7 text-center">
+                <p class="text-sm font-semibold text-white">Result Not Declared Yet</p>
+                <p class="text-[11px] text-muted font-mono mt-1.5 uppercase tracking-wider">This semester's result is not on the portal yet — it will appear here as soon as it is declared.</p>
+              </div>
+              {% else %}
+              <div class="ledger ledger-mute rounded-card border border-hair bg-surface p-7 text-center text-sm text-muted">No results added yet.</div>
+              {% endif %}
+            {% endfor %}
+          </div>
+
+          <!-- summary table -->
+          <div class="px-5 mt-8">
+            <p class="eyebrow mb-3">Semester summary</p>
+            <div class="rounded-card bg-surface border border-hair px-4 py-1">
+              <table class="w-full text-left border-collapse">
+                <thead>
+                  <tr class="border-b border-hair">
+                    <th class="py-3 eyebrow font-semibold text-[10px]">Subject</th>
+                    <th class="py-3 eyebrow font-semibold text-[10px] text-center">Code</th>
+                    <th class="py-3 eyebrow font-semibold text-[10px] text-right">Int</th>
+                    <th class="py-3 eyebrow font-semibold text-[10px] text-right">Ext</th>
+                    <th class="py-3 eyebrow font-semibold text-[10px] text-right">Cr</th>
+                    <th class="py-3 eyebrow font-semibold text-[10px] text-right">Grade</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for sub in subject_grades %}
+                    <tr {% if not forloop.last %}class="border-b border-hair"{% endif %}>
+                      <td class="py-3 pr-3 text-[13px] text-white font-medium max-w-[120px] truncate">{{ sub.subject }}</td>
+                      <td class="py-3 font-mono text-[11px] text-muted tabnum text-center">{{ sub.code }}</td>
+                      <td class="py-3 font-mono text-[12px] text-soft tabnum text-right">{{ sub.internal|default:"—" }}</td>
+                      <td class="py-3 font-mono text-[12px] text-soft tabnum text-right">{{ sub.external|default:"—" }}</td>
+                      <td class="py-3 font-mono text-[12px] text-soft tabnum text-right">{{ sub.credits }}</td>
+                      <td class="py-3 font-mono text-[12px] font-bold text-white text-right">{{ sub.grade }}</td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+                {% if subject_grades %}
+                <tfoot>
+                  <tr class="border-t border-white/20">
+                    <td class="py-3.5 text-[11px] font-bold uppercase tracking-[0.1em] text-muted" colspan="4">TOTAL</td>
+                    <td class="py-3.5 font-mono text-[12px] font-bold text-white tabnum text-right">{{ total_credits }}</td>
+                    <td class="py-3.5 font-mono text-[12px] font-bold text-red tabnum text-right">{{ active_sgpa|default:"0.00" }}</td>
+                  </tr>
+                </tfoot>
+                {% endif %}
+              </table>
+            </div>
+            <p class="mt-4 font-mono text-[9px] text-muted tracking-[0.12em] text-center uppercase pb-10">
+              OFFICIAL RECORD · CUNNECT UMS · CU-ERP SYNC
+            </p>
+          </div>
+        </section>
+
+        <!-- ══════════ NOTICES ══════════ -->
+        <section id="panel-notices" class="{% if active_tab != 'notices' %}hidden{% endif %}">
+          <div class="px-5 pb-5 pt-6"><h1 class="font-display text-[28px] leading-[1.1]">Notices</h1><p class="mt-1.5 text-[13px] text-muted">Academic announcements and reminders.</p></div>
+          <div class="space-y-3 px-5">
+            {% for notice in announcements %}
+              <article class="ledger ledger-mute rounded-card border border-hair bg-surface p-4 pl-5">
+                <div class="flex items-center gap-2">
+                  <span class="rounded-full bg-reddim px-2 py-1 font-mono text-[8px] font-bold uppercase tracking-wider text-red">{{ notice.department|default:"University" }}</span>
+                  <span class="font-mono text-[9px] text-muted">{{ notice.date }}</span>
+                </div>
+                <h3 class="mt-3 text-[15px] font-semibold leading-snug">{{ notice.title }}</h3>
+                {% if notice.desc %}
+                  {# ⭐ preview line + "FULL NOTICE" expand toggle (poora letter + schedule) #}
+                  <p class="notice-preview-{{ forloop.counter0 }} mt-2 text-[12px] leading-relaxed text-muted">{{ notice.desc|truncatechars:150 }}</p>
+                  <p id="notice-full-{{ forloop.counter0 }}" class="mt-2 hidden text-[12px] leading-relaxed text-muted" style="white-space:pre-wrap">{{ notice.desc }}</p>
+                  <button onclick="toggleNoticeFull({{ forloop.counter0 }}, this)" class="mt-1.5 font-mono text-[9px] font-bold uppercase tracking-[.14em] text-soft hover:text-white">Full notice ⌄</button>
+                {% endif %}
+                {% if notice.files %}
+                  {# ⭐ Notice ke attachment PDFs/files - direct download #}
+                  <div class="mt-3 flex flex-wrap gap-2 border-t border-hair pt-3">
+                    {% for file in notice.files %}
+                      <a href="{{ file.url }}" target="_blank" rel="noopener" class="rounded-full border border-red/40 bg-reddim px-3 py-1.5 font-mono text-[9px] font-bold tracking-wider text-red">↓ {{ file.name|truncatechars:26 }}</a>
+                    {% endfor %}
+                  </div>
+                {% endif %}
+              </article>
+            {% empty %}
+              <div class="ledger ledger-mute rounded-card border border-hair bg-surface p-7 text-center text-sm text-muted">No notices available.</div>
+            {% endfor %}
+          </div>
+        </section>
+
+        <!-- ══════════ FEES ══════════ -->
+        <section id="panel-fees" class="{% if active_tab != 'fees' %}hidden{% endif %}">
+          <div class="px-5 pb-5 pt-6"><h1 class="font-display text-[28px] leading-[1.1]">Fees</h1><p class="mt-1.5 text-[13px] text-muted">Fee summary, dues and payment history.</p></div>
+          {# ⭐ FY grouping ek hi baar - hero chips AUR payment history dono isi se bante hain #}
+          {% regroup fee_records by semester as receipt_groups %}
+          {% if fee_summary.has_money %}
+          {# ⭐ v7.16-realdue: bada number = REMAINING DUE jo bharni hai; subline = PAID ₹X SO FAR (paid known) ya LAST PAYMENT ₹X (paid unknown, receipts-only scrape); meter SIRF jab paid pata ho. #}
+          <div class="px-5">
+            <div class="ledger rounded-card border border-hair bg-surface p-5">
+              <div class="flex items-start justify-between gap-4">
+                <div>
+                  <p class="eyebrow">Remaining Fee</p>
+                  <p class="mt-2 font-mono text-[32px] font-bold leading-none tabnum {% if fee_summary.cleared %}text-white{% else %}text-red{% endif %}">₹{{ fee_summary.due|default:"0" }}</p>
+                </div>
+                <div class="text-right">
+                  <p class="eyebrow text-[9px]">Status</p>
+                  <p class="mt-1 font-mono text-[14px] font-bold {% if fee_summary.cleared %}text-emerald-500{% else %}text-red{% endif %}">{% if fee_summary.cleared %}CLEAR{% else %}DUE{% endif %}</p>
+                </div>
+              </div>
+              
+            </div>
+          </div>
+          {% else %}
+          <div class="px-5">
+            <div class="ledger rounded-card border border-hair bg-surface p-5">
+              {% if fee_summary.all_paid %}
+                {# ⭐ v7.21-duehero: all-paid CONFIRM -> "Fee Receipts 14" ki jagah DUE ₹0 hero (user request) - due-hero jaise hi look + scale due ke hisaab se. Due ZERO hai isliye bar 100% WHITE, status FULLY PAID emerald (money-hero ke CLEAR jaisa), number white (due-hero me bhi cleared pe ₹0 white hi dikhta hai). Re receipts info subline me chali gayi. #}
+                <div class="flex items-start justify-between gap-4">
+                  <div>
+                    <p class="eyebrow">Due Fee</p>
+                    <p class="mt-2 font-mono text-[32px] font-bold leading-none tabnum text-white">₹0</p>
+                    <p class="mt-2 font-mono text-[10px] tracking-wider text-muted">{{ fee_summary.receipt_count|default:0 }} RECEIPTS{% if fee_summary.latest %} · LATEST PAYMENT {{ fee_summary.latest }}{% endif %}</p>
+                  </div>
+                  <div class="text-right">
+                    <p class="eyebrow text-[9px]">Status</p>
+                    <p class="mt-1 font-mono text-[14px] font-bold text-emerald-500">FULLY PAID</p>
+                  </div>
+                </div>
+                {# Scale due ke according: due ₹0 = sab paid = 100% WHITE full #}
+                <div class="bar mt-4"><i class="bg-white" style="width:100%"></i></div>
+                <div class="mt-2 flex justify-between font-mono text-[9px] tracking-wider text-muted"><span>0%</span><span class="font-bold text-white">PAID · 100%</span><span>100%</span></div>
+              {% else %}
+                {# ⭐ Portal receipt list me amount nahi hota + all-paid confirm NAHI (due ho sakta hai - nahin pata) -> honest receipts overview, koi amount/scale ka jhootha claim nahi #}
+                <div class="flex items-start justify-between gap-4">
+                  <div>
+                    <p class="eyebrow">Fee Receipts</p>
+                    <p class="mt-2 font-mono text-[42px] font-bold leading-none tabnum">{{ fee_summary.receipt_count|default:0 }}<span class="text-[16px] text-soft"> total</span></p>
+                    <p class="mt-2 font-mono text-[10px] tracking-wider text-muted">{% if fee_summary.latest %}LATEST PAYMENT · {{ fee_summary.latest }}{% else %}PORTAL RECEIPT LIST{% endif %}</p>
+                  </div>
+                  <div class="shrink-0 text-right">
+                    <p class="eyebrow text-[9px]">Mode</p>
+                    <p class="mt-1 font-mono text-[14px] font-bold text-white">OFFICIAL</p>
+                    <p class="mt-0.5 font-mono text-[9px] tracking-wider text-red">RECEIPT PDFs</p>
+                  </div>
+                </div>
+              {% endif %}
+              {% if receipt_groups %}
+                {# ⭐ FY mini-chips: kaunse saal ki kitni receipts - ek nazar me #}
+                <div class="mt-3 flex flex-wrap gap-2">
+                  {% for group in receipt_groups %}
+                    <span class="rounded-full border border-red/30 bg-reddim px-2.5 py-1 font-mono text-[9px] font-bold tracking-wider text-red">FY {{ group.grouper }} · {{ group.list|length }}</span>
+                  {% endfor %}
+                </div>
+              {% endif %}
+            </div>
+          </div>
+          {% endif %}
+
+          <div class="mt-6 px-5">
+            <div class="mb-3 flex justify-between"><p class="eyebrow">Payment history</p><p class="font-mono text-[9px] tracking-wider text-muted">TAP ↓ PDF</p></div>
+            {# ⭐ Financial-year wise grouped receipts - red FY header + hairline (receipt_groups upar defined) #}
+            {% for group in receipt_groups %}
+              <div class="{% if not forloop.first %}mt-6 {% endif %}mb-3 flex items-center gap-2.5">
+                <span class="rounded-badge border border-red/30 bg-reddim px-2 py-1 font-mono text-[9px] font-bold uppercase tracking-[.18em] text-red">FY {{ group.grouper }}</span>
+                <span class="h-px flex-1 bg-white/10"></span>
+                <span class="font-mono text-[9px] tracking-wider text-muted">{{ group.list|length }} RECEIPTS</span>
+              </div>
+              <div class="space-y-3">
+                {% for f in group.list %}
+                  <article class="ledger rounded-card border border-hair bg-surface transition-colors hover:border-red/40">
+                    <div class="flex items-center gap-3 p-4 pl-5">
+                      <div class="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-red/30 bg-reddim font-mono text-[13px] font-bold text-red">▤</div>
+                      <div class="min-w-0 flex-1">
+                        <div class="flex items-center gap-2">
+                          <p class="truncate text-[15px] font-semibold">{{ f.receipt|default:f.title }}</p>
+                          {% if forloop.parentloop.first and forloop.first %}
+                            {# ⭐ Sabse recent (pehli) receipt pe LATEST red badge #}
+                            <span class="shrink-0 rounded-full bg-red px-2 py-[3px] font-mono text-[8px] font-bold tracking-[.14em] text-white">LATEST</span>
+                          {% endif %}
+                        </div>
+                        <p class="mt-1 font-mono text-[10px] tracking-wider text-muted">◷ {{ f.date }}{% if f.status %} · <span class="font-bold {% if f.status == 'PAID' %}text-grn{% else %}text-red{% endif %}">{{ f.status }}</span>{% endif %}</p>
+                      </div>
+                      {% if f.receipt_url %}
+                        {# ⭐ Official receipt PDF - server-side proxy download #}
+                        <a href="{{ f.receipt_url }}" class="shrink-0 rounded-full bg-red px-3.5 py-2 font-mono text-[10px] font-bold tracking-[.12em] text-white active:opacity-70">↓ PDF</a>
+                      {% else %}
+                        <span class="shrink-0 rounded-full border border-hair px-3 py-2 font-mono text-[9px] tracking-wider text-muted">NO LINK</span>
+                      {% endif %}
+                    </div>
+                  </article>
+                {% endfor %}
+              </div>
+            {% empty %}
+              <div class="rounded-card border border-hair bg-surface p-8 text-center text-sm text-muted">No fee records available yet.</div>
+            {% endfor %}
+            {% if fee_records %}
+              <p class="mt-5 font-mono text-[9px] text-muted tracking-[0.12em] text-center uppercase pb-6">OFFICIAL RECEIPTS · CUNNECT UMS · CU-ERP SYNC</p>
+            {% endif %}
+          </div>
+        </section>
+
+        <!-- ══════════ HOSTEL ══════════ -->
+        <section id="panel-hostel" class="{% if active_tab != 'hostel' %}hidden{% endif %}">
+          <div class="px-5 pb-5 pt-6"><h1 class="font-display text-[28px] leading-[1.1]">Hostel</h1><p class="mt-1.5 text-[13px] text-muted">Room, allotment and hostel details from the portal.</p></div>
+
+          {% if hostel.found %}
+            {% if hostel.kv %}
+            <div class="px-5">
+              <div class="ledger rounded-card border border-hair bg-surface p-5">
+                <div class="flex items-start justify-between gap-4">
+                  <p class="eyebrow">My Hostel</p>
+                  <span class="rounded-full bg-reddim px-2 py-1 font-mono text-[8px] font-bold uppercase tracking-wider text-red">PORTAL</span>
+                </div>
+                <div class="mt-4 space-y-2.5">
+                  {% for item in hostel.kv %}
+                  <div class="flex items-baseline justify-between gap-4 {% if not forloop.last %}border-b border-hair pb-2.5{% endif %}">
+                    <span class="text-[12px] text-muted">{{ item.label }}</span>
+                    <span class="text-right font-mono text-[12px] font-semibold text-white">{{ item.value }}</span>
+                  </div>
+                  {% endfor %}
+                </div>
+              </div>
+            </div>
+            {% endif %}
+            {% for sec in hostel.sections %}
+            <div class="mt-6 px-5">
+              <div class="mb-3 flex justify-between"><p class="eyebrow">{{ sec.heading|default:"Details" }}</p><p class="font-mono text-[9px] tracking-wider text-muted">{{ sec.rows|length }} ROWS</p></div>
+              <div class="overflow-x-auto noscroll rounded-card bg-surface border border-hair px-4 py-1">
+                <table class="w-full text-left border-collapse">
+                  <tbody>
+                    {% for row in sec.rows %}
+                    <tr {% if not forloop.last %}class="border-b border-hair"{% endif %}>
+                      {% for cell in row %}
+                      <td class="py-3 pr-3 {% if forloop.first %}text-[12px] text-muted{% else %}font-mono text-[12px] text-white{% endif %}">{{ cell }}</td>
+                      {% endfor %}
+                    </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            {% endfor %}
+            {% if not hostel.kv and not hostel.sections %}
+            {# Page mil gaya par readable details nahi nikli #}
+            <div class="px-5"><div class="ledger ledger-mute rounded-card border border-hair bg-surface p-7 text-center text-sm text-muted">Hostel page was found, but no readable details could be extracted.</div></div>
+            {% endif %}
+          {% else %}
+            {# ⭐ Hostel page nahi mila - debug hint #}
+            <div class="px-5">
+              <div class="ledger ledger-mute rounded-card border border-hair bg-surface p-7 text-center">
+                <p class="text-sm font-semibold text-white">No Hostel Data Found</p>
+                <p class="mt-2 font-mono text-[11px] leading-relaxed text-muted">No hostel page link found in the portal's Student Home menu. If your portal has a hostel section, send the contents of <b class="text-soft">hostel_debug.txt</b> from the project folder — I'll add the exact page.</p>
+              </div>
+            </div>
+          {% endif %}
+        </section>
+
+        <!-- ══════════ PROFILE ══════════ -->
+        <section id="panel-profile" class="{% if active_tab != 'profile' %}hidden{% endif %}">
+          <div class="flex items-start justify-between px-5 pb-5 pt-6"><div><h1 class="font-display text-[28px] leading-[1.1]">Profile</h1><p class="mt-1.5 text-[13px] text-muted">Your official student record from the portal.</p></div><a href="?tab=profile&amp;refresh_profile=1" class="mt-1 shrink-0 rounded-badge border border-hair px-2.5 py-1.5 font-mono text-[9px] font-bold uppercase tracking-[.18em] text-muted transition hover:text-red" title="Re-fetch from the portal">↻ Sync</a></div>
+          {% if student_profile.found %}
+            {# ⭐ Identity hero: photo (proxy) + naam + UID #}
+            <div class="px-5">
+              <div class="ledger rounded-card border border-hair bg-surface p-5">
+                <div class="flex items-center gap-4">
+                  <div class="relative grid h-16 w-16 shrink-0 place-items-center overflow-hidden rounded-full border border-hair bg-surface2">
+                    <span class="font-display text-[22px] text-red">{{ student_profile.name|default:uid|first|upper }}</span>
+                    {% if student_profile.photo_url or student_profile.photo_b64 %}
+                      {# ⭐ photo proxy se (embedded base64 ya portal URL - dono same endpoint); fail ho to khud hat jata hai (letter avatar bacha rehta hai) #}
+                      <img src="{% url 'scraper_app:profile_photo' %}" alt="Student photo" class="absolute inset-0 h-full w-full object-cover" onerror="this.remove()">
+                    {% endif %}
+                  </div>
+                  <div class="min-w-0 flex-1">
+                    <p class="eyebrow">Student</p>
+                    <p class="mt-1 truncate text-[18px] font-semibold">{{ student_profile.name|default:"—" }}</p>
+                    <p class="mt-1 font-mono text-[10px] tracking-wider text-muted">{{ uid }}</p>
+                  </div>
+                  <span class="shrink-0 rounded-full bg-reddim px-2 py-1 font-mono text-[8px] font-bold uppercase tracking-wider text-red">Official</span>
+                </div>
+              </div>
+            </div>
+            {% if student_profile.kv %}
+            <div class="mt-6 px-5">
+              <div class="mb-3 flex justify-between"><p class="eyebrow">Details</p><p class="font-mono text-[9px] tracking-wider text-muted">{{ student_profile.kv|length }} FIELDS</p></div>
+              <div class="ledger rounded-card border border-hair bg-surface p-5">
+                <div class="space-y-2.5">
+                  {% for item in student_profile.kv %}
+                  <div class="flex items-baseline justify-between gap-4 {% if not forloop.last %}border-b border-hair pb-2.5{% endif %}">
+                    <span class="text-[12px] text-muted">{{ item.label }}</span>
+                    <span class="text-right font-mono text-[12px] font-semibold text-white">{{ item.value }}</span>
+                  </div>
+                  {% endfor %}
+                </div>
+              </div>
+            </div>
+            {% endif %}
+            {% for sec in student_profile.sections %}
+            <div class="mt-6 px-5">
+              <div class="mb-3 flex justify-between"><p class="eyebrow">{{ sec.heading|default:"Details" }}</p><p class="font-mono text-[9px] tracking-wider text-muted">{{ sec.rows|length }} ROWS</p></div>
+              <div class="overflow-x-auto noscroll rounded-card bg-surface border border-hair px-4 py-1">
+                <table class="w-full text-left border-collapse">
+                  <tbody>
+                    {% for row in sec.rows %}
+                    <tr {% if not forloop.last %}class="border-b border-hair"{% endif %}>
+                      {% for cell in row %}
+                      <td class="py-3 pr-3 {% if forloop.first %}text-[12px] text-muted{% else %}font-mono text-[12px] text-white{% endif %}">{{ cell }}</td>
+                      {% endfor %}
+                    </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            {% endfor %}
+          {% else %}
+            {# ⭐ Profile page nahi mila - debug hint (hostel empty-state pattern) #}
+            <div class="px-5">
+              <div class="ledger ledger-mute rounded-card border border-hair bg-surface p-7 text-center">
+                <p class="text-sm font-semibold text-white">No Profile Data Found</p>
+                <p class="mt-2 font-mono text-[11px] leading-relaxed text-muted">The portal's Student Profile page (frmStudentProfile.aspx) came back empty or failed to parse. After re-login, send the <b class="text-soft">profile_debug.txt</b> file from the project folder — I'll wire the exact structure.</p>
+              </div>
+            </div>
+          {% endif %}
+
+          {% comment %} ⭐ v7.9 ID CARD: user apna college ID upload kar
+             sakta hai (gallery/photos -> canvas compress <1280px JPEG ->
+             base64 session save). Tap pe fullscreen viewer; change/download/remove.
+             Upload/remove ke baad profile tab pe reload (fresh state). {% endcomment %}
+          <div class="mt-6 px-5 pb-2">
+            <div class="mb-3 flex items-center justify-between"><p class="eyebrow">College ID Card</p><p id="idc-status" class="font-mono text-[9px] tracking-wider {% if id_card %}text-soft{% else %}text-muted{% endif %}">{% if id_card %}SAVED{% else %}NOT UPLOADED{% endif %}</p></div>
+            <div class="ledger rounded-card border border-hair bg-surface p-4">
+              {% if id_card %}
+                <button type="button" onclick="openIdViewer()" class="block w-full">
+                  <img id="idc-preview" src="{% url 'scraper_app:id_card_image' %}?v={{ id_card_v }}" alt="College ID Card" class="max-h-[320px] w-full rounded-card border border-hair object-cover">
+                </button>
+                <div class="mt-3 flex flex-col gap-2">
+                  <div class="flex gap-2">
+                    <button type="button" onclick="pickIdCard()" class="flex-1 rounded-badge border border-red/40 bg-reddim px-3 py-2.5 font-mono text-[10px] font-bold uppercase tracking-[.14em] text-red">⟲ Change</button>
+                    {% comment %} ⭐ v7.13 DOWNLOAD: same-origin image url + download attr = seedha .jpg save (views change NAHI chahiye) {% endcomment %}
+                    <a href="{% url 'scraper_app:id_card_image' %}?v={{ id_card_v }}" download="CUnnect-ID-Card.jpg" class="flex-1 rounded-badge border border-hair px-3 py-2.5 text-center font-mono text-[10px] font-bold uppercase tracking-[.14em] text-soft transition hover:border-red/50 hover:text-white">⇩ Download</a>
+                  </div>
+                  <button type="button" onclick="removeIdCard()" class="w-full rounded-badge border border-hair px-3 py-2.5 font-mono text-[10px] font-bold uppercase tracking-[.14em] text-muted">Remove</button>
+                </div>
+              {% else %}
+                <button type="button" onclick="pickIdCard()" class="grid w-full place-items-center rounded-card border border-dashed border-red/40 bg-reddim px-4 py-8 text-center">
+                  <span class="grid h-11 w-11 place-items-center rounded-full border border-red/40 bg-surface font-mono text-[18px] text-red">⇪</span>
+                  <span class="mt-3 text-[13px] font-semibold text-white">Upload your ID Card</span>
+                  <span class="mt-1 font-mono text-[9px] tracking-wider text-muted">GALLERY / CAMERA · AUTO-COMPRESS</span>
+                </button>
+              {% endif %}
+              {% comment %} ⭐ v7.11 NOTE: white, small, non-bold guide line - ID case hata ke HD/colourful scanned copy upload karo {% endcomment %}
+              <p class="mt-3 text-[11px] font-normal leading-relaxed text-white/75"><span class="font-mono text-[9px] tracking-[.14em] text-white/90">NOTE:</span> remove the ID case and upload a colourful scanned document version of your ID card</p>
+            </div>
+          </div>
+          <input type="file" id="idc-input" accept="image/*" class="hidden">
+        </section>
+
+      </main>
+
+      <nav class="absolute inset-x-0 bottom-0 z-30 shrink-0 border-t border-hair bg-black/90 backdrop-blur-md">
+        {# ⭐ 8 tabs (PROFILE sabse naya - frmStudentProfile.aspx). Strip horizontal-scroll friendly hai; red underline ab JS se active button ke EXACT neeche align hoti hai (moveTabUnderline) - % wala translate 6 tabs me scroll ke saath misalign ho jata tha. #}
+        <div id="tab-strip" class="relative flex overflow-x-auto noscroll px-2 pt-[2px] pb-[calc(.5rem+env(safe-area-inset-bottom))]">
+          <i id="tab-underline" class="tab-underline absolute left-0 top-0 h-[2px] w-0 bg-red"></i>
+          <button onclick="switchDashboardTab('attendance',0)" id="tab-btn-attendance" class="flex h-14 min-w-[20%] flex-1 flex-col items-center justify-center gap-1 {% if active_tab == 'attendance' or not active_tab %}text-white{% else %}text-muted hover:text-soft{% endif %}"><span>◍</span><span class="font-mono text-[9px] tracking-wider">ATTENDANCE</span></button>
+          <button onclick="switchDashboardTab('timetable',1)" id="tab-btn-timetable" class="flex h-14 min-w-[20%] flex-1 flex-col items-center justify-center gap-1 {% if active_tab == 'timetable' %}text-white{% else %}text-muted hover:text-soft{% endif %}"><span>◷</span><span class="font-mono text-[9px] tracking-wider">SCHEDULE</span></button>
+          <button onclick="switchDashboardTab('courses',2)" id="tab-btn-courses" class="flex h-14 min-w-[20%] flex-1 flex-col items-center justify-center gap-1 {% if active_tab == 'courses' %}text-white{% else %}text-muted hover:text-soft{% endif %}"><span>▦</span><span class="font-mono text-[9px] tracking-wider">COURSES</span></button>
+          <button onclick="switchDashboardTab('marks',3)" id="tab-btn-marks" class="flex h-14 min-w-[20%] flex-1 flex-col items-center justify-center gap-1 {% if active_tab == 'marks' %}text-white{% else %}text-muted hover:text-soft{% endif %}"><span>▤</span><span class="font-mono text-[9px] tracking-wider">RESULTS</span></button>
+          <button onclick="switchDashboardTab('notices',4)" id="tab-btn-notices" class="flex h-14 min-w-[20%] flex-1 flex-col items-center justify-center gap-1 {% if active_tab == 'notices' %}text-white{% else %}text-muted hover:text-soft{% endif %}"><span>✦</span><span class="font-mono text-[9px] tracking-wider">NOTICES</span></button>
+          <button onclick="switchDashboardTab('fees',5)" id="tab-btn-fees" class="flex h-14 min-w-[20%] flex-1 flex-col items-center justify-center gap-1 {% if active_tab == 'fees' %}text-white{% else %}text-muted hover:text-soft{% endif %}"><span>₹</span><span class="font-mono text-[9px] tracking-wider">FEES</span></button>
+          <button onclick="switchDashboardTab('hostel',6)" id="tab-btn-hostel" class="flex h-14 min-w-[20%] flex-1 flex-col items-center justify-center gap-1 {% if active_tab == 'hostel' %}text-white{% else %}text-muted hover:text-soft{% endif %}"><span>⌂</span><span class="font-mono text-[9px] tracking-wider">HOSTEL</span></button>
+          <button onclick="switchDashboardTab('profile',7)" id="tab-btn-profile" class="flex h-14 min-w-[20%] flex-1 flex-col items-center justify-center gap-1 {% if active_tab == 'profile' %}text-white{% else %}text-muted hover:text-soft{% endif %}"><span>◉</span><span class="font-mono text-[9px] tracking-wider">PROFILE</span></button>
+        </div>
+      </nav>
+
+      {% comment %} ⭐ v6.0 COURSE DETAIL MODAL: attendance course-card click pe
+         yeh bottom-sheet khulti hai (user screenshot: ring + tabs).
+         Content hidden #course-src-N se clone hota hai. {% endcomment %}
+      <div id="course-overlay" class="absolute inset-0 z-40 hidden flex-col justify-end bg-black/75" onclick="if(event.target===this){closeCourse();}">
+        <div id="course-sheet" class="noscroll max-h-[88%] overflow-y-auto border-t border-hair bg-surface px-5 pb-9 pt-5" style="border-radius:18px 18px 0 0" onclick="event.stopPropagation()"></div>
+      </div>
+
+      {% comment %} ⭐ v6.7 PREDICT PAGE OVERLAY (screenshot layout): full view -
+         upar back-arrow header, neeche scrollable sheet (ring +
+         master slider + subjects mini-ring grid). {% endcomment %}
+      <div id="predict-overlay" class="absolute inset-0 z-40 hidden flex-col bg-black/75">
+        <div class="flex shrink-0 items-center justify-between border-b border-hair px-5 py-3.5" style="background:linear-gradient(180deg,#16090B,#0F0F11)">
+          <button type="button" onclick="closePredict()" class="grid h-8 w-8 place-items-center rounded-full border border-hair font-mono text-[13px] text-soft transition hover:text-white" aria-label="Back">&#8592;</button>
+          <p class="font-mono text-[10px] font-bold uppercase tracking-[.22em] text-soft">Prediction</p>
+          <span class="h-8 w-8"></span>
+        </div>
+        <div id="predict-sheet" class="noscroll min-h-0 flex-1 overflow-y-auto px-5 pb-9 pt-5" style="background:radial-gradient(120% 34% at 50% 0%, rgba(236,28,36,.13), rgba(236,28,36,0) 60%),linear-gradient(180deg,#16090B 0%,#0F0F11 34%)"></div>
+      </div>
+
+      {% comment %} ⭐ v7.9 ID CARD FULLSCREEN VIEWER: preview tap pe
+         poora card dekho; backdrop/back-arrow/Esc se band. {% endcomment %}
+      <div id="idc-viewer" class="absolute inset-0 z-50 hidden flex-col bg-black/90 px-5 pb-8 pt-5" onclick="if(event.target===this){closeIdViewer();}">
+        <div class="flex shrink-0 items-center gap-3">
+          <button type="button" onclick="closeIdViewer()" class="grid h-9 w-9 place-items-center rounded-full border border-hair font-mono text-[15px] text-soft transition hover:text-white" aria-label="Back">&#8592;</button>
+          <p class="font-mono text-[10px] font-bold uppercase tracking-[.22em] text-soft">ID Card</p>
+          <a href="{% url 'scraper_app:id_card_image' %}?v={{ id_card_v }}" download="CUnnect-ID-Card.jpg" class="ml-auto grid h-9 w-9 place-items-center rounded-full border border-hair text-soft transition hover:border-red/50 hover:text-white" aria-label="Download" title="Download ID card"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="h-[16px] w-[16px]"><path d="M12 4v11"/><path d="m7 11 5 5 5-5"/><path d="M5 20h14"/></svg></a>
+        </div>
+        <div class="mt-4 flex min-h-0 flex-1 items-center justify-center">
+          <img id="idc-full" src="" alt="College ID Card full" class="max-h-full max-w-full rounded-card border border-hair object-contain">
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    // ⭐ HOSTEL tab (6th) - swipe isi array pe chalta hai, to hostel pe
+    // bhi left/right swipe automatically kaam karega.
+    const DASHBOARD_TABS = ['attendance', 'timetable', 'courses', 'marks', 'notices', 'fees', 'hostel', 'profile'];
+
+    // Abhi kaunsa tab visible hai?
+    function currentDashboardTab() {
+      const found = DASHBOARD_TABS.find((t) => {
+        const panel = document.getElementById('panel-' + t);
+        return panel && !panel.classList.contains('hidden');
+      });
+      return found || DASHBOARD_TABS[0];
+    }
+
+    // ⭐ Red underline ko active button ke exact width/position pe rakho.
+    // (6 tabs + scrollable strip me purana % translate misalign ho jata tha.)
+    function moveTabUnderline(tabId) {
+      const btn = document.getElementById('tab-btn-' + tabId);
+      const underline = document.getElementById('tab-underline');
+      if (!btn || !underline) return;
+      underline.style.width = btn.offsetWidth + 'px';
+      underline.style.transform = 'translateX(' + btn.offsetLeft + 'px)';
+    }
+
+    function switchDashboardTab(tabId, index) {
+      DASHBOARD_TABS.forEach((tab) => {
+        document.getElementById('panel-' + tab).classList.add('hidden');
+        const btn = document.getElementById('tab-btn-' + tab);
+        if (btn) {
+          btn.classList.toggle('text-white', tab === tabId);
+          btn.classList.toggle('text-muted', tab !== tabId);
+        }
+      });
+      document.getElementById('panel-' + tabId).classList.remove('hidden');
+      moveTabUnderline(tabId);
+      const activeBtn = document.getElementById('tab-btn-' + tabId);
+      if (activeBtn && activeBtn.scrollIntoView) {
+        activeBtn.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+      }
+      // ⭐ Active tab yaad rakho - refresh pe wahi tab wapas khulega
+      // (sync ka auto-reload bhi ab same tab pe aata hai). Tab URL ke
+      // HASH me bhi likh do (#courses) - hash refresh pe guarantee
+      // survive karti hai, aur address bar se khud verify kar sakte ho.
+      try {
+        sessionStorage.setItem('cunnect-tab', tabId);
+        if (history.replaceState) history.replaceState(null, '', '#' + tabId);
+      } catch (e) {}
+    }
+
+    // ⭐ REFRESH-TAB-RESTORE: ALAG listener me rakha hai - page ke baaki
+    // JS (schedule sorting / live badges) me kahin bhi error phat-ti to
+    // bhi tab restore ho jayega. Pehle ye combined handler ke ANDAR tha:
+    // usme upar koi exception aati to restore run hi nahi hota tha - yehi
+    // tumhare "refresh pe attendance pe aa jata hai" ka hidden reason ho
+    // sakta hai. Priority: server ?tab= > URL #hash > sessionStorage.
+    document.addEventListener('DOMContentLoaded', function restoreSavedTab() {
+      try {
+        const urlTab = new URLSearchParams(location.search).get('tab');
+        if (urlTab && DASHBOARD_TABS.includes(urlTab)) {
+          sessionStorage.setItem('cunnect-tab', urlTab);
+          return;
+        }
+        let saved = String(location.hash || '').replace(/^#/, '');
+        if (!DASHBOARD_TABS.includes(saved)) {
+          saved = sessionStorage.getItem('cunnect-tab');
+        }
+        if (saved && DASHBOARD_TABS.includes(saved) && saved !== currentDashboardTab()) {
+          switchDashboardTab(saved, DASHBOARD_TABS.indexOf(saved));
+        }
+      } catch (e) {}
+    });
+
+    // ⭐ Horizontal swipe se tabs badlo (left = agla tab, right = pichla)
+    function enableTabSwipe() {
+      const mainEl = document.querySelector('main');
+      if (!mainEl) return;
+      let startX = 0, startY = 0, tracking = false, ignore = false;
+      mainEl.addEventListener('touchstart', (e) => {
+        if (e.touches.length !== 1) return;
+        tracking = true;
+        ignore = !!e.target.closest('[data-no-swipe]');
+        startX = e.touches[0].clientX;
+        startY = e.touches[0].clientY;
+      }, { passive: true });
+      mainEl.addEventListener('touchend', (e) => {
+        if (!tracking) return;
+        tracking = false;
+        if (ignore) return;
+        const dx = e.changedTouches[0].clientX - startX;
+        const dy = e.changedTouches[0].clientY - startY;
+        if (Math.abs(dx) < 60 || Math.abs(dy) > Math.abs(dx) * 0.7) return;
+        const current = DASHBOARD_TABS.findIndex(
+          (t) => !document.getElementById('panel-' + t).classList.contains('hidden')
+        );
+        if (current === -1) return;
+        const next = current + (dx < 0 ? 1 : -1);
+        if (next < 0 || next >= DASHBOARD_TABS.length) return;
+        switchDashboardTab(DASHBOARD_TABS[next], next);
+      }, { passive: true });
+    }
+
+    function toggleDetails(id){ document.getElementById(id)?.classList.toggle('hidden'); }
+
+    // ⭐ COURSE DETAIL MODAL (v6.0): attendance course-card click -> full
+    // modal (Prediction / Timeline / Course Plan). Content hidden
+    // #course-src-i se clone hota hai; backdrop tap / Esc se band.
+    function openCourse(i){
+      var src = document.getElementById('course-src-' + i);
+      var ov = document.getElementById('course-overlay');
+      var sheet = document.getElementById('course-sheet');
+      if(!src || !ov || !sheet) return;
+      sheet.innerHTML = src.innerHTML;
+      sheet.scrollTop = 0;
+      ov.classList.remove('hidden');
+      ov.classList.remove('closing');
+      ov.classList.add('flex');
+      courseTab('time');   // default Timeline (screenshot wali)
+      var sl = sheet.querySelector('.cm-slider');
+      if (sl) predSlide(sl);   // ⭐ planner init (k=0 = abhi jaisa, day chips build)
+    }
+    // ⭐ v7.7 ANIMATED CLOSE: skipAnim nahi to CSS .closing animation
+    // (sheet slide-down + overlay fade-out) chala ke 240ms baad hide.
+    // Swipe-close apna inline animation pehle hi chala chuka hota hai
+    // (endDrag translate 105%) - wo skipAnim=true deta hai.
+    function closeCourse(skipAnim){
+      var ov = document.getElementById('course-overlay');
+      if(!ov || ov.classList.contains('hidden')) return;
+      var finish = function(){
+        ov.classList.add('hidden');
+        ov.classList.remove('flex');
+        ov.classList.remove('closing');
+      };
+      if(skipAnim){ finish(); return; }
+      ov.classList.add('closing');
+      setTimeout(finish, 230);
+    }
+
+    // ⭐ v7.4 SWIPE-DOWN-TO-CLOSE: course bottom-sheet ko neeche drag
+    // karke band karo (native bottom-sheet jaisa). Rules:
+    //   - sheet bilkul TOP pe ho (scrollTop 0) - warna content scroll chalega
+    //   - slider (.cm-slider) pe shuru hua touch nahi - slider ke liye reserved
+    //   - 90px+ drag pe release = animate karke close, kam pe snap-back.
+    (function(){
+      var startY = 0, curY = 0, cand = false, dragging = false;
+      function sheet(){
+        var s = document.getElementById('course-sheet');
+        var ov = document.getElementById('course-overlay');
+        if(!s || !ov || ov.classList.contains('hidden')) return null;
+        return s;
+      }
+      document.addEventListener('touchstart', function(e){
+        var s = sheet();
+        if(!s){ cand = false; return; }
+        var t = e.touches && e.touches[0];
+        if(!t){ cand = false; return; }
+        if(s.scrollTop > 4){ cand = false; return; }
+        if(e.target && e.target.closest && e.target.closest('.cm-slider')){ cand = false; return; }
+        startY = t.clientY; curY = 0; cand = true; dragging = false;
+      }, {passive: true});
+      document.addEventListener('touchmove', function(e){
+        if(!cand) return;
+        var s = sheet();
+        if(!s){ cand = false; dragging = false; return; }
+        var t = e.touches && e.touches[0];
+        if(!t) return;
+        var dy = t.clientY - startY;
+        if(!dragging){
+          if(dy > 8){ dragging = true; s.style.transition = 'none'; }
+          else if(dy < -8){ cand = false; return; }     // upar = content scroll
+          else return;
+        }
+        if(dy < 0) dy = 0;
+        curY = dy;
+        if(e.cancelable) e.preventDefault();             // pull-to-refresh rok
+        s.style.transform = 'translateY(' + dy + 'px)';
+      }, {passive: false});
+      function endDrag(){
+        if(!cand && !dragging) return;
+        var s = document.getElementById('course-sheet');
+        cand = false;
+        if(!dragging || !s){ dragging = false; curY = 0; return; }
+        dragging = false;
+        s.style.transition = 'transform .25s cubic-bezier(.32,.72,.35,1)';
+        if(curY > 90){
+          s.style.transform = 'translateY(105%)';        // neeche slide-out
+          setTimeout(function(){
+            s.style.transform = '';
+            s.style.transition = '';
+            closeCourse(true);   // sheet ka inline slide-out pehle hi ho gaya
+          }, 240);
+        } else {
+          s.style.transform = '';                        // snap-back
+          setTimeout(function(){ s.style.transition = ''; }, 260);
+        }
+        curY = 0;
+      }
+      document.addEventListener('touchend', endDrag);
+      document.addEventListener('touchcancel', endDrag);
+    })();
+    function courseTab(name){
+      var sheet = document.getElementById('course-sheet');
+      if(!sheet) return;
+      sheet.querySelectorAll('[data-ctab-btn]').forEach(function(b){
+        var on = b.getAttribute('data-ctab-btn') === name;
+        b.classList.toggle('ctab-on', on);      // ⭐ v6.4 red-gradient pill
+      });
+      sheet.querySelectorAll('[data-ctab]').forEach(function(p){
+        p.classList.toggle('hidden', p.getAttribute('data-ctab') !== name);
+      });
+    }
+    document.addEventListener('keydown', function(e){ if(e.key === 'Escape'){ closeCourse(); closePredict(); closeIdViewer(); } });
+
+    // ⭐ v6.7 PREDICT PAGE: aggregate card ke "Predict ↗" se full view
+    // (screenshot layout, CUnnect theme). Content #predict-src se clone.
+    function openPredict(){
+      var src = document.getElementById('predict-src');
+      var ov = document.getElementById('predict-overlay');
+      var sheet = document.getElementById('predict-sheet');
+      if(!src || !ov || !sheet) return;
+      sheet.innerHTML = src.innerHTML;
+      sheet.scrollTop = 0;
+      ov.classList.remove('hidden');
+      ov.classList.remove('closing');
+      ov.classList.add('flex');
+      var proot = sheet.querySelector('.pm-root');
+      if (proot) pmLayout(proot);  // day chips today-first order + slider max
+      var sl = sheet.querySelector('[data-pm-master]');
+      if (sl) pmSlide(sl);   // k=0 = abhi jaisa (Attendance tab wala current data)
+    }
+    function closePredict(skipAnim){
+      var ov = document.getElementById('predict-overlay');
+      if(!ov || ov.classList.contains('hidden')) return;
+      var finish = function(){
+        ov.classList.add('hidden');
+        ov.classList.remove('flex');
+        ov.classList.remove('closing');
+      };
+      if(skipAnim){ finish(); return; }
+      ov.classList.add('closing');
+      setTimeout(finish, 230);
+    }
+    // ⭐ v7.9 ID CARD (PROFILE tab): apna college ID upload karo -
+    // gallery/photos se file lo -> canvas compress (<=1280px, JPEG 0.85)
+    // -> base64 session save. Tap pe fullscreen viewer. Change/Remove
+    // ke baad profile tab pe reload (server state = sach).
+    var __IDC_URL = "{% url 'scraper_app:id_card' %}";
+    var __IDC_REMOVE_URL = "{% url 'scraper_app:id_card_remove' %}";
+    var __IDC_CSRF = "{{ csrf_token }}";
+    // ⭐ v7.12: camera option HATA di gayi - ab tap pe seedha gallery/
+    // photos picker khulta hai (NOTE: scanned ID copy upload karni hai).
+    function pickIdCard(){
+      var inp = document.getElementById('idc-input');
+      if(inp) inp.click();
+    }
+    function idcStatus(txt, isErr){
+      var st = document.getElementById('idc-status');
+      if(!st) return;
+      st.textContent = txt;
+      st.classList.toggle('text-red', !!isErr);
+      st.classList.toggle('text-muted', !isErr);
+      st.classList.toggle('text-soft', false);
+    }
+    function openIdViewer(){
+      var v = document.getElementById('idc-viewer');
+      var img = document.getElementById('idc-full');
+      var prev = document.getElementById('idc-preview');
+      if(!v || !img || !prev || !prev.getAttribute('src')) return;
+      img.src = prev.src;
+      v.classList.remove('hidden');
+      v.classList.add('flex');
+    }
+    function closeIdViewer(){
+      var v = document.getElementById('idc-viewer');
+      if(!v) return;
+      v.classList.add('hidden');
+      v.classList.remove('flex');
+    }
+    (function(){
+      document.addEventListener('change', function(e){
+        var inp = e.target;
+        if(!inp || inp.id !== 'idc-input') return;
+        var f = inp.files && inp.files[0];
+        inp.value = '';
+        if(!f) return;
+        if(!f.type || f.type.indexOf('image/') !== 0){
+          idcStatus('IMAGE FILE CHUNO', true);
+          return;
+        }
+        idcStatus('PROCESSING...');
+        var reader = new FileReader();
+        reader.onload = function(){
+          var img = new Image();
+          img.onload = function(){
+            var MAXW = 1280, w = img.width, h = img.height;
+            if(w > MAXW){ h = Math.round(h * MAXW / w); w = MAXW; }
+            try {
+              var cv = document.createElement('canvas');
+              cv.width = w; cv.height = h;
+              var cx = cv.getContext('2d');
+              cx.fillStyle = '#000000';
+              cx.fillRect(0, 0, w, h);
+              cx.drawImage(img, 0, 0, w, h);
+              var dataUrl = cv.toDataURL('image/jpeg', 0.85);
+              idcStatus('UPLOADING...');
+              fetch(__IDC_URL, {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': __IDC_CSRF },
+                body: JSON.stringify({ image: dataUrl }),
+              }).then(function(resp){ return resp.json().catch(function(){ return { ok: false, error: 'server error' }; }); })
+                .then(function(res){
+                  if(res && res.ok){
+                    idcStatus('SAVED \u2713');
+                    setTimeout(function(){ window.location.href = '?tab=profile'; }, 350);
+                  } else {
+                    idcStatus((res && res.error ? String(res.error) : 'upload fail').toUpperCase(), true);
+                  }
+                }).catch(function(){ idcStatus('NETWORK ERROR', true); });
+            } catch(err){ idcStatus('PROCESS ERROR', true); }
+          };
+          img.onerror = function(){ idcStatus('IMAGE FAILED TO OPEN', true); };
+          img.src = reader.result;
+        };
+        reader.onerror = function(){ idcStatus('READ ERROR', true); };
+        reader.readAsDataURL(f);
+      });
+    })();
+    function removeIdCard(){
+      idcStatus('REMOVING...');
+      fetch(__IDC_REMOVE_URL, { method: 'POST', credentials: 'same-origin', headers: { 'X-CSRFToken': __IDC_CSRF } })
+        .then(function(resp){ return resp.json().catch(function(){ return { ok: false }; }); })
+        .then(function(res){
+          if(res && res.ok){ window.location.href = '?tab=profile'; }
+          else idcStatus('REMOVE FAILED', true);
+        }).catch(function(){ idcStatus('NETWORK ERROR', true); });
+    }
+
+    // ⭐ v7.0 DAY-WISE PLANNER (bunk side HATA di gayi): slider 0..K din.
+    // k din attend = AAJ se ordered class-days (timetable) ki SARI classes:
+    //   subj_na = att + hits_i     subj_nt = tot + hits_i
+    //   avg    = MEAN(course %s)  [top ring - portal jaisa avg %]
+    // 0 din = abhi jaisa chal raha (Attendance tab ka CURRENT data = SAME).
+    function pmParseDays(root){
+      if(root._pmDays) return root._pmDays;
+      var raw = [];
+      try { raw = JSON.parse(root.getAttribute('data-days') || '[]'); } catch(e){ raw = []; }
+      var byName = {};
+      raw.forEach(function(d){ byName[String(d[0] || '').toUpperCase()] = (d[1] || []); });
+      var DOW = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
+      var t = (new Date()).getDay();
+      var out = [];
+      for(var i = 0; i < 7; i++){
+        var name = DOW[(t + i) % 7];
+        var cls = byName[name];
+        if(cls && cls.length) out.push({ day: name, classes: cls });
+      }
+      root._pmDays = out;
+      return out;
+    }
+    // Day chips ko today-first order me lao; bina classes waale din hide;
+    // slider max = class-days count.
+    function pmLayout(root){
+      var days = pmParseDays(root);
+      var m = root.querySelector('[data-pm-master]');
+      if(m) m.max = String(Math.max(days.length, 1));
+      var wrap = root.querySelector('[data-pm-days]');
+      if(wrap){
+        var chips = {};
+        var all = wrap.querySelectorAll('[data-pm-day]');
+        all.forEach(function(ch){
+          chips[(ch.getAttribute('data-pm-day') || '').toUpperCase()] = ch;
+          ch.removeAttribute('data-pm-idx');
+          ch.style.display = 'none';
+        });
+        days.forEach(function(d, i){
+          var ch = chips[d.day];
+          if(ch){ wrap.appendChild(ch); ch.style.display = ''; ch.setAttribute('data-pm-idx', String(i)); }
+        });
+      }
+      return days;
+    }
+    function pmUpdateSub(s, hit){
+      var a = parseInt(s.getAttribute('data-att') || '0', 10) || 0;
+      var t = parseInt(s.getAttribute('data-tot') || '0', 10) || 0;
+      var na = a + hit, nt = t + hit;
+      var p = nt > 0 ? (na * 100 / nt) : 0;
+      var arc = s.querySelector('[data-pm-arc]');
+      if(arc){
+        arc.setAttribute('stroke-dashoffset', (188.5 * (100 - Math.min(p, 100)) / 100).toFixed(1));
+        arc.setAttribute('stroke', p >= 75 ? '#FFFFFF' : '#EC1C24');
+      }
+      var num = s.querySelector('[data-pm-pct-sub]');
+      if(num) num.textContent = String(Math.round(p));
+      var note = s.querySelector('[data-pm-note]');
+      if(note){
+        if(p >= 75){
+          var leave = Math.floor((na - 0.75 * nt) / 0.75 + 1e-9);
+          note.textContent = 'Can miss ' + Math.max(0, leave);
+          note.classList.add('text-soft'); note.classList.remove('text-red');
+        } else {
+          var need = Math.max(0, Math.ceil((0.75 * nt - na) * 4 - 1e-9));
+          note.textContent = '\u26a0 Attend next ' + need;
+          note.classList.add('text-red'); note.classList.remove('text-soft');
+        }
+      }
+      var pl = s.querySelector('[data-pm-plus]');
+      if(pl){ pl.textContent = '+' + hit; pl.classList.toggle('hidden', hit <= 0); }
+      return { na: na, nt: nt, hit: hit, p: p };
+    }
+    // ⭐ Poora page recompute: master slider value (k din) ke hisaab se
+    // pehle k class-days ki classes har subject me jodo -> cards + top AVG.
+    function pmRecompute(root){
+      if(!root) return;
+      var days = pmParseDays(root);
+      var m = root.querySelector('[data-pm-master]');
+      var k = m ? (parseInt(m.value || '0', 10) || 0) : 0;
+      if(k > days.length) k = days.length;
+      var subs = root.querySelectorAll('.pm-sub');
+      var byCode = {};
+      subs.forEach(function(s){ byCode[(s.getAttribute('data-code') || '').toUpperCase()] = s; });
+      var hits = {}, hitsTot = 0, i;
+      for(i = 0; i < k; i++){
+        days[i].classes.forEach(function(code){
+          var c = String(code).toUpperCase();
+          if(byCode[c]){ hits[c] = (hits[c] || 0) + 1; hitsTot++; }   // sirf matched subjects
+        });
+      }
+      var sPct = 0, sCnt = 0;
+      subs.forEach(function(s){
+        var c = (s.getAttribute('data-code') || '').toUpperCase();
+        var r = pmUpdateSub(s, hits[c] || 0);
+        // ⭐ v7.6 AVG-ACTIVE: 0-delivered course (nt=0) average SE BAHAR
+        // - portal bhi unhe overall-avg me count nahi karta (57.08 proof)
+        if(r.nt > 0){ sPct += r.p; sCnt++; }
+      });
+      var gp;
+      if(sCnt > 0){
+        gp = sPct / sCnt;   // portal jaisa AVG = active course %s ka MEAN
+      } else {
+        // edge: subjects nahi - aggregate current numbers se avg
+        var gAtt = parseInt(root.getAttribute('data-att') || '0', 10) || 0;
+        var gTot = parseInt(root.getAttribute('data-tot') || '0', 10) || 0;
+        gp = gTot > 0 ? (gAtt * 100 / gTot) : 0;
+      }
+      var pctEl = root.querySelector('[data-pm-pct]');
+      if(pctEl) pctEl.textContent = gp.toFixed(1);
+      var ring = root.querySelector('[data-pm-ring]');
+      if(ring){
+        ring.setAttribute('stroke-dashoffset', (188.5 * (100 - Math.min(gp, 100)) / 100).toFixed(1));
+        ring.setAttribute('stroke', gp >= 75 ? '#FFFFFF' : '#EC1C24');
+      }
+      var kEl = root.querySelector('[data-pm-k]');
+      if(kEl) kEl.textContent = '\u2713 +' + hitsTot;
+      var dEl = root.querySelector('[data-pm-din]');
+      if(dEl) dEl.textContent = k + '/' + days.length + ' days';
+      // day chips highlight: pehle k din red-tint
+      var wrap = root.querySelector('[data-pm-days]');
+      if(wrap){
+        wrap.querySelectorAll('[data-pm-day]').forEach(function(ch){
+          var idx = parseInt(ch.getAttribute('data-pm-idx') || '-1', 10);
+          var on = idx > -1 && idx < k;
+          ch.classList.toggle('bg-reddim', on);
+          ch.classList.toggle('border-red/30', on);
+          ch.classList.toggle('text-white', on);
+          ch.classList.toggle('border-hair', !on);
+          ch.classList.toggle('text-muted', !on);
+        });
+      }
+    }
+    // ⭐ DAY SLAIDER: 0 = abhi jaisa, right = utne din ki saari classes attend.
+    function pmSlide(el){
+      var root = el.closest('.pm-root');
+      if(!root) return;
+      pmRecompute(root);
+    }
+    // ⭐ DAY CHIP tap: us din TAK attend karne ka plan ek hi tap me.
+    function pmDayTap(el){
+      var root = el.closest('.pm-root');
+      if(!root) return;
+      var idx = parseInt(el.getAttribute('data-pm-idx') || '-1', 10);
+      if(idx < 0) return;
+      var m = root.querySelector('[data-pm-master]');
+      if(m) m.value = String(idx + 1);
+      pmRecompute(root);
+    }
+
+    // ⭐ v7.1 DAY-WISE CLASS PLANNER (course modal PRED tab): is subject
+    // ki AAJ se aage waali classes timetable se (cm-pred[data-days] server
+    // se aata hai). slider 0..O occurrences attend karo:
+    //   projected = (att + k) / (tot + k)     [k=0 = abhi jaisa, CURRENT]
+    // Niche DAY CHIPS: jin-jin din class hai (same-day merge: 'FRI x2'),
+    // slide karte hi pehle k occurrences ke din hi-light; chip tap = us
+    // din TAK attend. Sab client-side - server call nahi.
+    function predOcc(wrap){
+      if(wrap._predOcc) return wrap._predOcc;
+      var raw = (wrap.getAttribute('data-days') || '').split(',');
+      var byName = {};
+      raw.forEach(function(d){
+        d = String(d || '').trim().toUpperCase();
+        if(d){ byName[d] = (byName[d] || 0) + 1; }
+      });
+      var DOW = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
+      var t = (new Date()).getDay();
+      var occ = [];
+      for(var i = 0; i < 7; i++){
+        var name = DOW[(t + i) % 7];
+        var n = byName[name] || 0;
+        for(var j = 0; j < n; j++) occ.push(name);
+      }
+      wrap._predOcc = occ;
+      return occ;
+    }
+    // Same-day occurrences merge karke chips banao (chip = ek din).
+    function predBuildChips(wrap, occ){
+      var box = wrap.querySelector('[data-pred-days]');
+      if(!box) return;
+      box.innerHTML = '';
+      var i = 0;
+      while(i < occ.length){
+        var day = occ[i], from = i;
+        while(i < occ.length && occ[i] === day) i++;
+        var to = i;                                    // exclusive
+        var cnt = to - from;
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'rounded-badge border border-hair px-2 py-1 font-mono text-[9px] font-bold uppercase tracking-wider text-muted';
+        b.textContent = day + (cnt > 1 ? ' x' + cnt : '');
+        b.setAttribute('data-pred-from', String(from));
+        b.setAttribute('data-pred-to', String(to));
+        b.onclick = function(){
+          var sl = wrap.querySelector('[data-pred-slider]');
+          var toV = parseInt(this.getAttribute('data-pred-to') || '0', 10) || 0;
+          if(sl){ sl.value = String(toV); predSlide(sl); }
+        };
+        box.appendChild(b);
+      }
+    }
+    function predSlide(el){
+      var wrap = el.closest('.cm-pred');
+      if(!wrap) return;
+      var occ = predOcc(wrap);
+      if(!wrap._predChipsBuilt){ predBuildChips(wrap, occ); wrap._predChipsBuilt = true; }
+      el.max = String(Math.max(occ.length, 1));
+      var none = occ.length === 0;                       // is week koi class nahi
+      el.style.display = none ? 'none' : '';
+      var lohi = wrap.querySelector('[data-pred-lohi]');
+      if(lohi) lohi.style.display = none ? 'none' : '';
+      var att = parseInt(wrap.getAttribute('data-att') || '0', 10) || 0;
+      var tot = parseInt(wrap.getAttribute('data-tot') || '0', 10) || 0;
+      var k = parseInt(el.value || '0', 10) || 0;
+      if(k > occ.length) k = occ.length;
+      var cur = tot > 0 ? (att * 100.0 / tot) : 0;
+      var na = att + k, nt = tot + k;
+      var pct = nt > 0 ? (na * 100.0 / nt) : 0;
+      function q(sel){ return wrap.querySelector(sel); }
+      var pctEl = q('[data-pred-pct]');
+      if(pctEl) pctEl.textContent = pct.toFixed(1);
+      var stEl = q('[data-pred-status]');
+      if(stEl){
+        var nowSafe = pct >= 75;
+        stEl.textContent = nowSafe ? 'Safe' : 'Low';
+        stEl.classList.toggle('cm-st-p', nowSafe);
+        stEl.classList.toggle('cm-st-a', !nowSafe);
+      }
+      // ⭐ day chips hi-light: full attend = red-tint, adhoora din = soft border
+      var box = q('[data-pred-days]');
+      if(box){
+        box.querySelectorAll('button').forEach(function(ch){
+          var from = parseInt(ch.getAttribute('data-pred-from') || '0', 10) || 0;
+          var to = parseInt(ch.getAttribute('data-pred-to') || '0', 10) || 0;
+          var st = (k >= to) ? 2 : ((k > from) ? 1 : 0);
+          ch.classList.toggle('bg-reddim', st === 2);
+          ch.classList.toggle('text-white', st === 2);
+          ch.classList.toggle('border-red/30', st > 0);
+          ch.classList.toggle('text-soft', st === 1);
+          ch.classList.toggle('border-hair', st === 0);
+          ch.classList.toggle('text-muted', st === 0);
+        });
+      }
+      var lvEl = q('[data-pred-leave]');
+      if(lvEl){
+        if(pct >= 75){
+          var leave = Math.floor((na - 0.75 * nt) / 0.75 + 1e-9);
+          lvEl.textContent = leave > 0
+            ? 'With this plan you can still bunk ' + leave + ' more.'
+            : 'With this plan you stay just above 75%.';
+        } else {
+          var need = Math.max(0, Math.ceil(((0.75 * nt - na) * 4) - 1e-9));
+          lvEl.textContent = 'You still need ' + need + ' more attended to reach 75%.';
+        }
+      }
+      var dEl = q('[data-pred-delta]');
+      if(dEl){
+        if(none){
+          dEl.textContent = 'no class in this week\u2019s timetable';
+          dEl.classList.add('text-soft'); dEl.classList.remove('text-white');
+        } else {
+          var delta = pct - cur;
+          if(delta > 0.05){ dEl.textContent = '\u25b2 +' + delta.toFixed(1) + '% vs now'; dEl.classList.add('text-white'); dEl.classList.remove('text-soft'); }
+          else { dEl.textContent = '= same as now'; dEl.classList.add('text-soft'); dEl.classList.remove('text-white'); }
+        }
+      }
+    }
+
+    // ⭐ Notice ka poora content expand/collapse karo (preview <-> full)
+    function toggleNoticeFull(idx, btn) {
+      const full = document.getElementById('notice-full-' + idx);
+      const prev = document.querySelector('.notice-preview-' + idx);
+      if (!full) return;
+      const show = full.classList.contains('hidden');
+      full.classList.toggle('hidden', !show);
+      if (prev) prev.classList.toggle('hidden', show);
+      btn.textContent = show ? 'Less ⌃' : 'Full notice ⌄';
+    }
+    function normalizeDay(value) { return String(value || '').trim().slice(0, 3).toUpperCase(); }
+    function shortDay(date) { return ['SUN','MON','TUE','WED','THU','FRI','SAT'][date.getDay()]; }
+
+    function switchTimetableDay(day) {
+      const selected = normalizeDay(day);
+      let found = false;
+      document.querySelectorAll('.timetable-day-panel').forEach((panel) => {
+        const match = normalizeDay(panel.dataset.scheduleDay) === selected;
+        panel.classList.toggle('hidden', !match);
+        if (match) found = true;
+      });
+      document.querySelectorAll('.day-btn').forEach((button) => {
+        const match = normalizeDay(button.dataset.scheduleDay) === selected;
+        button.className = match
+          ? 'day-btn shrink-0 rounded-badge border border-white bg-white px-4 py-3 font-mono text-[10px] font-bold tracking-wider !text-black'
+          : 'day-btn shrink-0 rounded-badge border border-hair px-4 py-3 font-mono text-[10px] tracking-wider text-muted';
+      });
+      return found;
+    }
+
+    function parseTimeRange(text) {
+      // Portal meridiem sirf end par deta hai: "11:20 - 12:10 PM"
+      // ka matlab 11:20 AM - 12:10 PM hai. Start ka meridiem infer karo.
+      const raw = String(text || '').toUpperCase().trim();
+      const parts = raw.split(/[-–—]|\bTO\b/);
+      const timeRe = /(\d{1,2})[:.](\d{2})/;
+      const startMatch = parts[0].match(timeRe);
+      if (!startMatch) return null;
+      const sh = Number(startMatch[1]), smin = Number(startMatch[2]);
+      if (sh > 23 || smin > 59) return null;
+
+      function meridiem(t) {
+        const clean = t.replace(/\./g, '');
+        if (clean.includes('PM')) return 'PM';
+        if (clean.includes('AM')) return 'AM';
+        return null;
+      }
+      function toMinutes(h, m, mer) {
+        if (mer === 'PM' && h < 12) h += 12;
+        else if (mer === 'AM' && h === 12) h = 0;
+        else if (mer === null && h >= 1 && h <= 6) h += 12;
+        return h * 60 + m;
+      }
+
+      const startMer = meridiem(parts[0]);
+      let startMinutes = null, endMinutes = null;
+      if (parts.length > 1) {
+        const endMatch = parts[1].match(timeRe);
+        if (endMatch) {
+          const eh = Number(endMatch[1]), emin = Number(endMatch[2]);
+          if (eh <= 23 && emin <= 59) {
+            const endMer = meridiem(parts[1]);
+            endMinutes = toMinutes(eh, emin, endMer);
+            if (startMer) {
+              startMinutes = toMinutes(sh, smin, startMer);
+            } else {
+              const cands = [];
+              if (endMer) cands.push(endMer);
+              cands.push(null, 'AM', 'PM');
+              for (const c of cands) {
+                const v = toMinutes(sh, smin, c);
+                if (v <= endMinutes) { startMinutes = v; break; }
+              }
+              if (startMinutes === null) startMinutes = endMinutes;
+            }
+          }
+        }
+      }
+      if (startMinutes === null) startMinutes = toMinutes(sh, smin, startMer);
+      if (endMinutes === null) endMinutes = startMinutes + 60;
+      return { startMinutes, endMinutes };
+    }
+
+    function slotTimes(text, base) {
+      const parsed = parseTimeRange(text);
+      if (!parsed) return null;
+      const start = new Date(base);
+      start.setHours(Math.floor(parsed.startMinutes / 60), parsed.startMinutes % 60, 0, 0);
+      const end = new Date(base);
+      end.setHours(Math.floor(parsed.endMinutes / 60), parsed.endMinutes % 60, 0, 0);
+      return { start, end };
+    }
+
+    // ⭐ har din ke schedule slots ko start-time ke anusar sort karta hai
+    function sortScheduleSlotsByTime() {
+      const base = new Date();
+      document.querySelectorAll('.timetable-day-panel').forEach((panel) => {
+        const container = panel.querySelector('.space-y-3');
+        if (!container) return;
+        Array.from(container.querySelectorAll('.schedule-slot'))
+          .map((el, idx) => {
+            const times = slotTimes(el.dataset.time, base);
+            return { el, idx, start: times ? times.start.getTime() : Infinity };
+          })
+          .sort((a, b) => (a.start - b.start) || (a.idx - b.idx))
+          .forEach(({ el }) => container.appendChild(el));
+      });
+    }
+
+    // ⭐ badge helper: DONE = red/white, UP NEXT = green/white, ONGOING = red/white
+    function setBadge(badge, text, variant) {
+      if (!badge) return;
+      badge.textContent = text;
+      badge.className = 'slot-live-badge badge-' + variant;
+    }
+
+    function updateLiveSchedule() {
+      const now = new Date();
+      const today = shortDay(now);
+      const candidates = [];
+
+      document.querySelectorAll('.schedule-slot').forEach((slot) => {
+        const badge = slot.querySelector('.slot-live-badge');
+        slot.classList.remove('slot-live', 'schedule-finished');
+        if (badge) { badge.className = 'slot-live-badge hidden'; badge.textContent = ''; }
+        if (normalizeDay(slot.dataset.day) !== today) return;
+
+        const times = slotTimes(slot.dataset.time, now);
+        if (!times) return;
+
+        if (now >= times.end) {
+          slot.classList.add('schedule-finished');
+          setBadge(badge, 'DONE', 'done');   // red pill, white text
+          return;
+        }
+        candidates.push({ slot, badge, start: times.start, current: now >= times.start });
+      });
+
+      candidates.sort((a, b) => a.start - b.start);
+      if (candidates[0]) {
+        const top = candidates[0];
+        if (top.current) {
+          top.slot.classList.add('slot-live');          // red translucent vignette on whole card
+          setBadge(top.badge, 'ONGOING', 'current');
+        } else {
+          setBadge(top.badge, 'UP NEXT', 'next');       // green pill, white text
+        }
+      }
+
+      if (!switchTimetableDay(today)) {
+        const first = document.querySelector('.day-btn');
+        if (first) switchTimetableDay(first.dataset.scheduleDay);
+      }
+    }
+
+    // ═══════ ⭐ REALTIME AUTO-SYNC ═══════
+    // Har 60 sec server pe poll. Server ~3 min me portal se
+    // timetable + notices + attendance dobara scrape karta hai.
+    //  - Attendance numbers: in-place update hote hain (bina reload)
+    //  - Timetable/notices/fees records-count change: SIG mismatch ->
+    //    sirf EK baar auto-reload (sessionStorage guard - loop nahi)
+    const DASHBOARD_SIG = "{{ dashboard_sig|default:'' }}";
+    const DASHBOARD_DATA_URL = "{% url 'scraper_app:dashboard_data' %}";
+
+    function syncAttendanceNumbers(att) {
+      if (!att) return;
+      const g = Number(att.global) || 0;
+      const aggPct = document.getElementById('agg-pct');
+      if (aggPct) aggPct.textContent = String(Math.round(g));
+      const aggCounts = document.getElementById('agg-counts');
+      if (aggCounts) aggCounts.textContent = (att.attended || 0) + ' / ' + (att.held || 0);
+      const aggBar = document.getElementById('agg-bar');
+      if (aggBar) {
+        aggBar.style.width = g + '%';
+        aggBar.className = (g >= 75) ? 'bg-white' : 'bg-red';
+      }
+      const aggStatus = document.getElementById('agg-status');
+      if (aggStatus) {
+        aggStatus.textContent = (g >= 75) ? 'SAFE' : 'LOW';
+        aggStatus.className = 'mt-1 font-mono text-[14px] font-bold ' + ((g >= 75) ? 'text-emerald-500' : 'text-red');
+      }
+
+      const rendered = document.querySelectorAll('[data-att-pct]').length;
+      (att.records || []).forEach((r, i) => {
+        if (i >= rendered) return;
+        const p = Number(r.percentage) || 0;
+
+        const pct = document.querySelector('[data-att-pct="' + i + '"]');
+        if (pct) pct.textContent = String(Math.round(p));
+        const wrap = document.querySelector('[data-att-pctwrap="' + i + '"]');
+        if (wrap) wrap.classList.toggle('text-red', p < 75);
+
+        const badge = document.querySelector('[data-att-badge="' + i + '"]');
+        if (badge) {
+          const base = 'rounded-full px-2.5 py-1 text-[9px] font-bold uppercase tracking-[.12em] ';
+          badge.textContent = (p < 75) ? 'Low' : 'Safe';
+          badge.className = base + ((p < 75) ? 'bg-red text-white' : 'border border-white/25 text-soft');
+        }
+
+        const bar = document.querySelector('[data-att-bar="' + i + '"]');
+        if (bar) {
+          bar.style.width = p + '%';
+          bar.className = (p < 75) ? 'bg-red' : 'bg-white';
+        }
+
+        const an = document.querySelector('[data-att-att="' + i + '"]');
+        if (an) an.textContent = String(Number(r.attended) || 0);
+        const tn = document.querySelector('[data-att-tot="' + i + '"]');
+        if (tn) tn.textContent = String(Number(r.total) || 0);
+        const mn = document.querySelector('[data-att-miss="' + i + '"]');
+        if (mn) mn.textContent = String(Number(r.miss) || 0);
+        const nd = document.querySelector('[data-att-need="' + i + '"]');
+        if (nd) nd.textContent = String(Number(r.need) || 0);
+      });
+    }
+
+    // ⭐ Portal/Django session mar gaya to RE-LOGIN banner dikhao,
+    // wapas zinda hote hi chhupa do
+    function updateAliveBanner(alive) {
+      const banner = document.getElementById('session-expired-banner');
+      if (!banner) return;
+      if (alive === false) {
+        banner.classList.remove('hidden');
+        banner.classList.add('flex');
+      } else {
+        banner.classList.add('hidden');
+        banner.classList.remove('flex');
+      }
+    }
+
+    async function syncDashboardData() {
+      if (!DASHBOARD_DATA_URL) return;
+      try {
+        const res = await fetch(DASHBOARD_DATA_URL, { credentials: 'same-origin' });
+        if (res.status === 401) { updateAliveBanner(false); return; }  // ⭐ Django session bhi mar gaya
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!data || !data.ok) return;
+        updateAliveBanner(data.alive !== false);   // ⭐ server bata raha portal zinda hai ya nahi
+        if (data.attendance) syncAttendanceNumbers(data.attendance);
+        if (data.sig && DASHBOARD_SIG && data.sig !== DASHBOARD_SIG) {
+          const guard = 'cunnect-reload-' + data.sig;
+          if (!sessionStorage.getItem(guard)) {
+            sessionStorage.setItem(guard, '1');
+            console.log('[Sync] portal pe naya data aaya - 1 baar auto reload');
+            location.reload();
+          }
+        }
+      } catch (err) {
+        /* network hiccup - agla poll phir try karega */
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      sortScheduleSlotsByTime();   // ⭐ pehle time ke hisaab se sort
+      updateLiveSchedule();        // phir ONGOING / UP NEXT / DONE badges
+      enableTabSwipe();            // ⭐ horizontal swipe se tab switch
+      // ⭐ Refresh-tab-restore ALAG listener me hai (upar, switchDashboardTab
+      // ke paas) - taaki yahan koi error ho to bhi tab restore ho jaye.
+      moveTabUnderline(currentDashboardTab());   // ⭐ underline active tab pe
+      window.addEventListener('load', () => moveTabUnderline(currentDashboardTab()));
+      window.addEventListener('resize', () => moveTabUnderline(currentDashboardTab()));
+      // ⭐ Tab wapas visible hote hi turant ONGOING/DONE badges refresh
+      // (30 sec ka interval wait na karna pade background se aane par)
+      document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) {
+          updateLiveSchedule();
+          syncDashboardData();   // ⭐ portal data bhi turant check
+        }
+      });
+      window.setInterval(updateLiveSchedule, 30000);
+      // ⭐ Realtime sync: pehla poll 20 sec baad, phir har 60 sec
+      window.setTimeout(syncDashboardData, 20000);
+      window.setInterval(syncDashboardData, 60000);
+    });
+  </script>
+</body>
+</html>

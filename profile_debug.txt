@@ -1,0 +1,50 @@
+GET https://student.culko.in/frmStudentProfile.aspx -> 200 final=https://student.culko.in/frmStudentProfile.aspx len=180744
+TITLE Chandigarh University Management System |  Unnao Campus
+CONTACT-KV added=4
+KV 4: Father's Mobile=7765955431; Father's Email=mrkhanbestcontracting@gmail.com; Mobile=7542934141; Email=ayanahmadkhan05@gmail.com
+SECTIONS 2: Qualification Details(3); Contact Details(3)
+PHOTO embedded-base64 mime=image/jpeg len=3620
+NAME Ayan ahmad khan
+IMG0 id=- src=assets/uploads/loader.gif alt=Loading
+IMG1 id=Image1 src=../assets/upload-images/icon-hamburger.svg alt=logo
+IMG2 id=- src=../assets/upload-images/logo-main-black.png alt=-
+IMG3 id=menu-loading src=assets/uploads/loader.gif alt=-
+IMG4 id=- src=../assets/upload-images/icon-search.svg alt=Search
+IMG5 id=- src=../assets/upload-images/icon-notifications.svg alt=Notifications
+IMG6 id=- src=../assets/upload-images/icon-messages.svg alt=Messages
+IMG7 id=- src=../assets/upload-images/icon-books.svg alt=Messages
+IMG8 id=imgFullProfilePic src=data:image;base64,/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwc alt=Profile
+IMG9 id=- src=/assets/upload-images/logo-main.png alt=-
+IMG10 id=- src=/assets/upload-images/icon-close.svg alt=-
+IMG11 id=img_logo src=assets\uploads\login-logo-main.png alt=logo
+ID <form> form1 = Loading... 0 You have 0 new notifications View all Show all 
+ID <div> loader-wrapper = Loading...
+ID <div> loader = Loading...
+ID <div> mainWrap = 0 You have 0 new notifications View all Show all notificatio
+ID <header> header = 0 You have 0 new notifications View all Show all notificatio
+ID <div> myElement = 0 You have 0 new notifications View all Show all notificatio
+ID <a> div_NotiCount = 0
+ID <span> spanNoti_Count = 0
+ID <ul> noti_content = You have 0 new notifications View all Show all notifications
+ID <a> aHome = 0
+ID <a> div_LibCount = 0
+ID <span> spanLib_Count = 0
+ID <li> liProfile = My Profile
+ID <a> LinkButton2 = Account Settings
+ID <a> LinkButton3 = Change Password
+ID <li> liWifiPassword = Change Internet Password
+ID <a> lbtnChangeWifiPassword = Change Internet Password
+ID <div> uims_sidebar = Academics Department of Life Long(DLL) My Attendance My Atte
+ID <ul> menu-content = Academics Department of Life Long(DLL) My Attendance My Atte
+ID <ul> 3563 = Department of Life Long(DLL) My Attendance My Attendance ACP
+ID <ul> 4138 = Daily Diary Model Selection & Activity Upload Model Selectio
+ID <ul> 2403 = Accounts Reciept Accounts Statement/ Fee Payment
+ID <ul> 3566 = Centre for Global Education (CGE) International Short-Term P
+ID <ul> 4214 = International Short-Term Program (ISTP) International Transf
+ID <ul> 3713 = Career Options by DCPD Evening CUCAT Mock Test View Question
+ID <ul> 3714 = Mock Test View Question Solution
+ID <ul> 2342 = EBSCO eBook Academic Collection EBSCO Management Collection 
+ID <ul> 3565 = Examaination Form Details My Date Sheet Raise Query Student 
+TABLE0 rows=3 :: Qualification | Stream | Collage School Institu | University Board | Passign Year | Percent Marks | Remarks // 10th | English, Hindi, mathem | ST ANTHONYS SCHOO
+TABLE1 rows=3 :: Contact Type | Residence | Office | Mobile | EmailId // Father | 7765955431 | mrkhanbestcontracting@ // Student | 7542934141 | ayanahmadkhan05@gmail.
+RESULT found=True kv=4 sections=2 contact-kv=4 photo=E

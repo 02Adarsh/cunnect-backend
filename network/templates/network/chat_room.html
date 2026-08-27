@@ -1,0 +1,213 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>{{ room.name|default:"Chat" }} · CUnnect</title>
+  <script src="https://unpkg.com/@phosphor-icons/web"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root{--bg:#000;--surface:#0c0c0e;--surface2:#131316;--hair:rgba(255,255,255,.09);--red:#ec1c24;--reddim:rgba(236,28,36,.09);--redline:rgba(236,28,36,.28);--white:#fff;--ink:#f2f2f4;--muted:#828288;--soft:#b9b9bf;--green:#16a34a;--r-card:14px;--r-opt:11px}
+    *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+    html,body{height:100%;background:var(--bg)}
+    body{font-family:Inter,system-ui,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased}
+    button{border:0;background:none;color:inherit;font:inherit;cursor:pointer;transition:transform .12s,color .16s,border-color .16s}
+    button:active{transform:scale(.96)}
+    .noscroll::-webkit-scrollbar{display:none}.noscroll{scrollbar-width:none;-ms-overflow-style:none}
+    .stage{min-height:100dvh;display:flex;justify-content:center;align-items:flex-start;background:var(--bg)}
+    .device{position:relative;display:flex;flex-direction:column;width:100%;height:100dvh;overflow:hidden;background:var(--bg)}
+    .device::before{content:"";position:absolute;inset:0;z-index:0;pointer-events:none;background:radial-gradient(80% 26% at 50% 0%,rgba(236,28,36,.065),rgba(236,28,36,0) 64%),radial-gradient(55% 16% at 90% 100%,rgba(236,28,36,.045),rgba(236,28,36,0) 66%)}
+    @media(min-width:640px){.stage{padding:24px 0}.device{max-width:430px;height:900px;max-height:calc(100vh - 48px);border:1px solid rgba(255,255,255,.1);border-radius:30px;box-shadow:0 0 0 1px #000,0 30px 80px rgba(0,0,0,.7)}}
+    .ico{display:grid;place-items:center;color:var(--soft);transition:color .15s,border-color .2s,transform .12s}.ico:hover{color:var(--white)}
+    header{position:relative;z-index:2;display:flex;align-items:center;gap:10px;height:66px;padding:0 14px;border-bottom:1px solid var(--hair);background:rgba(0,0,0,.88);backdrop-filter:blur(12px)}
+    header::after{content:"";position:absolute;left:0;right:0;bottom:0;height:1px;background:linear-gradient(90deg,rgba(236,28,36,0),rgba(236,28,36,.4),rgba(236,28,36,0))}
+    .back,.hbtn{width:38px;height:38px;border-radius:50%}.back{border:1px solid var(--hair)}.back:hover,.hbtn:hover{color:var(--red);border-color:var(--redline)}.back svg,.hbtn svg{width:18px;height:18px}
+    .avatar-grp{position:relative;display:grid;place-items:center;flex:0 0 42px;width:42px;height:42px;overflow:hidden;border:1px solid var(--redline);border-radius:14px;background:linear-gradient(135deg,rgba(236,28,36,.28),rgba(236,28,36,.07))}.avatar-grp::after{content:"";position:absolute;inset:0;background:radial-gradient(85% 60% at 50% 0%,rgba(236,28,36,.24),rgba(236,28,36,0) 70%)}.avatar-grp span{position:relative;z-index:1;font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:700;color:var(--red)}
+    .grp-meta{flex:1;min-width:0}.grp-meta h1{overflow:hidden;font-size:16px;font-weight:700;line-height:1.2;text-overflow:ellipsis;white-space:nowrap}.grp-sub{display:flex;align-items:center;gap:6px;margin-top:3px;font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.05em;color:var(--muted)}.dot{width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 8px rgba(22,163,74,.8)}.on{color:var(--green)}.hbtns{display:flex;gap:8px}.hbtn{border:1px solid var(--hair)}
+    .chat{position:relative;z-index:1;flex:1;min-height:0;overflow-y:auto;padding:20px 14px 14px}.datechip{display:flex;align-items:center;gap:14px;margin:4px 0 22px}.datechip::before,.datechip::after{content:"";flex:1;height:1px;background:var(--hair)}.datechip span{font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:700;letter-spacing:.2em;color:var(--muted);text-transform:uppercase}
+    @keyframes pop{from{opacity:0;transform:translateY(10px) scale(.985)}to{opacity:1;transform:translateY(0) scale(1)}}.msg{display:flex;align-items:flex-end;gap:10px;margin-bottom:24px;animation:pop .34s cubic-bezier(.22,.68,.35,1) both}.avatar{display:grid;place-items:center;flex:0 0 34px;width:34px;height:34px;overflow:hidden;border:1px solid rgba(236,28,36,.42);border-radius:50%;background:linear-gradient(135deg,#ee2027,#8e0c12)}.avatar span{font-family:'IBM Plex Mono',monospace;font-size:9.5px;font-weight:700}.body{display:flex;flex-direction:column;gap:8px;min-width:0;max-width:80%}.head{display:flex;align-items:baseline;gap:8px;margin-bottom:-2px;padding:0 2px}.who{font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:600;color:var(--red)}.meta{overflow:hidden;flex:1;font-size:10px;color:var(--muted);text-overflow:ellipsis;white-space:nowrap}
+    .card{overflow:hidden;border:1px solid var(--hair);border-radius:var(--r-card);background:var(--surface)}.card-red{border-color:var(--redline);box-shadow:0 12px 34px -20px rgba(236,28,36,.4)}.attachment-art{height:132px;border-bottom:1px solid var(--hair);background:linear-gradient(135deg,#16161a,#0b0b0d);display:grid;place-items:center;color:var(--red);font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:700;letter-spacing:.1em}.attach-row{display:flex;align-items:center;gap:9px;padding:11px 13px}.file-icon,.qchip{display:grid;place-items:center;width:28px;height:28px;flex:0 0 28px;border:1px solid var(--redline);border-radius:9px;background:var(--reddim);color:var(--red)}.attach-row p{overflow:hidden;flex:1;font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:700;letter-spacing:.09em;color:var(--soft);text-overflow:ellipsis;white-space:nowrap}.tag{padding:3px 7px;border:1px solid var(--redline);border-radius:7px;background:var(--reddim);font-family:'IBM Plex Mono',monospace;font-size:8.5px;font-weight:700;letter-spacing:.12em;color:var(--red)}
+    .poll{padding:13px 13px 10px}.poll-q{display:flex;align-items:center;gap:9px;margin-bottom:11px}.poll-q p{flex:1;font-size:13.5px;font-weight:600}.vt,.poll-foot{font-family:'IBM Plex Mono',monospace;font-size:8.5px;font-weight:700;letter-spacing:.13em;color:var(--muted);text-transform:uppercase}.opt{position:relative;display:flex;align-items:center;gap:10px;width:100%;margin-bottom:8px;padding:11px 12px;overflow:hidden;border:1px solid var(--hair);border-radius:var(--r-opt);background:var(--surface2);text-align:left}.fill{position:absolute;top:0;bottom:0;left:0;background:linear-gradient(90deg,rgba(236,28,36,.30),rgba(236,28,36,.12));border-right:1px solid rgba(236,28,36,.5)}.label,.pct{position:relative;z-index:1}.label{flex:1;font-size:13px;font-weight:600}.pct{font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--soft)}.winner{border-color:var(--redline)}.winner .pct{color:var(--red)}.poll-foot{display:flex;justify-content:space-between;padding-top:1px}.text{padding:12px 14px 10px;font-size:14px;line-height:1.55}.stamp{display:block;margin-top:5px;text-align:right;font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted)}
+    .actions{display:flex;gap:22px;padding:1px 4px 0}.act{display:flex;align-items:center;gap:6px;font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;color:var(--soft)}.act svg{width:16px;height:16px}.act.liked{color:var(--red)}.msg.own{flex-direction:row-reverse}.msg.own .body{align-items:flex-end}.own-avatar{border-color:var(--hair);background:linear-gradient(135deg,#26262b,#121214)}.bubble{padding:11px 14px;border:1px solid var(--redline);border-radius:14px 14px 4px 14px;background:linear-gradient(135deg,rgba(236,28,36,.24),rgba(236,28,36,.10));font-size:14px;line-height:1.5}.own-stamp{font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted)}.ticks{color:var(--red)}
+    .composer{position:relative;z-index:2;padding:10px 14px calc(12px + env(safe-area-inset-bottom));border-top:1px solid var(--hair);background:rgba(0,0,0,.9);backdrop-filter:blur(12px)}.composer::before{content:"";position:absolute;top:-1px;left:0;right:0;height:1px;background:linear-gradient(90deg,rgba(236,28,36,0),rgba(236,28,36,.45),rgba(236,28,36,0))}.c-row{display:flex;align-items:center;gap:10px}.c-pill{display:flex;align-items:center;flex:1;height:48px;padding:0 7px;border:1px solid var(--hair);border-radius:24px;background:var(--surface)}.c-pill:focus-within{border-color:var(--redline);box-shadow:0 0 0 3px rgba(236,28,36,.1)}.c-ico{width:34px;height:34px;flex:0 0 34px;border-radius:50%}.c-pill input{flex:1;min-width:0;border:0;outline:0;background:transparent;color:var(--white);font:inherit;font-size:14px;padding:0 4px}.send{display:grid;place-items:center;width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#f0232b,#b01218);box-shadow:0 8px 22px -8px rgba(236,28,36,.75)}.send svg{width:19px;height:19px;margin-left:2px}@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+  
+    /* ── Django functional elements: same second UI design ── */
+    .post-card{width:100%;display:flex;align-items:flex-end;gap:10px;margin-bottom:24px;animation:pop .34s cubic-bezier(.22,.68,.35,1) both}
+    .post-card.own{flex-direction:row-reverse}.post-card.own .body{align-items:flex-end}
+    .post-card .body{min-width:0;max-width:80%;display:flex;flex-direction:column;gap:8px}
+    .post-card .head{display:flex;align-items:baseline;gap:8px;margin-bottom:-2px;padding:0 2px;width:100%}
+    .post-card .chat-avatar{flex:0 0 34px;width:34px;height:34px;overflow:hidden;border:1px solid rgba(236,28,36,.42);border-radius:50%;display:grid;place-items:center;background:linear-gradient(135deg,#ee2027,#8e0c12);font-family:'IBM Plex Mono',monospace;font-size:9.5px;font-weight:700}.post-card.own .chat-avatar{border-color:var(--hair);background:linear-gradient(135deg,#26262b,#121214)}.post-card .chat-avatar img{width:100%;height:100%;object-fit:cover}
+    .post-card .message-bubble{overflow:hidden;border:1px solid var(--hair);border-radius:var(--r-card);background:var(--surface)}
+    .post-card.own .message-bubble{padding:11px 14px;border-color:var(--redline);border-radius:14px 14px 4px 14px;background:linear-gradient(135deg,rgba(236,28,36,.24),rgba(236,28,36,.10));box-shadow:0 10px 26px -16px rgba(236,28,36,.55)}
+    .post-card .message-text{padding:12px 14px 10px;font-size:14px;line-height:1.55;overflow-wrap:anywhere}.post-card .message-text a{color:var(--red);font-weight:700;text-decoration:underline;text-underline-offset:3px}
+    .post-card .media-frame{overflow:hidden;border-bottom:1px solid var(--hair);background:var(--surface2)}.post-card .media-frame img,.post-card .media-frame video{display:block;width:100%;max-height:280px;object-fit:cover}.post-card .attachment-row{display:flex;align-items:center;gap:9px;padding:11px 13px}.post-card .attachment-row p{overflow:hidden;flex:1;font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:700;letter-spacing:.09em;color:var(--soft);text-overflow:ellipsis;white-space:nowrap}.post-card .attachment-tag{padding:3px 7px;border:1px solid var(--redline);border-radius:7px;background:var(--reddim);font-family:'IBM Plex Mono',monospace;font-size:8.5px;font-weight:700;letter-spacing:.12em;color:var(--red)}
+    .post-card .message-actions{display:flex;align-items:center;gap:22px;padding:1px 4px 0}.post-card .message-actions button{display:flex;align-items:center;gap:6px;font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;color:var(--soft)}.post-card .message-actions button:hover{color:var(--white)}.post-card .message-actions button.reacted{color:var(--red)}
+    .poll-card{padding:13px 13px 10px;border:1px solid var(--hair);border-radius:var(--r-card);background:var(--surface)}.poll-question{margin:0 0 11px;font-size:13.5px;font-weight:600}.poll-question-image{display:block;width:100%;max-height:210px;margin:0 0 10px;object-fit:contain;border:1px solid var(--hair);border-radius:10px;background:var(--surface2)}.poll-option{position:relative;display:flex;align-items:center;gap:10px;width:100%;margin-bottom:8px;padding:11px 12px;overflow:hidden;border:1px solid var(--hair);border-radius:var(--r-opt);background:var(--surface2);text-align:left}.poll-option.selected{border-color:var(--redline)}.poll-option-bar{position:absolute;top:0;bottom:0;left:0;background:linear-gradient(90deg,rgba(236,28,36,.30),rgba(236,28,36,.12));border-right:1px solid rgba(236,28,36,.5)}.poll-option-inner,.poll-option-copy{position:relative;z-index:1;display:flex;align-items:center;gap:8px}.poll-option-inner{justify-content:space-between;width:100%;font-size:13px;font-weight:600}.poll-option-image{width:34px;height:34px;border:1px solid var(--hair);border-radius:9px;object-fit:cover}.poll-meta{margin-top:1px;font-family:'IBM Plex Mono',monospace;font-size:8.5px;font-weight:700;letter-spacing:.13em;color:var(--muted);text-transform:uppercase}
+    .pinned-banner{position:relative;z-index:2;display:flex;align-items:center;gap:10px;margin:0 10px;padding:9px 12px;border:1px solid var(--redline);border-radius:12px;background:linear-gradient(135deg,rgba(236,28,36,.13),var(--surface2) 62%);cursor:pointer}.pinned-banner.hidden{display:none}.pinned-banner-copy{min-width:0;flex:1}.pinned-banner-label{display:block;color:#ff9aa3;font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:700;letter-spacing:.1em}.pinned-banner-text{display:block;overflow:hidden;margin-top:2px;color:var(--soft);font-size:11px;text-overflow:ellipsis;white-space:nowrap}.pinned-banner-thumb{width:36px;height:36px;overflow:hidden;border:1px solid var(--redline);border-radius:8px;object-fit:cover}.pinned-unpin{padding:6px 8px;border:1px solid var(--redline);border-radius:7px;background:var(--reddim);color:#ffabb2;font-size:10px;font-weight:800}.pinned-unpin.hidden{display:none}
+    .message-search-panel{position:relative;z-index:3;display:none;gap:8px;margin:0 10px;padding:10px;border:1px solid var(--redline);border-radius:12px;background:var(--surface2)}.message-search-panel.open{display:flex}.message-search-input{min-width:0;flex:1;padding:10px 12px;border:1px solid var(--hair);border-radius:10px;outline:0;background:var(--surface);color:#fff;font:inherit}.message-search-close{width:34px;border:1px solid var(--hair);border-radius:50%;background:var(--surface2);font-size:19px}.message-search-result{position:relative;z-index:3;padding:5px 16px;color:var(--muted);font-size:10px}.search-hidden{display:none!important}
+    .functional-composer{position:relative;z-index:4;padding:10px 14px calc(12px + env(safe-area-inset-bottom));border-top:1px solid var(--hair);background:rgba(0,0,0,.9);backdrop-filter:blur(12px)}.functional-composer::before{content:"";position:absolute;top:-1px;left:0;right:0;height:1px;background:linear-gradient(90deg,rgba(236,28,36,0),rgba(236,28,36,.45),rgba(236,28,36,0))}.functional-row{display:flex;align-items:center;gap:10px}.functional-pill{display:flex;align-items:center;flex:1;height:48px;padding:0 7px;border:1px solid var(--hair);border-radius:24px;background:var(--surface)}.functional-pill:focus-within{border-color:var(--redline);box-shadow:0 0 0 3px rgba(236,28,36,.1)}.functional-icon{width:34px;height:34px;flex:0 0 34px;border-radius:50%;display:grid;place-items:center;color:var(--soft)}.functional-pill input{flex:1;min-width:0;padding:0 4px;border:0;outline:0;background:transparent;color:#fff;font:inherit;font-size:14px}.functional-send{display:grid;place-items:center;width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#f0232b,#b01218);box-shadow:0 8px 22px -8px rgba(236,28,36,.75)}.functional-send i{font-size:19px}.composer-extra{display:flex;gap:14px;margin-top:10px;padding-left:6px}.composer-extra.flex{display:flex}.composer-extra label,.composer-extra button{display:flex;align-items:center;gap:6px;color:var(--soft);font-size:11px}.composer-extra span{display:grid;place-items:center;width:30px;height:30px;border:1px solid var(--hair);border-radius:50%}
+    .typing-box{display:none;align-items:center;gap:6px;margin:0 0 7px;padding-left:8px;color:var(--muted);font-size:11px}.typing-box.flex{display:flex}.typing-dot{width:5px;height:5px;border-radius:50%;background:var(--red);animation:typing-dot 1s infinite}@keyframes typing-dot{50%{transform:translateY(-3px);opacity:.5}}
+    .poll-modal,.image-lightbox{position:fixed;z-index:100;inset:0;display:none;align-items:center;justify-content:center;padding:16px;background:rgba(0,0,0,.82);backdrop-filter:blur(4px)}.poll-modal.open,.image-lightbox.open{display:flex}.poll-modal-card{width:min(100%,360px);padding:22px;border:1px solid var(--redline);border-radius:20px;background:var(--surface2)}.poll-input{width:100%;margin-top:10px;padding:11px 12px;border:1px solid var(--hair);border-radius:10px;outline:0;background:var(--surface);color:#fff;font:inherit}.poll-submit{width:100%;margin-top:14px;padding:12px;border:0;border-radius:12px;background:var(--red);color:#fff;font-weight:800}.image-lightbox img{max-width:100%;max-height:100%;object-fit:contain}.image-lightbox-close{position:absolute;top:18px;right:18px;width:42px;height:42px;border:1px solid var(--hair);border-radius:50%;background:var(--surface2);font-size:27px}
+
+  
+    /* WhatsApp-style controls layered onto the same second UI. */
+    .wa-chat-control{position:fixed;z-index:110;inset:0;display:none;align-items:flex-end;justify-content:center;background:rgba(0,0,0,.58);backdrop-filter:blur(3px)}.wa-chat-control.open{display:flex}.wa-sheet{width:min(100%,430px);padding:18px 14px max(24px,env(safe-area-inset-bottom));border:1px solid var(--redline);border-bottom:0;border-radius:22px 22px 0 0;background:var(--surface2);box-shadow:0 -18px 50px rgba(0,0,0,.65)}.wa-sheet h3{margin:0 0 13px;font-size:15px}.wa-sheet p{margin:0 0 12px;color:var(--muted);font-size:11px}.wa-sheet-grid{display:grid;gap:8px}.wa-sheet button,.wa-sheet select{width:100%;padding:12px;border:1px solid var(--hair);border-radius:11px;background:var(--surface);color:var(--ink);font:inherit;text-align:left}.wa-sheet button:active{border-color:var(--redline);color:var(--red)}.wa-sheet .wa-danger{color:#ff9298}.wa-close{float:right!important;width:34px!important;padding:6px!important;border-radius:50%!important;text-align:center!important}.message-actions .wa-starred{color:var(--red)!important}.wa-forward-select{width:100%;margin:8px 0 12px;padding:12px;border:1px solid var(--hair);border-radius:11px;background:var(--surface);color:var(--ink)}.receipt{display:block;padding:0 4px;text-align:right;font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted)}.receipt.read{color:#56a8ff}.deleted-copy{font-style:italic;color:var(--muted)}
+
+  
+    /* WhatsApp-style: actions appear only after tapping a message card. */
+    .message-actions {
+      display: none !important;
+      margin-top: 2px;
+      padding: 8px 4px 2px;
+      border-top: 1px solid rgba(255,255,255,.07);
+      animation: wa-actions-in .18s ease-out;
+    }
+
+    .post-card.action-open .message-actions {
+      display: flex !important;
+    }
+
+    .post-card.action-open .message-bubble {
+      border-color: rgba(236,28,36,.42);
+    }
+
+    .post-card.action-open {
+      box-shadow: 0 0 0 1px rgba(236,28,36,.22), 0 14px 30px -24px rgba(236,28,36,.55) !important;
+    }
+
+    .message-actions button {
+      min-width: 29px;
+      min-height: 29px;
+      justify-content: center;
+      border: 1px solid transparent;
+      border-radius: 8px;
+    }
+
+    .message-actions button:hover,
+    .message-actions button:active {
+      border-color: var(--redline);
+      background: var(--reddim);
+      color: var(--red);
+    }
+
+    @keyframes wa-actions-in {
+      from { opacity: 0; transform: translateY(-5px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+  </style>
+</head>
+<body>
+  <div class="stage">
+    <div class="device">
+      <header>
+        <a href="{% url 'chat_home' %}" class="ico back" aria-label="Back to chats"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg></a>
+        <div class="avatar-grp"><span>{{ room.name|slice:":2"|upper }}</span></div>
+        <div class="grp-meta"><h1>{{ room.name|default:"Chat Room" }}</h1><p class="grp-sub"><span>{{ room.members.count }} members</span><span>·</span><i class="dot"></i><span class="on"><span id="online-count">0</span> online</span></p></div>
+        <div class="hbtns">{% if is_room_admin %}<a href="{% url 'room_manage' room.name %}" class="ico hbtn" aria-label="Group settings">⚙</a>{% endif %}<button id="message-search-open" type="button" class="ico hbtn" aria-label="Search">⌕</button><button id="wa-chat-options-open" type="button" class="ico hbtn" aria-label="Chat options">⋮</button></div>
+      </header>
+        <section id="message-search-panel" class="message-search-panel"><input id="message-search-input" class="message-search-input" placeholder="Search messages..."><button id="message-search-close" class="message-search-close">×</button></section><div id="message-search-result" class="message-search-result hidden"></div>
+        <section id="pinned-banner" class="pinned-banner {% if not pinned_message %}hidden{% endif %}" data-pinned-message-id="{% if pinned_message %}{{ pinned_message.id }}{% endif %}"><span>⌖</span><img id="pinned-banner-image" class="pinned-banner-thumb {% if not pinned_message or not pinned_message.image %}hidden{% endif %}" src="{% if pinned_message and pinned_message.image %}{{ pinned_message.image.url }}{% endif %}"><span class="pinned-banner-copy"><span class="pinned-banner-label">PINNED MESSAGE</span><span id="pinned-banner-text" class="pinned-banner-text">{% if pinned_message %}{{ pinned_message.content|default:"[Image or attachment]" }}{% endif %}</span></span>{% if is_room_admin %}<button id="pinned-unpin" class="pinned-unpin {% if not pinned_message %}hidden{% endif %}" data-pin-url="{% if pinned_message %}{% url 'toggle_pin_message' pinned_message.id %}{% endif %}">Unpin</button>{% endif %}</section>
+
+      <main id="feed-container" class="chat noscroll">
+        {% for message in messages %}
+        <article class="post-card msg {% if message.user == request.user %}own{% endif %}"
+          data-message-id="{{ message.id }}"
+          data-like-url="{% url 'like_message' message.id %}"
+          data-pin-url="{% url 'toggle_pin_message' message.id %}"
+          data-is-pinned="{{ message.is_pinned|yesno:'true,false' }}">
+          <div class="chat-avatar {% if message.user == request.user %}own-avatar{% endif %}">
+            {% if message.profile_photo_url %}<img src="{{ message.profile_photo_url }}" alt="{{ message.user.username }}">{% else %}{{ message.user.get_full_name|default:message.user.username|first|upper }}{% endif %}
+          </div>
+          <div class="body">
+            <div class="head"><span class="who">{{ message.user.get_full_name|default:message.user.username }}</span><span class="meta" data-message-time data-course="{{ message.user_course|default:'Campus Member' }}" data-created-at="{{ message.created_at|date:'c' }}">{{ message.user_course|default:"Campus Member" }} · {{ message.created_at|timesince }} ago</span></div>
+            {% if message.deleted_for_everyone %}<div class="message-bubble"><p class="message-text deleted-copy" data-message-content>🚫 This message was deleted</p></div>{% elif message.content %}<div class="message-bubble"><p class="message-text" data-message-content>{{ message.content|urlize }}</p></div>{% endif %}
+            {% if message.image and not message.deleted_for_everyone %}<div class="message-bubble media-frame"><img src="{{ message.image.url }}" alt="Chat image" data-zoom-image></div>{% endif %}
+            {% if message.video and not message.deleted_for_everyone %}<div class="message-bubble media-frame"><video controls playsinline preload="metadata"><source src="{{ message.video.url }}" type="video/mp4"></video></div>{% endif %}
+            {% if message.audio and not message.deleted_for_everyone %}<div class="message-bubble"><audio controls class="chat-audio"><source src="{{ message.audio.url }}"></audio></div>{% endif %}
+            {% if message.attachment and not message.deleted_for_everyone %}<div class="message-bubble attachment-row"><span class="file-icon">▤</span><p>{{ message.attachment_name }}</p><a class="attachment-tag" href="{{ message.attachment.url }}" download>FILE</a></div>{% endif %}
+            {% if message.poll_data %}
+            <div data-poll-id="{{ message.poll_data.id }}" data-vote-url="{{ message.poll_data.vote_url }}"><div class="poll-card">{% if message.poll_data.image_url %}<img src="{{ message.poll_data.image_url }}" class="poll-question-image" alt="Poll image">{% endif %}<p class="poll-question">{{ message.poll_data.question }}</p>{% for option in message.poll_data.options %}<button type="button" data-poll-option="{{ option.id }}" class="poll-option {% if option.id == message.poll_data.selected_option_id %}selected{% endif %}"><span class="poll-option-bar" style="width:{{ option.percentage }}%"></span><span class="poll-option-inner"><span class="poll-option-copy">{% if option.image_url %}<img src="{{ option.image_url }}" class="poll-option-image" alt="{{ option.text }}">{% endif %}<span>{{ option.text }}</span></span><span>{{ option.percentage }}%</span></span></button>{% endfor %}<div class="poll-meta">{{ message.poll_data.total_votes }} vote{{ message.poll_data.total_votes|pluralize }}</div></div></div>
+            {% endif %}
+            <div class="message-actions"><button data-react-btn type="button" class="{% if message.user_emoji %}reacted{% endif %}">♥ <span data-react-icon>{{ message.user_emoji }}</span><span data-react-count>{{ message.reactions.count }}</span></button><button data-reply-btn type="button">◌ Reply</button><button data-forward-message data-forward-url="{% url 'forward_message' message.id %}" type="button">↗</button><button data-star-message data-star-url="{% url 'toggle_star_message' message.id %}" type="button" class="{% if message.is_starred_for_user %}wa-starred{% endif %}">★</button>{% if is_room_admin %}<button data-pin-message type="button" class="{% if message.is_pinned %}reacted{% endif %}">⌖</button>{% endif %}{% if message.user == request.user %}<button data-edit-message data-edit-url="{% url 'edit_message' message.id %}" type="button">✎</button><button data-delete-message data-delete-url="{% url 'delete_message' message.id %}" type="button">×</button>{% endif %}</div>{% if message.user == request.user %}<span class="receipt {% if message.receipt_data.read_count %}read{% endif %}">{% if message.receipt_data.read_count %}✓✓{% elif message.receipt_data.delivered_count %}✓✓{% else %}✓{% endif %}</span>{% endif %}
+            <div class="hidden" data-emoji-picker><button data-emoji="❤️">❤️</button><button data-emoji="😂">😂</button><button data-emoji="🔥">🔥</button><button data-emoji="👍">👍</button></div>
+            <div class="{% if not message.replies.all %}hidden {% endif %}" data-replies-list data-expanded="false"><div class="reply-content">{% for reply in message.replies.all %}<div data-reply-item class="reply-item {% if not forloop.last %}hidden{% endif %}"><b>{{ reply.user.get_full_name|default:reply.user.username }}</b> {{ reply.content }}</div>{% endfor %}</div>{% if message.replies.count > 1 %}<button data-view-replies type="button"><span data-reply-count-text>View all {{ message.replies.count }} replies</span><span data-reply-caret>⌄</span></button>{% endif %}</div>
+            <form class="reply-inline hidden" data-reply-inline enctype="multipart/form-data">{% csrf_token %}<input name="content" placeholder="Write a reply..."><input type="file" name="image" data-reply-image><input type="file" name="video" data-reply-video><input type="file" name="attachment" data-reply-attachment><button type="button" data-cancel-reply>Cancel</button><button type="submit">Reply</button></form>
+          </div>
+        </article>
+        {% empty %}<div id="empty-state" class="datechip"><span>No messages yet</span></div>{% endfor %}
+        <div id="feed-anchor"></div>
+      </main>
+      <footer class="functional-composer">
+        <div id="file-preview" class="hidden"><span id="file-preview-name"></span><button id="file-preview-clear" type="button">×</button></div>
+        <div id="typing-indicator" class="typing-box hidden"><span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span><span id="typing-text"></span></div>
+        <form id="chat-message-form" method="post" enctype="multipart/form-data" class="functional-row">{% csrf_token %}
+          <div class="functional-pill"><button id="composer-emoji-toggle" class="functional-icon" type="button">☺</button><input id="chat-message-input" name="content" type="text" placeholder="Type a message" autocomplete="off"><button id="voice-record-button" class="functional-icon" type="button">♩</button><button id="voice-cancel-button" class="hidden" type="button">×</button></div>
+          <button type="submit" class="functional-send"><i class="ph ph-paper-plane-right"></i></button>
+        </form>
+        <div id="composer-emoji-popup" class="hidden"><button data-composer-emoji="😀">😀</button><button data-composer-emoji="😂">😂</button><button data-composer-emoji="❤️">❤️</button><button data-composer-emoji="🔥">🔥</button></div>
+        <div id="composer-actions" class="composer-extra flex"><label><span>▧</span>Media<input id="media-input" name="image" accept="image/*" type="file" hidden></label><label><span>▶</span>Video<input id="video-input" name="video" accept="video/mp4,video/webm,video/quicktime" type="file" hidden></label><label><span>⌕</span>File<input id="file-input" name="attachment" type="file" hidden></label><button id="pollOpen" type="button"><span>▥</span>Poll</button></div>
+      </footer>
+    </div>
+  </div>
+
+  <div id="wa-chat-options-modal" class="wa-chat-control"><section class="wa-sheet"><button class="wa-close" type="button" data-wa-close>×</button><h3>Chat settings</h3><p>WhatsApp-style personal controls for this chat.</p><div class="wa-sheet-grid"><button type="button" data-wa-mute="480">Mute for 8 hours</button><button type="button" data-wa-mute="10080">Mute for 1 week</button><button type="button" data-wa-mute="0">Unmute notifications</button><button type="button" id="wa-archive-toggle">Archive chat</button>{% if is_room_admin %}<select id="wa-disappearing"><option value="0">Disappearing messages: Off</option><option value="86400">Disappear after 24 hours</option><option value="604800">Disappear after 7 days</option><option value="7776000">Disappear after 90 days</option></select><button type="button" id="wa-disappearing-save">Save disappearing timer</button>{% endif %}<button class="wa-danger" type="button" data-wa-close>Close</button></div></section></div>
+  <div id="wa-forward-modal" class="wa-chat-control"><section class="wa-sheet"><button class="wa-close" type="button" data-wa-close>×</button><h3>Forward message</h3><p>Select a chat where this message should be forwarded.</p><select id="wa-forward-room" class="wa-forward-select"><option value="">Select chat</option>{% for forward_room in forward_rooms %}<option value="{{ forward_room.name }}">{{ forward_room.name }}</option>{% endfor %}</select><button id="wa-forward-send" type="button">Forward</button></section></div>
+  <div id="pollModal" class="poll-modal"><section class="poll-modal-card"><button id="pollClose" type="button">×</button><h3>Create Poll</h3><form id="pollForm"><input id="pollQuestion" class="poll-input" placeholder="Ask a question..." required><input id="pollImage" class="poll-input" type="file" accept="image/*"><input class="poll-input" name="options" placeholder="Option 1" required><input class="poll-input" data-option-image="0" type="file" accept="image/*"><input class="poll-input" name="options" placeholder="Option 2" required><input class="poll-input" data-option-image="1" type="file" accept="image/*"><input class="poll-input" name="options" placeholder="Option 3 (optional)"><input class="poll-input" data-option-image="2" type="file" accept="image/*"><input class="poll-input" name="options" placeholder="Option 4 (optional)"><input class="poll-input" data-option-image="3" type="file" accept="image/*"><button class="poll-submit" type="submit">POST POLL</button></form></section></div>
+  <div id="image-lightbox" class="image-lightbox" aria-hidden="true"><button id="image-lightbox-close" class="image-lightbox-close">×</button><img id="image-lightbox-image" src="" alt="Full screen image"></div>
+  {{ room.name|json_script:"room-name" }}
+  <script>
+    window.CURRENT_USER={name:"{{ request.user.get_full_name|default:request.user.username|escapejs }}",initial:"{{ request.user.get_full_name|first|default:request.user.username|first|upper|escapejs }}"};
+    window.CURRENT_USER_USERNAME="{{ request.user.username|escapejs }}";
+    window.IS_ROOM_ADMIN={{ is_room_admin|yesno:"true,false" }};
+    window.TYPING_SET_URL="{% url 'set_typing' room.name %}";
+    window.TYPING_USERS_URL="{% url 'typing_users' room.name %}";
+    window.POLL_CREATE_URL="{% url 'create_poll' room.name %}";
+    window.WA_READ_URL="{% url 'mark_messages_read' room.name %}";
+    window.WA_MUTE_URL="{% url 'set_room_mute' room.name %}";
+    window.WA_ARCHIVE_URL="{% url 'toggle_archive_room' room.name %}";
+    window.WA_DISAPPEARING_URL="{% url 'set_disappearing_messages' room.name %}";
+    window.WA_DISAPPEARING_VALUE="{{ room.disappearing_after }}";
+  </script>
+  <script src="{% static 'network/chat.js' %}?v=poll-realtime-fix-12"></script>
+  <script src="{% static 'network/chat_poll.js' %}?v=poll-realtime-fix-12"></script>
+  <script src="{% static 'network/chat_typing.js' %}?v=poll-realtime-fix-12"></script>
+
+
+  <script>
+    (function () {
+      const open = document.getElementById("message-search-open");
+      const panel = document.getElementById("message-search-panel");
+      const input = document.getElementById("message-search-input");
+      const close = document.getElementById("message-search-close");
+      const result = document.getElementById("message-search-result");
+
+      function filterMessages() {
+        const query = (input.value || "").trim().toLowerCase();
+        const cards = Array.from(document.querySelectorAll(".post-card"));
+        let count = 0;
+        cards.forEach((card) => {
+          const visible = !query || card.textContent.toLowerCase().includes(query);
+          card.classList.toggle("search-hidden", !visible);
+          if (visible) count += 1;
+        });
+        if (!query) { result.classList.add("hidden"); return; }
+        result.textContent = `${count} message${count === 1 ? "" : "s"} found`;
+        result.classList.remove("hidden");
+      }
+
+      if (open) open.addEventListener("click", () => { panel.classList.add("open"); input.focus(); });
+      if (input) input.addEventListener("input", filterMessages);
+      if (close) close.addEventListener("click", () => {
+        panel.classList.remove("open"); input.value = ""; result.classList.add("hidden");
+        document.querySelectorAll(".post-card.search-hidden").forEach((card) => card.classList.remove("search-hidden"));
+      });
+    })();
+  </script>
+
+</body>
+</html>

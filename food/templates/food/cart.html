@@ -1,0 +1,345 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Your Cart · CUnnect</title>
+  <style>
+    @import url("https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&display=swap");
+    :root {
+      --page: #090909;
+      --black: #050505;
+      --line: #252525;
+      --red: #f10b1d;
+      --white: #f5f5f5;
+      --muted: #a4a4a4;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; }
+
+    body {
+      background: #000;
+      color: var(--white);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .app {
+      width: 100%;
+      max-width: 420px;
+      min-height: 100vh;
+      margin: 0 auto;
+      padding-bottom: 138px;
+      background: var(--page);
+    }
+
+    .header {
+      position: sticky;
+      top: 0;
+      z-index: 5;
+      height: 55px;
+      display: grid;
+      grid-template-columns: 42px 1fr 42px;
+      align-items: center;
+      padding: 0 8px;
+      background: rgba(5, 5, 5, .98);
+      border-bottom: 1px solid #191919;
+    }
+
+    .back-btn {
+      width: 36px;
+      height: 36px;
+      display: grid;
+      place-items: center;
+      border: 0;
+      border-radius: 50%;
+      background: transparent;
+      color: #fff;
+      font-size: 25px;
+      line-height: 1;
+      text-decoration: none;
+    }
+
+    .logo {
+      justify-self: center;
+      color: #ededed;
+      font-size: 23px;
+      font-weight: 800;
+      letter-spacing: -1.2px;
+    }
+    .logo strong { color: var(--red); }
+
+    .cart-heading {
+      padding: 22px 14px 14px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .cart-heading h1 {
+      margin: 0 0 3px;
+      font-size: 21px;
+      line-height: 1.15;
+    }
+
+    .cart-heading p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .cart-list { padding: 14px 14px 0 8px; }
+
+    .cart-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 11px;
+      min-height: 88px;
+      margin-bottom: 14px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .food-image {
+      width: 68px;
+      height: 68px;
+      flex: 0 0 68px;
+      display: block;
+      border-radius: 9px;
+      background: #1f1f1f;
+      object-fit: cover;
+    }
+
+    .item-info { flex: 1; min-width: 0; padding-top: 1px; }
+
+    .item-name {
+      overflow: hidden;
+      color: var(--white);
+      font-size: 14px;
+      font-weight: 750;
+      line-height: 1.2;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .item-price {
+      margin-top: 3px;
+      color: var(--red);
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .item-actions {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      margin-top: 10px;
+    }
+
+    .qty-control {
+      display: flex;
+      align-items: center;
+      height: 29px;
+      overflow: hidden;
+      border: 1px solid #343434;
+      border-radius: 16px;
+      background: #151515;
+    }
+
+    .qty-form { height: 100%; margin: 0; }
+
+    .qty-btn {
+      width: 29px;
+      height: 100%;
+      display: grid;
+      place-items: center;
+      padding: 0 0 1px;
+      border: 0;
+      background: transparent;
+      color: #fff;
+      cursor: pointer;
+      font-size: 18px;
+      line-height: 1;
+    }
+
+    .qty-value {
+      width: 24px;
+      color: #fff;
+      text-align: center;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .remove-form { margin: 0; }
+    .remove-btn {
+      padding: 0;
+      border: 0;
+      background: transparent;
+      color: var(--red);
+      cursor: pointer;
+      font-size: 11.5px;
+      font-weight: 600;
+    }
+
+    .item-subtotal {
+      align-self: center;
+      margin-top: 3px;
+      color: #e5e5e5;
+      font-size: 13px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .empty-cart {
+      padding: 75px 20px;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    .empty-icon {
+      width: 62px;
+      height: 62px;
+      display: grid;
+      place-items: center;
+      margin: 0 auto 16px;
+      border: 1px solid #353535;
+      border-radius: 50%;
+      color: var(--red);
+      font-size: 27px;
+    }
+
+    .empty-cart h2 { margin: 0 0 7px; color: #f4f4f4; font-size: 17px; }
+    .empty-cart p { margin: 0 0 20px; font-size: 13px; }
+
+    .browse-btn {
+      display: inline-block;
+      padding: 10px 17px;
+      border-radius: 22px;
+      background: var(--red);
+      color: #fff;
+      font-size: 13px;
+      font-weight: 700;
+      text-decoration: none;
+    }
+
+    .cart-footer {
+      position: fixed;
+      z-index: 10;
+      bottom: 0;
+      left: 50%;
+      width: min(100%, 420px);
+      padding: 12px 14px max(12px, env(safe-area-inset-bottom));
+      transform: translateX(-50%);
+      background: #171717;
+      border-top: 1px solid #363636;
+      box-shadow: 0 -9px 28px rgba(0, 0, 0, .3);
+    }
+
+    .total-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .total-row strong { color: #fff; font-size: 17px; }
+
+    .checkout-btn {
+      display: block;
+      width: 100%;
+      padding: 12px 16px;
+      border: 0;
+      border-radius: 24px;
+      background: var(--red);
+      color: #fff;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 750;
+      text-align: center;
+      text-decoration: none;
+    }
+  
+    /* Same premium CUnnect wordmark as Food Home and Vendor Login. */
+    .header { height:64px; }
+    .logo { display:inline-flex; align-items:baseline; justify-self:center; font-family:"Poppins",system-ui,sans-serif; font-size:30px; font-weight:800; letter-spacing:-3px; line-height:1; }
+    .logo-cu { color:#ff1022; text-shadow:0 0 20px rgba(255,16,34,.45),0 0 60px rgba(255,16,34,.18); }
+    .logo-nnect { color:#fff; text-shadow:0 2px 10px rgba(255,255,255,.16); }
+
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header class="header">
+      <a class="back-btn" href="{% url 'food_home' %}" aria-label="Back to food menu">‹</a>
+      <div class="logo" aria-label="CUnnect"><span class="logo-cu">CU</span><span class="logo-nnect">nnect</span></div>
+      <span></span>
+    </header>
+
+    <section class="cart-heading">
+      <h1>Your Cart</h1>
+      <p>{{ cart_count }} item{{ cart_count|pluralize }} selected</p>
+    </section>
+
+    {% if cart_items %}
+    <section class="cart-list" aria-label="Cart items">
+      {% for cart_item in cart_items %}
+      <article class="cart-item">
+        {% if cart_item.food_item.image %}
+          <img class="food-image" src="{{ cart_item.food_item.image.url }}" alt="{{ cart_item.food_item.name }}">
+        {% endif %}
+
+        <div class="item-info">
+          <div class="item-name">{{ cart_item.food_item.name }}</div>
+          <div class="item-price">₹{{ cart_item.food_item.price|floatformat:0 }}</div>
+
+          <div class="item-actions">
+            <div class="qty-control" aria-label="Quantity controls">
+              <form class="qty-form" method="post" action="{% url 'update_cart' cart_item.id 'decrease' %}">
+                {% csrf_token %}
+                <button class="qty-btn" type="submit" aria-label="Decrease quantity">−</button>
+              </form>
+              <span class="qty-value">{{ cart_item.quantity }}</span>
+              <form class="qty-form" method="post" action="{% url 'update_cart' cart_item.id 'increase' %}">
+                {% csrf_token %}
+                <button class="qty-btn" type="submit" aria-label="Increase quantity">+</button>
+              </form>
+            </div>
+
+            <form class="remove-form" method="post" action="{% url 'update_cart' cart_item.id 'remove' %}">
+              {% csrf_token %}
+              <button class="remove-btn" type="submit">Remove</button>
+            </form>
+          </div>
+        </div>
+
+        <div class="item-subtotal">₹{{ cart_item.subtotal|floatformat:0 }}</div>
+      </article>
+      {% endfor %}
+    </section>
+    {% else %}
+    <section class="empty-cart">
+      <div class="empty-icon">🛒</div>
+      <h2>Your cart is empty</h2>
+      <p>Add something tasty from the menu.</p>
+      <a class="browse-btn" href="{% url 'food_home' %}">Browse Food</a>
+    </section>
+    {% endif %}
+  </main>
+
+  {% if cart_items %}
+  <footer class="cart-footer">
+    <div class="total-row">
+      <span>Total amount</span>
+      <strong>₹{{ cart_total|floatformat:0 }}</strong>
+    </div>
+    <a class="checkout-btn" href="{% url 'checkout_view' %}">Proceed to Checkout</a>
+  </footer>
+  {% endif %}
+  <script>
+    window.FOOD_HOME_URL = "{% url 'food_home' %}";
+  </script>
+  <script src="{% static 'food/food_back_guard.js' %}"></script>
+</body>
+</html>

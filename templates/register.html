@@ -1,0 +1,210 @@
+{% load static %}
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <title>CUnnect - Registration</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+    />
+
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@600;700;800&display=swap");
+
+      body {
+        font-family: "Inter", system-ui, sans-serif;
+      }
+
+      .title-font {
+        font-family: "Poppins", system-ui, sans-serif;
+        font-weight: 700;
+      }
+
+      /* Improved CUnnect Logo */
+      .login-logo-wrap {
+        margin: 0 auto 30px;
+        text-align: center;
+      }
+
+      .cunnect-logo {
+        display: inline-flex;
+        align-items: baseline;
+        font-family: "Poppins", system-ui, sans-serif;
+        font-size: 42px;
+        font-weight: 800;
+        letter-spacing: -3px;
+        line-height: 1;
+      }
+
+      .logo-cu {
+        color: #ff1022;
+      }
+
+      .logo-nnect {
+        color: #ffffff;
+        text-shadow: 0 2px 10px rgba(255, 255, 255, 0.16);
+      }
+
+      .logo-tagline {
+        margin: 10px;
+        color: #d4c7a3;
+        font-size: 9px;
+        font-weight: 700;
+        letter-spacing: 2px;
+        text-align: center;
+        margin-left: 20px;
+      }
+    </style>
+  </head>
+
+  <body class="min-h-screen flex items-center justify-center bg-zinc-950">
+    <video
+      autoplay
+      muted
+      loop
+      playsinline
+      class="fixed inset-0 w-full h-full object-cover -z-10"
+    >
+      <source src="{% static 'images/CU.mp4' %}" type="video/mp4" />
+    </video>
+
+    <div class="fixed inset-0 bg-black/50 -z-10"></div>
+
+    <div class="w-full max-w-md px-4 py-8">
+      <div
+        class="bg-zinc-900/95 backdrop-blur-xl border border-white/10 rounded-3xl p-8 shadow-2xl"
+      >
+        <!-- Improved CUnnect Logo -->
+        <div class="login-logo-wrap">
+          <div class="cunnect-logo">
+            <span class="logo-cu">CU</span><span class="logo-nnect">nnect</span>
+          </div>
+
+          <div class="logo-line"></div>
+
+          <p class="logo-tagline">YOUR CAMPUS. CONNECTED.</p>
+        </div>
+
+        <h2
+          class="text-white text-3xl font-bold tracking-tight text-center mb-6"
+        >
+          REGISTRATION
+        </h2>
+
+        {% if messages %} {% for message in messages %}
+        <div
+          class="mb-4 px-4 py-2 rounded-xl text-sm {% if message.tags == 'error' %}bg-red-900/30 border border-red-500/50 text-red-400{% else %}bg-green-900/30 border border-green-500/50 text-green-400{% endif %}"
+        >
+          {{ message }}
+        </div>
+        {% endfor %} {% endif %}
+
+        <!-- Google Sign Up Button -->
+        <a
+          href="#"
+          class="flex items-center justify-center gap-3 w-full bg-white text-zinc-900 font-semibold py-3.5 px-6 rounded-2xl mb-6 hover:bg-zinc-100 transition-all"
+        >
+          <span class="relative h-7 w-8 shrink-0" aria-hidden="true">
+            <span
+              class="absolute left-0 top-0 flex h-7 w-5 items-center justify-center rounded-sm bg-[#0f6cbd] text-sm font-extrabold text-white shadow"
+            >
+              O
+            </span>
+
+            <span
+              class="absolute right-0 top-1 flex h-5 w-5 items-center justify-center rounded-sm bg-white shadow-sm"
+            >
+              <i class="fa-solid fa-envelope text-[13px] text-[#0078d4]"></i>
+            </span>
+          </span>
+
+          <span>Sign up with Outlook</span>
+        </a>
+
+        <div class="flex items-center gap-4 mb-6">
+          <div class="flex-1 h-px bg-white/10"></div>
+          <span class="text-zinc-400 text-xs">OR</span>
+          <div class="flex-1 h-px bg-white/10"></div>
+        </div>
+
+        <!-- Registration Form -->
+        <form method="POST">
+          {% csrf_token %}
+
+          <div class="space-y-4">
+            <input
+              type="text"
+              name="full_name"
+              required
+              placeholder="Full Name"
+              class="w-full bg-zinc-800 border border-white/10 text-white placeholder:text-zinc-400 text-sm rounded-2xl py-3.5 px-5 focus:outline-none focus:border-red-500/50"
+            />
+
+            <input
+              type="text"
+              name="user_id"
+              required
+              placeholder="User ID (e.g. 25LBCS3056)"
+              class="w-full bg-zinc-800 border border-white/10 text-white placeholder:text-zinc-400 text-sm rounded-2xl py-3.5 px-5 focus:outline-none focus:border-red-500/50"
+            />
+
+            <input
+              type="email"
+              name="email"
+              required
+              placeholder="Email Address"
+              class="w-full bg-zinc-800 border border-white/10 text-white placeholder:text-zinc-400 text-sm rounded-2xl py-3.5 px-5 focus:outline-none focus:border-red-500/50"
+            />
+
+            <input
+              type="password"
+              name="password"
+              required
+              placeholder="Create Password"
+              class="w-full bg-zinc-800 border border-white/10 text-white placeholder:text-zinc-400 text-sm rounded-2xl py-3.5 px-5 focus:outline-none focus:border-red-500/50"
+            />
+          </div>
+
+          <button
+            type="submit"
+            class="mt-6 w-full bg-red-600 hover:bg-red-700 text-white font-bold py-[15px] px-6 rounded-2xl text-sm tracking-wider transition-all"
+          >
+            REGISTER
+          </button>
+        </form>
+
+        <div class="mt-6 text-center">
+          <a
+            href="{% url 'login_step1' %}"
+            class="text-sky-400 hover:text-sky-300 text-sm"
+          >
+            Already registered? Login here
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const videos = ["{% static 'images/CU.mp4' %}"];
+
+      const video = document.querySelector("video");
+      const source = video.querySelector("source");
+
+      let i = 0;
+
+      setInterval(() => {
+        i = (i + 1) % videos.length;
+        source.src = videos[i];
+        video.load();
+        video.play().catch(() => {});
+      }, 5000);
+    </script>
+  </body>
+</html>

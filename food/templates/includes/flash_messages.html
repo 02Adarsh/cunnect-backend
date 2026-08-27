@@ -1,0 +1,124 @@
+{% if messages %}
+<div class="flash-container" id="flashContainer">
+    {% for message in messages %}
+        <div class="flash-message {{ message.tags }}">
+            <span>{{ message }}</span>
+            <button type="button" onclick="closeFlashMessage(this)">×</button>
+        </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<style>
+    .flash-container {
+        position: fixed;
+        top: 90px;
+        right: 25px;
+        z-index: 99999;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .flash-message {
+        min-width: 300px;
+        max-width: 430px;
+        background: #ffffff;
+        color: #282c3f;
+        padding: 14px 16px;
+        border-radius: 5px;
+        box-shadow: 0 4px 18px rgba(0, 0, 0, 0.18);
+        font-size: 14px;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        border-left: 5px solid #60b246;
+        animation: flashSlideIn 0.35s ease;
+    }
+
+    .flash-message.success {
+        border-left-color: #60b246;
+    }
+
+    .flash-message.error {
+        border-left-color: #e74c3c;
+    }
+
+    .flash-message.warning {
+        border-left-color: #f39c12;
+    }
+
+    .flash-message.info {
+        border-left-color: #3498db;
+    }
+
+    .flash-message button {
+        border: none;
+        background: transparent;
+        color: #686b78;
+        font-size: 22px;
+        cursor: pointer;
+        line-height: 1;
+    }
+
+    .flash-message.hide {
+        animation: flashSlideOut 0.35s ease forwards;
+    }
+
+    @keyframes flashSlideIn {
+        from {
+            transform: translateX(120%);
+            opacity: 0;
+        }
+
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+
+    @keyframes flashSlideOut {
+        to {
+            transform: translateX(120%);
+            opacity: 0;
+        }
+    }
+
+    @media(max-width: 600px) {
+        .flash-container {
+            top: 80px;
+            left: 12px;
+            right: 12px;
+        }
+
+        .flash-message {
+            min-width: auto;
+            max-width: 100%;
+        }
+    }
+</style>
+
+<script>
+    function closeFlashMessage(button) {
+        const message = button.parentElement;
+        message.classList.add("hide");
+
+        setTimeout(function () {
+            message.remove();
+        }, 350);
+    }
+
+    setTimeout(function () {
+        const messages = document.querySelectorAll(".flash-message");
+
+        messages.forEach(function (message) {
+            message.classList.add("hide");
+
+            setTimeout(function () {
+                message.remove();
+            }, 350);
+        });
+    }, 3000);
+</script>

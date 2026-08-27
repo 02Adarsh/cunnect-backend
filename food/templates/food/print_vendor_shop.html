@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ vendor.business_name }} · Printout</title>
+  <style>
+    @import url("https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&display=swap");
+    :root{--page:#090909;--panel:#151515;--line:#292929;--red:#f10b1d;--muted:#9d9d9d}*{box-sizing:border-box}html,body{min-height:100%;margin:0}body{background:#000;color:#f5f5f5;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}.app{width:100%;max-width:520px;min-height:100vh;margin:0 auto;padding:0 14px 35px;background:var(--page)}.header{height:58px;display:grid;grid-template-columns:42px 1fr 42px;align-items:center;border-bottom:1px solid #1e1e1e}.back{width:36px;height:36px;display:grid;place-items:center;border-radius:50%;color:#fff;font-size:25px;text-decoration:none}.logo{justify-self:center;font-size:22px;font-weight:850;letter-spacing:-1.2px}.logo strong{color:var(--red)}.hero{margin:18px 0;padding:18px;border:1px solid rgba(241,11,29,.35);border-radius:16px;background:linear-gradient(135deg,#291014,#151515)}h1{margin:0 0 5px;font-size:20px}.hero p{margin:0;color:#aaa;font-size:11px}.panel{padding:15px;border:1px solid var(--line);border-radius:16px;background:var(--panel)}.panel h2{margin:0 0 12px;font-size:14px}label{display:block;margin:0 0 6px;color:#d7d7d7;font-size:11px;font-weight:700}.field{width:100%;margin-bottom:12px;padding:11px 12px;border:1px solid #353535;border-radius:10px;outline:none;background:#0d0d0d;color:#fff;font:inherit;font-size:12px}.field:focus{border-color:var(--red)}.field[readonly]{color:#d4d4d4;cursor:not-allowed}.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}.fixed-paper{display:flex;align-items:center;justify-content:space-between;width:100%;min-height:42px;margin-bottom:12px;padding:10px 12px;border:1px solid #353535;border-radius:10px;background:#0d0d0d;color:#fff;font-size:12px;font-weight:750}.fixed-paper span{color:#9d9d9d;font-size:9px;font-weight:600}.side-options{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:0 0 13px}.side-option{position:relative;display:block;cursor:pointer}.side-option input{position:absolute;opacity:0}.side-card{display:block;padding:11px;border:1px solid #353535;border-radius:11px;background:#0d0d0d;transition:.18s}.side-card strong{display:block;color:#fff;font-size:11px}.side-card span{display:block;margin-top:4px;color:#9d9d9d;font-size:9px}.side-option input:checked + .side-card{border-color:var(--red);background:rgba(241,11,29,.1);box-shadow:0 0 0 2px rgba(241,11,29,.1)}.side-option input:checked + .side-card span{color:#ffabb2}.page-select{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:0 0 13px}.page-box{padding:11px;border:1px solid #353535;border-radius:11px;background:#0d0d0d}.page-box label{margin-bottom:6px}.page-box .field{margin:0}.price-summary{display:flex;align-items:center;justify-content:space-between;margin-top:2px;padding:13px;border:1px solid rgba(241,11,29,.45);border-radius:12px;background:linear-gradient(135deg,rgba(241,11,29,.13),#121212)}.price-summary span{color:#c9c9c9;font-size:11px;font-weight:700}.price-summary strong{color:#ffabb2;font-size:19px;font-weight:850}.rate-list{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0 0 12px}.rate{padding:9px;border:1px solid #353535;border-radius:9px;background:#0d0d0d}.rate span{display:block;color:#9d9d9d;font-size:9px;font-weight:800}.rate strong{display:block;margin-top:4px;font-size:12px}.help{margin:8px 0 0;color:#aaa;font-size:9.5px;line-height:1.4}.submit{width:100%;margin-top:12px;padding:12px;border:0;border-radius:11px;background:var(--red);color:#fff;cursor:pointer;font-size:13px;font-weight:800}.submit:disabled{opacity:.5;cursor:not-allowed}.message{margin-bottom:14px;padding:10px 12px;border:1px solid rgba(241,11,29,.5);border-radius:9px;background:rgba(241,11,29,.1);color:#ffabb2;font-size:12px}.upload-status{display:none;align-items:center;gap:9px;margin:-3px 0 12px;padding:10px 11px;border:1px solid rgba(56,183,101,.35);border-radius:10px;background:rgba(56,183,101,.08);color:#a8ebba;font-size:11px}.upload-status.show{display:flex}.upload-status.error{border-color:rgba(241,11,29,.5);background:rgba(241,11,29,.1);color:#ffabb2}.upload-status-copy{min-width:0}.upload-status-copy strong{display:block;overflow:hidden;font-size:11px;text-overflow:ellipsis;white-space:nowrap}.upload-status-copy span{display:block;margin-top:2px;color:#bbb;font-size:10px}
+  .range-note{margin:8px 0 0;color:#aaa;font-size:9.5px;line-height:1.4}.page-select{grid-template-columns:1fr!important;gap:10px}.page-box .row{grid-template-columns:1fr 1fr;gap:10px}.page-box select.field{min-width:0;padding:11px 9px;font-size:11px}.range-mini-label{display:block;margin:0 0 5px;color:#999;font-size:9px;font-weight:700}
+    /* Same premium CUnnect wordmark + mobile-style motion */
+    .app{animation:app-enter .32s ease-out both}
+    .header{height:64px;animation:header-drop .36s cubic-bezier(.2,.8,.2,1) both}
+    .back{transition:transform .18s ease,background .18s ease;-webkit-tap-highlight-color:transparent}.back:active{transform:scale(.90);background:rgba(241,11,29,.14)}
+    .logo{display:inline-flex;align-items:baseline;justify-self:center;font-family:"Poppins",system-ui,sans-serif;font-size:30px;font-weight:800;letter-spacing:-3px;line-height:1}
+    .logo-cu{color:#ff1022;text-shadow:0 0 20px rgba(255,16,34,.45),0 0 60px rgba(255,16,34,.18)}.logo-nnect{color:#fff;text-shadow:0 2px 10px rgba(255,255,255,.16)}
+    .hero{animation:card-rise .42s .06s cubic-bezier(.2,.8,.2,1) both}.panel{animation:card-rise .42s .13s cubic-bezier(.2,.8,.2,1) both}
+    .side-card,.page-box,.rate,.price-summary{transition:transform .18s ease,border-color .18s ease,background .18s ease}.side-card:active,.page-box:active{transform:scale(.985)}
+    .submit{transition:transform .18s ease,background .18s ease,opacity .18s ease}.submit:not(:disabled):active{transform:scale(.98);background:#d90819}
+    .field,select.field,textarea.field{transition:border-color .18s ease,box-shadow .18s ease}.field:focus{box-shadow:0 0 0 3px rgba(241,11,29,.10)}
+    @keyframes app-enter{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}@keyframes header-drop{from{opacity:0;transform:translateY(-14px)}to{opacity:1;transform:translateY(0)}}@keyframes card-rise{from{opacity:0;transform:translateY(14px) scale(.985)}to{opacity:1;transform:translateY(0) scale(1)}}
+    @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
+
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header class="header">
+      <a class="back" href="{% url 'printout_home' %}" aria-label="Back">‹</a>
+      <div class="logo" aria-label="CUnnect"><span class="logo-cu">CU</span><span class="logo-nnect">nnect</span></div>
+      <span></span>
+    </header>
+    <section class="hero"><h1>{{ vendor.business_name }}</h1><p>Assign each document page to Black & White or Color print. Total is calculated automatically.</p></section>
+    {% if messages %}{% for message in messages %}<div class="message">{{ message }}</div>{% endfor %}{% endif %}
+    <section class="panel">
+      <h2>New Print Request</h2>
+      <form id="print-order-form" method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <label for="document">PDF or Image Document</label>
+        <input class="field" id="document" type="file" name="document" accept="application/pdf,.pdf,image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" required>
+        <div id="upload-status" class="upload-status"><span id="upload-icon">📄</span><div class="upload-status-copy"><strong id="upload-file-name"></strong><span id="upload-page-status">Reading document...</span></div></div>
+        <div class="row"><div><label for="pages">Total Pages (Automatic)</label><input class="field" id="pages" type="number" name="pages" readonly required placeholder="Select file first"></div><div><label for="copies">Copies</label><input class="field" id="copies" type="number" name="copies" min="1" value="1" required></div></div>
+        <input type="hidden" name="paper_size" value="a4">
+        <label>Select Print Side</label>
+        <div class="side-options">
+          <label class="side-option"><input type="radio" name="print_side" value="single" checked><span class="side-card"><strong>One Side</strong><span>Print on one side of each sheet</span></span></label>
+          <label class="side-option"><input type="radio" name="print_side" value="double"><span class="side-card"><strong>Double Side</strong><span>Print on both sides of each sheet</span></span></label>
+        </div>
+        <div class="rate-list"><div class="rate"><span>B&W RATE</span><strong>₹{{ vendor.bw_price_per_page|floatformat:2 }} / page</strong></div><div class="rate"><span>COLOR RATE</span><strong>₹{{ vendor.color_price_per_page|floatformat:2 }} / page</strong></div></div>
+        <label>Assign Page Ranges</label>
+        <input type="hidden" id="bw_page_ranges" name="bw_page_ranges">
+        <input type="hidden" id="color_page_ranges" name="color_page_ranges">
+        <div class="page-select">
+          <div class="page-box">
+            <label>Black &amp; White Range</label>
+            <div class="row">
+              <div><span class="range-mini-label">FROM PAGE</span><select class="field" id="bw_from"><option value="">Select</option></select></div>
+              <div><span class="range-mini-label">TO PAGE</span><select class="field" id="bw_to"><option value="">Select</option></select></div>
+            </div>
+          </div>
+          <div class="page-box">
+            <label>Color Range</label>
+            <div class="row">
+              <div><span class="range-mini-label">FROM PAGE</span><select class="field" id="color_from"><option value="">Select</option></select></div>
+              <div><span class="range-mini-label">TO PAGE</span><select class="field" id="color_to"><option value="">Select</option></select></div>
+            </div>
+          </div>
+        </div>
+        <div class="price-summary"><span>Automatic Total</span><strong id="estimated-total">₹0.00</strong></div><p class="range-note" id="page-help">Upload document first. Then select B&W and Color page ranges from dropdowns.</p>
+        <label for="notes">Special Instructions</label><textarea class="field" id="notes" name="notes" rows="4" placeholder="Any special instructions? (optional)"></textarea>
+        <button class="submit" id="submit-print-request" type="submit" disabled>SEND PRINT REQUEST</button>
+      </form>
+    </section>
+  </main>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script>
+    const documentInput=document.getElementById('document'),pagesInput=document.getElementById('pages'),copiesInput=document.getElementById('copies'),bwRanges=document.getElementById('bw_page_ranges'),colorRanges=document.getElementById('color_page_ranges'),bwFrom=document.getElementById('bw_from'),bwTo=document.getElementById('bw_to'),colorFrom=document.getElementById('color_from'),colorTo=document.getElementById('color_to'),total=document.getElementById('estimated-total'),help=document.getElementById('page-help'),submit=document.getElementById('submit-print-request'),status=document.getElementById('upload-status'),fileName=document.getElementById('upload-file-name'),pageStatus=document.getElementById('upload-page-status'),icon=document.getElementById('upload-icon');
+    const bwRate=Number('{{ vendor.bw_price_per_page }}'),colorRate=Number('{{ vendor.color_price_per_page }}');
+    function updateStatus(type,name,text){status.classList.add('show');status.classList.toggle('error',type==='error');icon.textContent=type==='error'?'⚠️':type==='image'?'🖼️':'📄';fileName.textContent=name||'Selected document';pageStatus.textContent=text}
+    function populatePageDropdowns(totalPages) {
+      [bwFrom, bwTo, colorFrom, colorTo].forEach(select => {
+        select.innerHTML = '<option value="">Select</option>';
+        for (let page = 1; page <= totalPages; page++) {
+          const option = document.createElement('option');
+          option.value = page;
+          option.textContent = `Page ${page}`;
+          select.appendChild(option);
+        }
+      });
+      bwFrom.value = totalPages ? 1 : '';
+      bwTo.value = totalPages || '';
+      colorFrom.value = '';
+      colorTo.value = '';
+      syncRangesFromDropdowns();
+    }
+
+    function rangeFromDropdowns(from, to) {
+      if (!from.value && !to.value) return '';
+      if (!from.value || !to.value) return 'INVALID';
+      return `${from.value}-${to.value}`;
+    }
+
+    function syncRangesFromDropdowns() {
+      bwRanges.value = rangeFromDropdowns(bwFrom, bwTo);
+      colorRanges.value = rangeFromDropdowns(colorFrom, colorTo);
+      updateTotal();
+    }
+
+    function parseRanges(value,totalPages){const pages=new Set(),raw=(value||'').trim();if(!raw)return pages;for(const part of raw.split(',')){const text=part.trim();if(!text)continue;const bits=text.split('-').map(v=>v.trim());let start,end;if(bits.length===1){start=end=Number(bits[0])}else if(bits.length===2){start=Number(bits[0]);end=Number(bits[1])}else{throw new Error()}if(!Number.isInteger(start)||!Number.isInteger(end)||start<1||end<start||end>totalPages)throw new Error();for(let page=start;page<=end;page++)pages.add(page)}return pages} function updateTotal(){const pages=Number(pagesInput.value||0),copies=Number(copiesInput.value||1);let bw=new Set(),color=new Set(),valid=false;try{if(pages){bw=parseRanges(bwRanges.value,pages);color=parseRanges(colorRanges.value,pages);const overlap=[...bw].some(page=>color.has(page));valid=copies>0&&!overlap&&new Set([...bw,...color]).size===pages}}catch(error){valid=false}total.textContent='₹'+((bw.size*copies*bwRate)+(color.size*copies*colorRate)).toFixed(2);help.style.color=valid?'#a8ebba':'#ff9da5';help.textContent=pages?(valid?`B&W: ${bw.size} page(s) · Color: ${color.size} page(s) · Ready to submit.`:'Use valid non-overlapping ranges and assign all pages.'):'Select a document first.';submit.disabled=!valid}
+    async function readPdf(file){const pdf=await pdfjsLib.getDocument({data:await file.arrayBuffer()}).promise;return pdf.numPages}
+    documentInput.addEventListener('change',async()=>{const file=documentInput.files[0];pagesInput.value='';bwRanges.value='';colorRanges.value='';[bwFrom,bwTo,colorFrom,colorTo].forEach(select=>select.innerHTML='<option value="">Select</option>');submit.disabled=true;if(!file){status.classList.remove('show','error');return}const name=file.name||'Selected document',pdf=file.type==='application/pdf'||name.toLowerCase().endsWith('.pdf'),image=file.type.startsWith('image/')||/\.(jpg|jpeg|png|webp)$/i.test(name);if(image){pagesInput.value=1;populatePageDropdowns(1);updateStatus('image',name,'Image selected · 1 page automatically detected');updateTotal();return}if(!pdf){updateStatus('error',name,'Please select a PDF, JPG, JPEG, PNG, or WebP file.');return}updateStatus('pdf',name,'Reading PDF pages automatically...');try{const count=await readPdf(file);pagesInput.value=count;populatePageDropdowns(count);updateStatus('pdf',name,`${count} page${count===1?'':'s'} automatically detected`);updateTotal()}catch(error){updateStatus('error',name,'PDF pages could not be read. Please upload a valid PDF.')}});
+    copiesInput.addEventListener('input', updateTotal);[bwFrom,bwTo,colorFrom,colorTo].forEach(select=>select.addEventListener('change',syncRangesFromDropdowns));
+  </script>
+</body>
+</html>

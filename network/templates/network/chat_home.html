@@ -1,0 +1,340 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CUnnect · Chatrooms</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            accent: '#e8000d',
+            online: '#31c67a',
+            page: '#0d0d0d',
+            card: '#101010'
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif']
+          }
+        }
+      }
+    };
+  </script>
+
+  <style>
+    body {
+      margin: 0;
+      background: #000;
+      font-family: Inter, system-ui, -apple-system, sans-serif;
+    }
+
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+
+    .no-scrollbar {
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+
+    @keyframes online-pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: .65; transform: scale(1.16); }
+    }
+
+    .online-dot {
+      animation: online-pulse 1.9s infinite ease-in-out;
+    }
+  </style>
+</head>
+
+<body class="min-h-screen bg-black text-white antialiased">
+  <main class="mx-auto min-h-screen w-full max-w-[430px] bg-[#0d0d0d] px-[18px] pb-12 pt-7">
+
+    <header class="mb-6 flex items-center justify-between">
+      <h1 class="text-[25px] font-extrabold tracking-[-1.1px] text-white">
+        Chatrooms
+      </h1>
+
+      <div class="flex items-center gap-3">
+        <button
+          id="search-toggle"
+          class="grid h-9 w-9 place-items-center rounded-full border border-white/10 text-white transition hover:border-white/30"
+          type="button"
+          aria-label="Search chatrooms"
+        >
+          <svg class="h-[17px] w-[17px]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-4.4-4.4m1.4-5.1a6.5 6.5 0 1 1-13 0 6.5 6.5 0 0 1 13 0Z" />
+          </svg>
+        </button>
+
+        <button
+          id="create-open"
+          class="grid h-9 w-9 place-items-center rounded-full border border-accent text-accent transition hover:bg-accent/10 active:scale-95"
+          type="button"
+          aria-label="Create chatroom"
+        >
+          <svg class="h-[19px] w-[19px]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+            <path stroke-linecap="round" d="M12 5v14M5 12h14" />
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <section id="search-box" class="mb-4 hidden">
+      <div class="relative">
+        <input
+          id="search-input"
+          class="w-full rounded-xl border border-white/10 bg-[#151515] px-4 py-3 pr-10 text-sm text-white outline-none placeholder:text-white/35 focus:border-accent"
+          type="search"
+          placeholder="Search chatrooms..."
+          autocomplete="off"
+        >
+        <button id="search-clear" class="absolute right-3 top-2.5 hidden text-sm text-white/45 hover:text-white" type="button">✕</button>
+      </div>
+    </section>
+
+    <section id="room-list" class="no-scrollbar space-y-[11px] overflow-y-auto pb-20">
+      {% for card in room_cards %}
+        <a
+          class="room-card group flex min-h-[74px] items-center justify-between rounded-[11px] border px-[14px] py-3 transition active:scale-[0.985] {% if forloop.first %}border-[1.5px] border-accent bg-gradient-to-r from-red-600/10 to-transparent{% else %}border-white/10 bg-[#101010] hover:border-white/20{% endif %}"
+          href="{{ card.room_url }}"
+          data-room-id="{{ card.id }}"
+          data-room-name="{{ card.name|lower }}"
+        >
+          <div class="flex min-w-0 items-center gap-[13px]">
+            <div class="relative shrink-0">
+              <div class="grid h-[48px] w-[48px] place-items-center rounded-full bg-red-700/20 text-[16px] font-extrabold text-accent">
+                {{ card.name|first|upper }}
+              </div>
+              {% if forloop.counter|divisibleby:"3" %}
+                <span class="absolute -right-0.5 -top-0.5 h-[7px] w-[7px] rounded-full bg-accent"></span>
+              {% endif %}
+            </div>
+
+            <div class="min-w-0">
+              <div class="flex items-center gap-2">
+                <h2 class="truncate text-[14px] font-extrabold tracking-[-.25px] text-white">
+                  {{ card.name }}
+                </h2>
+                {% if forloop.first %}
+                  <span class="rounded-full bg-accent/15 px-2 py-[2px] text-[9px] font-black tracking-[.55px] text-accent">
+                    OFFICIAL
+                  </span>
+                {% endif %}
+              </div>
+
+              <div class="mt-[3px] flex items-center gap-[5px] text-[10px] font-medium text-white/50">
+                <span data-role="members">{{ card.members_count }} members</span>
+                <span class="text-white/25">•</span>
+                <span class="flex items-center gap-1 text-white">
+                  <span class="online-dot h-[7px] w-[7px] rounded-full bg-online"></span>
+                  <span data-role="online">{{ card.online_count }} online</span>
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <svg class="h-[19px] w-[19px] shrink-0 text-white/35 transition group-hover:text-accent" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="m9 5 7 7-7 7" />
+          </svg>
+        </a>
+      {% empty %}
+        <div id="empty-state" class="py-24 text-center">
+          <div class="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-full bg-accent/10 text-2xl text-accent">#</div>
+          <h2 class="font-bold text-white">No chatrooms yet</h2>
+          <p class="mt-1 text-sm text-white/45">Create the first public chatroom.</p>
+        </div>
+      {% endfor %}
+
+      <div id="no-results" class="hidden py-20 text-center">
+        <div class="mb-3 text-2xl">⌕</div>
+        <p class="text-sm text-white/50">No chatrooms found.</p>
+      </div>
+    </section>
+  </main>
+
+  <div id="create-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/80 px-5">
+    <div class="w-full max-w-[360px] rounded-[18px] border border-white/10 bg-[#151515] p-5 shadow-2xl">
+      <h2 class="text-[18px] font-extrabold text-white">Create a Chatroom</h2>
+      <p class="mt-1 text-xs text-white/45">Your group will be visible to all campus users.</p>
+
+      <form class="mt-5" method="post" action="{% url 'create_room' %}">
+        {% csrf_token %}
+
+        <label class="mb-2 block text-[10px] font-bold uppercase tracking-[.8px] text-white/45" for="room_name">
+          Room Name
+        </label>
+        <input
+          id="room_name"
+          class="w-full rounded-xl border border-white/10 bg-[#0d0d0d] px-4 py-3 text-sm text-white outline-none placeholder:text-white/30 focus:border-accent"
+          type="text"
+          name="room_name"
+          placeholder="e.g. Boys Hostel"
+          maxlength="100"
+          required
+        >
+
+        <label class="mb-2 mt-4 block text-[10px] font-bold uppercase tracking-[.8px] text-white/45" for="privacy">
+          Privacy
+        </label>
+        <select
+          id="privacy"
+          name="privacy"
+          class="w-full rounded-xl border border-white/10 bg-[#0d0d0d] px-4 py-3 text-sm text-white outline-none focus:border-accent"
+        >
+          <option value="public">Campus Public</option>
+        </select>
+
+        <div class="mt-6 flex gap-3">
+          <button id="create-cancel" class="flex-1 rounded-xl bg-white/10 py-3 text-sm font-bold text-white transition hover:bg-white/15" type="button">
+            Cancel
+          </button>
+          <button class="flex-1 rounded-xl bg-accent py-3 text-sm font-bold text-white transition hover:bg-red-700 active:scale-[.98]" type="submit">
+            Create
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    const searchToggle = document.getElementById('search-toggle');
+    const searchBox = document.getElementById('search-box');
+    const searchInput = document.getElementById('search-input');
+    const searchClear = document.getElementById('search-clear');
+    const roomList = document.getElementById('room-list');
+    const noResults = document.getElementById('no-results');
+    const createModal = document.getElementById('create-modal');
+
+    function filterRooms() {
+      const query = searchInput.value.toLowerCase().trim();
+      let visibleRooms = 0;
+
+      document.querySelectorAll('.room-card').forEach((card) => {
+        const visible = !query || card.dataset.roomName.includes(query);
+        card.classList.toggle('hidden', !visible);
+        if (visible) visibleRooms += 1;
+      });
+
+      noResults.classList.toggle('hidden', visibleRooms > 0 || !query);
+      searchClear.classList.toggle('hidden', !query);
+    }
+
+    searchToggle.addEventListener('click', () => {
+      searchBox.classList.toggle('hidden');
+      if (!searchBox.classList.contains('hidden')) {
+        searchInput.focus();
+      } else {
+        searchInput.value = '';
+        filterRooms();
+      }
+    });
+
+    searchInput.addEventListener('input', filterRooms);
+
+    searchClear.addEventListener('click', () => {
+      searchInput.value = '';
+      filterRooms();
+      searchInput.focus();
+    });
+
+    document.getElementById('create-open').addEventListener('click', () => {
+      createModal.classList.remove('hidden');
+      createModal.classList.add('flex');
+      document.getElementById('room_name').focus();
+    });
+
+    function closeCreateModal() {
+      createModal.classList.add('hidden');
+      createModal.classList.remove('flex');
+    }
+
+    document.getElementById('create-cancel').addEventListener('click', closeCreateModal);
+
+    createModal.addEventListener('click', (event) => {
+      if (event.target === createModal) closeCreateModal();
+    });
+
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') closeCreateModal();
+    });
+
+    function escapeHtml(value) {
+      const div = document.createElement('div');
+      div.textContent = value || '';
+      return div.innerHTML;
+    }
+
+    function addRoomCard(room) {
+      const roomKey = String(room.id || room.name).toLowerCase();
+      if (document.querySelector(`[data-room-id="${roomKey}"]`)) return;
+
+      const card = document.createElement('a');
+      const safeName = escapeHtml(room.name);
+      const initial = safeName.charAt(0).toUpperCase() || '#';
+
+      card.href = room.room_url;
+      card.dataset.roomId = roomKey;
+      card.dataset.roomName = room.name.toLowerCase();
+      card.className = 'room-card group flex min-h-[74px] items-center justify-between rounded-[11px] border border-white/10 bg-[#101010] px-[14px] py-3 transition active:scale-[0.985] hover:border-white/20';
+
+      card.innerHTML = `
+        <div class="flex min-w-0 items-center gap-[13px]">
+          <div class="grid h-[48px] w-[48px] shrink-0 place-items-center rounded-full bg-red-700/20 text-[16px] font-extrabold text-[#e8000d]">${initial}</div>
+          <div class="min-w-0">
+            <h2 class="truncate text-[14px] font-extrabold tracking-[-.25px] text-white">${safeName}</h2>
+            <div class="mt-[3px] flex items-center gap-[5px] text-[10px] font-medium text-white/50">
+              <span data-role="members">${room.members_count || 0} members</span>
+              <span class="text-white/25">•</span>
+              <span class="flex items-center gap-1 text-white"><span class="online-dot h-[7px] w-[7px] rounded-full bg-[#31c67a]"></span><span data-role="online">${room.online_count || 0} online</span></span>
+            </div>
+          </div>
+        </div>
+        <svg class="h-[19px] w-[19px] shrink-0 text-white/35" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m9 5 7 7-7 7" /></svg>
+      `;
+
+      roomList.prepend(card);
+    }
+
+    function updateRoomCard(room) {
+      const roomKey = String(room.id || room.name).toLowerCase();
+      const card = document.querySelector(`[data-room-id="${roomKey}"]`);
+
+      if (!card) {
+        addRoomCard(room);
+        return;
+      }
+
+      const memberElement = card.querySelector('[data-role="members"]');
+      const onlineElement = card.querySelector('[data-role="online"]');
+
+      if (memberElement) memberElement.textContent = `${room.members_count || 0} members`;
+      if (onlineElement) onlineElement.textContent = `${room.online_count || 0} online`;
+    }
+
+    const scheme = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
+    const directorySocket = new WebSocket(`${scheme}${window.location.host}/ws/chat-directory/`);
+
+    directorySocket.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+
+      if (data.type === 'room_created') {
+        addRoomCard(data.room);
+      }
+
+      if (data.type === 'room_updated') {
+        updateRoomCard(data.room);
+      }
+    };
+  </script>
+</body>
+</html>

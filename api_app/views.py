@@ -1,0 +1,3369 @@
+"""api_app — Flutter app ke liye REST API layer.
+
+Har endpoint JSON return karta hai:
+    {"ok": true, "data": {...}}   ya   {"ok": false, "error": "..."}
+
+Auth: `Authorization: Token <key>` header (rest_framework.authtoken).
+Ye layer existing Django apps (food, myapp, network, scraper_app) ke
+models/logic ko hi use karti hai — koi duplicate data nahi.
+"""
+
+import base64
+import json
+import os
+import random
+import re
+import string
+import threading
+import time
+from datetime import timedelta
+from functools import wraps
+
+from django.contrib.auth import authenticate
+from django.contrib.auth.models import User
+from django.http import HttpResponse, HttpResponseNotFound, JsonResponse
+from django.utils import timezone
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_http_methods
+from rest_framework.authtoken.models import Token
+
+from food.models import (
+    Coupon,
+    CouponUsage,
+    FoodItem,
+    FoodOffer,
+    HeroSlide,
+    Notification,
+    Order,
+    OrderItem,
+)
+from myapp.models import (
+    Banner,
+    DeliveryProfile,
+    PrintOrder,
+    SupportRequest,
+    UserProfile,
+    VendorProfile,
+)
+from network.models import (
+    ChatRoom,
+    Message,
+    Poll,
+    PollOption,
+    PollVote,
+    RoomJoinRequest,
+)
+
+# ---------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------
+
+VENDOR_SESSION = {"kitchen": {}, "alerts": {}}
+
+
+def ok(data=None):
+    return JsonResponse({"ok": True, "data": data or {}})
+
+
+def fail(message, status=400):
+    return JsonResponse({"ok": False, "error": message}, status=status)
+
+
+def iso(dt):
+    return dt.astimezone().isoformat() if dt else None
+
+
+def json_body(request):
+    try:
+        return json.loads(request.body.decode("utf-8") or "{}")
+    except Exception:
+        return {}
+
+
+def user_from_token(request):
+    header = request.headers.get("Authorization", "")
+    if not header.startswith("Token "):
+        return None
+    key = header[6:].strip()
+    try:
+        return Token.objects.select_related("user").get(key=key).user
+    except Token.DoesNotExist:
+        return None
+
+
+def student_required(view):
+    @wraps(view)
+    def wrapper(request, *args, **kwargs):
+        user = user_from_token(request)
+        if user is None:
+            return fail("Login required.", status=401)
+        return view(request, user, *args, **kwargs)
+
+    return wrapper
+
+
+def vendor_user(request):
+    """Vendor token wala user — VendorProfile ke saath."""
+    user = user_from_token(request)
+    if user is None:
+        return None, None
+    profile = VendorProfile.objects.filter(user=user).select_related("user").first()
+    return user, profile
+
+
+def delivery_user(request):
+    user = user_from_token(request)
+    if user is None:
+        return None, None
+    profile = DeliveryProfile.objects.filter(user=user).select_related("user").first()
+    return user, profile
+
+
+def media_url(field_file):
+    try:
+        if field_file:
+            return field_file.url
+    except Exception:
+        pass
+    return ""
+
+
+def serialize_order(order, include_items=True, include_otp=False):
+    data = {
+        "id": order.id,
+        "order_number": order.order_number,
+        "vendor_id": order.vendor_id,
+        "vendor_name": order.vendor.business_name if order.vendor else "",
+        "customer_name": order.customer_name,
+        "customer_phone": order.customer_phone,
+        "customer_uid": order.customer.username if order.customer else "",
+        "customer_branch": getattr(
+            getattr(order.customer, "profile", None), "branch", "") or "",
+        "customer_year": getattr(
+            getattr(order.customer, "profile", None), "year", "") or "",
+        "customer_hostel": getattr(
+            getattr(order.customer, "profile", None), "hostel", "") or "",
+        "customer_room": getattr(
+            getattr(order.customer, "profile", None), "room", "") or "",
+
+        "delivery_address": order.delivery_address,
+        "landmark": order.landmark,
+        "payment_method": order.payment_method,
+        "note": order.order_note,
+        "subtotal": float(order.subtotal),
+        "discount": float(order.discount),
+        "total": float(order.total_amount),
+        "status": order.status,
+        "delivery_otp": (
+            order.delivery_otp
+            if include_otp
+            and order.status == "out_for_delivery"
+            and not order.otp_verified
+            else ""
+        ),
+        "created_at_iso": iso(order.created_at),
+        "updated_at_iso": iso(order.updated_at),
+    }
+    if include_items:
+        data["items"] = [
+            {
+                "name": item.item_name,
+                "price": float(item.price),
+                "quantity": item.quantity,
+            }
+            for item in order.items.all()
+        ]
+    return data
+
+
+def serialize_food_item(item):
+    return {
+        "id": item.id,
+        "name": item.name,
+        "price": float(item.price),
+        "description": item.description,
+        "image_url": media_url(item.image),
+        "category": item.category,
+        "vendor_id": item.vendor_id,
+        "vendor_name": item.vendor.business_name if item.vendor else "",
+        "is_available": item.is_available,
+        "stock": item.stock,
+    }
+
+
+def serialize_message(message, user):
+    if message.video:
+        kind = "video"
+    elif message.image:
+        kind = "image"
+    elif message.attachment:
+        kind = "attachment"
+    else:
+        kind = "text"
+    return {
+        "id": message.id,
+        "username": message.user.username,
+        "display_name": message.user.get_full_name() or message.user.username,
+        "content": message.content,
+        "kind": kind,
+        "image_url": media_url(message.image),
+        "video_url": media_url(message.video),
+        "like_count": message.likes.count(),
+        "liked_by_me": message.likes.filter(id=user.id).exists(),
+        "pinned": message.is_pinned,
+        "created_at_iso": iso(message.created_at),
+    }
+
+
+# ---------------------------------------------------------------------
+# ⭐ ORIGINAL MAIN-AUTH (JSON): login step1/2 + register + OTP + step3 —
+# myapp/views ke web-flow ka exact mirror, Flutter ke liye.
+# ---------------------------------------------------------------------
+_LOGIN_CAPTCHA = {}  # uid -> captcha code
+_REG_OTP = {}  # user_id -> {full_name,email,password,otp,created_at}
+# ⭐ Mobile-friendly captcha: no 0/O/1/I/L confusion, case-insensitive match
+_CAPTCHA_CHARS = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
+
+
+def _new_login_captcha(uid):
+    code = "".join(random.choices(_CAPTCHA_CHARS, k=4))
+    _LOGIN_CAPTCHA[uid] = code
+    return code
+
+
+def _find_user_any_case(uid):
+    """⭐ UID case-insensitive: 25LBCS3056 / 25lbcs3056 same account."""
+    user = User.objects.filter(username=uid).first()
+    if user:
+        return user
+    return User.objects.filter(username__iexact=uid).first()
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def api_login_step1(request):
+    body = json_body(request)
+    uid = str(body.get("uid", "")).strip()
+    if not uid:
+        return fail("Enter your User ID.")
+    if not _find_user_any_case(uid):
+        return ok({"registered": False})
+    code = _new_login_captcha(uid)
+    return ok({"registered": True, "captcha": code})
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def api_login_step2(request):
+    body = json_body(request)
+    uid = str(body.get("uid", "")).strip()
+    password = str(body.get("password", ""))
+    captcha = str(body.get("captcha", "")).strip()
+    user = _find_user_any_case(uid)
+    if user is None:
+        return fail("User not registered. Please register first.")
+    correct = _LOGIN_CAPTCHA.get(uid, "")
+    # ⭐ case-insensitive: mobile keyboard autocapitalise kar deta hai
+    pw_ok = user.check_password(password)
+    cap_ok = bool(captcha) and bool(correct) and \
+        captcha.upper() == correct.upper()
+    print(f"[AUTH] login2 uid={uid!r} db_user={user.username!r} "
+          f"pw_ok={pw_ok} cap_ok={cap_ok} "
+          f"entered_captcha={captcha!r} expected={correct!r}")
+    if pw_ok and cap_ok:
+        _LOGIN_CAPTCHA.pop(uid, None)
+        token, _ = Token.objects.get_or_create(user=user)
+        profile, _ = UserProfile.objects.get_or_create(user=user)
+        return ok({
+            "token": token.key,
+            "uid": user.username,
+            "email": user.email,
+            "name": (profile.full_name if profile and profile.full_name
+                     else user.get_full_name() or user.username),
+            "need_step3": not (profile.phone and profile.branch),
+            "photo_url": media_url(profile.profile_photo),
+            "phone": (profile.phone if profile else "") or "",
+            "branch": (profile.branch if profile else "") or "",
+            "year": (profile.year if profile else "") or "",
+        })
+    code = _new_login_captcha(uid)
+    if cap_ok and not pw_ok:
+        msg = "Incorrect password - please check again."
+    elif pw_ok and not cap_ok:
+        msg = "Incorrect captcha - try the new captcha."
+    else:
+        msg = "Invalid Password or Captcha."
+    return JsonResponse(
+        {"ok": False, "error": msg,
+         "captcha": code}, status=400)
+
+
+# ---------------------------------------------------------------------
+# ⭐ HOSTEL ESSENTIALS 8-in-1 PACK (₹1799) — store card + order + vendor
+# ---------------------------------------------------------------------
+HOSTEL_PACK_ITEMS = [
+    "Mattress", "Pillow", "Bucket", "Bathing Jug",
+    "Rope", "Clothes Clips", "Hanger", "Foot Mat",
+]
+HOSTEL_PACK_PRICE = 1799
+
+
+def _hostel_vendor():
+    from myapp.models import VendorProfile
+
+    return VendorProfile.objects.filter(
+        vendor_type="hostel", is_active=True).first()
+
+
+def _serialize_hostel_order(o):
+    return {
+        "id": o.id,
+        "order_no": o.order_no,
+        "orderer_uid": o.orderer_uid,
+        "orderer_name": o.orderer_name,
+        "orderer_mobile": o.orderer_mobile,
+        "recipient_name": o.recipient_name,
+        "recipient_mobile": o.recipient_mobile,
+        "address": o.address,
+        "payment_ref": o.payment_ref,
+        "paid": o.paid,
+        "status": o.status,
+        "total": float(o.total),
+        "created_at": o.created_at.strftime("%d %b, %I:%M %p"),
+    }
+
+
+@student_required
+def store_hostel(request, user):
+    """Product info + logged-in user ki AUTO details + vendor UPI."""
+    profile = getattr(user, "userprofile", None)
+    vendor = _hostel_vendor()
+    return ok({
+        "items": HOSTEL_PACK_ITEMS,
+        "price": HOSTEL_PACK_PRICE,
+        "worth": 2500,
+        "freebie": "FREE Chilled Diet Coke",
+        "upi_id": (vendor.upi_id.strip()
+                   if vendor and vendor.upi_id.strip() else ""),
+        "auto": {
+            "uid": user.username,
+            "name": (profile.full_name
+                     if profile and profile.full_name
+                     else user.get_full_name() or user.username),
+            "mobile": (profile.phone if profile and profile.phone else ""),
+            "address": "Chandigarh University",
+        },
+    })
+
+
+@csrf_exempt
+@student_required
+def store_hostel_order(request, user):
+    """Order place — orderer auto (login), recipient manual."""
+    from myapp.models import HostelOrder
+
+    body = json_body(request)
+    recipient_name = str(body.get("recipient_name", "")).strip()
+    recipient_mobile = str(body.get("recipient_mobile", "")).strip()
+    address = str(body.get("address", "")).strip() or "Chandigarh University"
+    payment_ref = str(body.get("payment_ref", "")).strip()
+    if not recipient_name:
+        return fail("Enter the recipient's name.")
+    if len(recipient_mobile) < 10:
+        return fail("Enter a valid recipient mobile number.")
+    profile = getattr(user, "userprofile", None)
+    order_no = f"HE{int(time.time() * 1000) % 1000000000}"
+    order = HostelOrder.objects.create(
+        order_no=order_no,
+        student=user,
+        orderer_uid=user.username,
+        orderer_name=(profile.full_name
+                      if profile and profile.full_name
+                      else user.get_full_name() or user.username),
+        orderer_mobile=(profile.phone if profile and profile.phone else ""),
+        recipient_name=recipient_name,
+        recipient_mobile=recipient_mobile,
+        address=address,
+        payment_ref=payment_ref,
+        paid=True,
+    )
+    return ok({"order": _serialize_hostel_order(order)})
+
+
+@student_required
+def store_hostel_my_orders(request, user):
+    """Student ke apne saare hostel pack orders."""
+    from myapp.models import HostelOrder
+
+    orders = HostelOrder.objects.filter(student=user).order_by("-created_at")
+    return ok({"orders": [_serialize_hostel_order(o) for o in orders]})
+
+
+@require_http_methods(["GET"])
+def vendor_hostel_orders(request):
+    """⭐ Hostel vendor portal: saare pack orders."""
+    from myapp.models import HostelOrder
+
+    user, profile = vendor_user(request)
+    if profile is None or profile.vendor_type != "hostel":
+        return fail("Login with a hostel vendor account.", status=403)
+    orders = HostelOrder.objects.order_by("-created_at")[:200]
+    return ok({"orders": [_serialize_hostel_order(o) for o in orders]})
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def vendor_hostel_order_status(request):
+    user, profile = vendor_user(request)
+    if profile is None or profile.vendor_type != "hostel":
+        return fail("Login with a hostel vendor account.", status=403)
+    body = json_body(request)
+    oid = body.get("id")
+    status = str(body.get("status", "")).strip()
+    if status not in ("pending", "accepted", "delivered", "cancelled"):
+        return fail("Galat status.")
+    from myapp.models import HostelOrder
+
+    order = HostelOrder.objects.filter(id=oid).first()
+    if order is None:
+        return fail("Order not found.")
+    order.status = status
+    order.save(update_fields=["status"])
+    if order.user_id:
+        _notify(
+            user_id=order.user_id,
+            title=f"Hostel order {status}",
+            message=f"Your hostel essentials order is now {status}.",
+        )
+    return ok({"order": _serialize_hostel_order(order)})
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def api_forgot_password(request):
+    """⭐ Forgot password: registered email pe OTP."""
+    from myapp.views import send_cunnect_otp_email
+
+    body = json_body(request)
+    uid = str(body.get("uid", "")).strip()
+    user = _find_user_any_case(uid)
+    if user is None:
+        return fail("No account found for this User ID.")
+    email = user.email
+    if not email:
+        return fail("No email on this account - password cannot be reset.")
+    otp = UserProfile.generate_otp()
+    _REG_OTP[f"reset:{user.username}"] = {
+        "otp": otp, "created_at": time.time(), "reset": True}
+    try:
+        send_cunnect_otp_email(recipient=email, otp=otp,
+                               full_name=user.first_name or user.username,
+                               user_id=user.username)
+    except Exception as exc:
+        print(f"[API-RESET] otp email failed: {exc}")
+        return fail("Error sending email. Please try again.")
+    return ok({"otp_sent": True, "email": email})
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def api_reset_password(request):
+    """⭐ OTP verify karke naya password set."""
+    body = json_body(request)
+    uid = str(body.get("uid", "")).strip()
+    entered = str(body.get("otp", "")).strip()
+    new_password = str(body.get("password", ""))
+    user = _find_user_any_case(uid)
+    if user is None:
+        return fail("Account not found.")
+    key = f"reset:{user.username}"
+    temp = _REG_OTP.get(key)
+    if not temp:
+        return fail("Tap 'Send OTP' first.")
+    if time.time() - float(temp.get("created_at", 0)) > 300:
+        _REG_OTP.pop(key, None)
+        return fail("OTP expired - send a new one.")
+    if temp["otp"] != entered:
+        return fail("Invalid OTP.")
+    if len(new_password) < 6:
+        return fail("Keep the password at least 6 characters long.")
+    user.set_password(new_password)
+    user.save()
+    _REG_OTP.pop(key, None)
+    return ok({"reset": True})
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def api_register(request):
+    from myapp.views import send_cunnect_otp_email
+
+    body = json_body(request)
+    full_name = str(body.get("full_name", "")).strip()
+    user_id = str(body.get("user_id", "")).strip()
+    email = str(body.get("email", "")).strip()
+    password = str(body.get("password", ""))
+    if not (full_name and user_id and email and password):
+        return fail("Fill in all the details.")
+    if not email.lower().endswith("@culkomail.in"):
+        return fail("Please use your official CULKO email ID ending with "
+                    "@culkomail.in. Example: 25lbcs3056@culkomail.in")
+    if User.objects.filter(username=user_id).exists():
+        return fail("User ID already exists!")
+    if User.objects.filter(email=email).exists():
+        return fail("Email already registered!")
+    otp = UserProfile.generate_otp()
+    _REG_OTP[user_id] = {
+        "user_id": user_id, "full_name": full_name, "email": email,
+        "password": password, "otp": otp, "created_at": time.time(),
+    }
+    try:
+        send_cunnect_otp_email(recipient=email, otp=otp,
+                               full_name=full_name, user_id=user_id)
+    except Exception as exc:
+        print(f"[API-REG] otp email failed: {exc}")
+        return fail("Error sending email. Please try again.")
+    return ok({"otp_sent": True, "user_id": user_id})
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def api_otp_verify(request):
+    body = json_body(request)
+    user_id = str(body.get("user_id", "")).strip()
+    entered = str(body.get("otp", "")).strip()
+    temp = _REG_OTP.get(user_id)
+    if not temp:
+        return fail("Session expired. Please register again.")
+    if time.time() - float(temp.get("created_at", 0)) > 300:
+        _REG_OTP.pop(user_id, None)
+        return fail("OTP expired after 5 minutes. Please register again.")
+    if temp["otp"] != entered:
+        return fail("Invalid OTP. Please try again.")
+    try:
+        user = User.objects.create_user(
+            username=temp.get("user_id") or user_id, email=temp["email"],
+            password=temp["password"], first_name=temp["full_name"])
+        UserProfile.objects.create(user=user, is_verified=True)
+    except Exception as error:
+        return fail(f"Database error: {error}")
+    _REG_OTP.pop(user_id, None)
+    return ok({"registered": True})
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def api_resend_otp(request):
+    from myapp.views import send_cunnect_otp_email
+
+    body = json_body(request)
+    user_id = str(body.get("user_id", "")).strip()
+    temp = _REG_OTP.get(user_id)
+    if not temp:
+        return fail("Session expired. Please register again.")
+    new_otp = UserProfile.generate_otp()
+    temp["otp"] = new_otp
+    temp["created_at"] = time.time()
+    try:
+        send_cunnect_otp_email(recipient=temp["email"], otp=new_otp,
+                               full_name=temp.get("full_name", ""),
+                               user_id=user_id, is_resend=True)
+    except Exception:
+        return fail("Failed to resend OTP.")
+    return ok({"resent": True})
+
+
+@csrf_exempt
+@student_required
+def api_complete_profile(request, user):
+    if request.method != "POST":
+        return fail("POST required.", status=405)
+    body = json_body(request)
+    profile, _ = UserProfile.objects.get_or_create(user=user)
+    full_name = str(body.get("full_name", "")).strip()
+    if hasattr(profile, "full_name"):
+        profile.full_name = full_name
+    if full_name:
+        user.first_name = full_name
+        user.save(update_fields=["first_name"])
+    profile.phone = str(body.get("phone", "")).strip()
+    profile.dob = str(body.get("dob", "")).strip() or None
+    profile.gender = str(body.get("gender", "")).strip()
+    profile.branch = str(body.get("branch", "")).strip()
+    profile.year = str(body.get("year", "")).strip()
+    profile.stay_type = str(body.get("stay_type", "")).strip()
+    profile.consent = bool(body.get("consent"))
+    # ⭐ profile photo (base64 data-uri ya raw base64) -> media file
+    photo_b64 = str(body.get("photo", "") or "").strip()
+    if photo_b64:
+        if photo_b64.startswith("data:") and "," in photo_b64:
+            photo_b64 = photo_b64.split(",", 1)[1]
+        try:
+            raw = base64.b64decode(photo_b64)
+            if 0 < len(raw) < 3_000_000:
+                from django.core.files.base import ContentFile
+                name = f"{user.username}_{int(time.time())}.jpg"
+                profile.profile_photo.save(name, ContentFile(raw), save=False)
+        except Exception as exc:  # galat base64 -> ignore, baaki profile save
+            print(f"[AUTH] photo save failed: {exc}")
+    # ⭐ photo mandatory — bina photo ke step3 complete nahi
+    if not profile.profile_photo:
+        return fail("Profile photo upload is required.")
+    profile.save()
+    return ok({
+        "completed": True,
+        "email": user.email,
+        "photo_url": media_url(profile.profile_photo),
+        "phone": profile.phone or "",
+        "branch": profile.branch or "",
+        "year": profile.year or "",
+    })
+
+
+# ---------------------------------------------------------------------
+# Student auth + dashboard
+# ---------------------------------------------------------------------
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def student_login(request):
+    body = json_body(request)
+    uid = str(body.get("uid", "")).strip()
+    password = str(body.get("password", ""))
+    if not uid or not password:
+        return fail("Both UID and password are required.")
+    user = authenticate(request, username=uid, password=password)
+    if user is None:
+        return fail("Invalid UID or password.", status=401)
+    token, _ = Token.objects.get_or_create(user=user)
+    profile = getattr(user, "userprofile", None)
+    return ok({
+        "token": token.key,
+        "uid": user.username,
+        "name": (profile.full_name if profile and profile.full_name
+                 else user.get_full_name() or user.username),
+        "phone": (profile.phone if profile else "") or "",
+        "branch": (profile.branch if profile else "") or "",
+        "year": (profile.year if profile else "") or "",
+        "email": user.email or "",
+        "photo_url": media_url(profile.profile_photo) if profile else "",
+    })
+
+
+@student_required
+def student_dashboard(request, user):
+    banners = Banner.objects.filter(is_active=True).order_by("order")
+    return ok({
+        "banners": [
+            {
+                "id": banner.id,
+                "title": banner.title,
+                "image_url": media_url(banner.image),
+            }
+            for banner in banners
+        ],
+    })
+
+
+@csrf_exempt
+@student_required
+def student_support(request, user):
+    if request.method != "POST":
+        return fail("POST required.", status=405)
+    body = json_body(request)
+    subject = str(body.get("subject", "")).strip()
+    message = str(body.get("message", "")).strip()
+    if not subject or not message:
+        return fail("Fill in both subject and message.")
+    email = (str(body.get("email", "")).strip()
+             or user.email or f"{user.username}@cunnect.app")
+    SupportRequest.objects.create(
+        user=user, email=email, subject=subject, message=message
+    )
+    return ok({"sent": True})
+
+
+@student_required
+def student_profile(request, user):
+    profile = getattr(user, "userprofile", None)
+    return ok({
+        "uid": user.username,
+        "name": profile.full_name if profile else user.username,
+        "phone": (profile.phone if profile else "") or "",
+        "branch": (profile.branch if profile else "") or "",
+        "year": (profile.year if profile else "") or "",
+    })
+
+
+# ---------------------------------------------------------------------
+# Food
+# ---------------------------------------------------------------------
+
+
+@student_required
+def food_home(request, user):
+    now = timezone.now()
+    items = FoodItem.objects.select_related("vendor").order_by("id")
+    slides = HeroSlide.objects.filter(is_active=True).order_by("order")
+    offers = (
+        FoodOffer.objects.filter(is_active=True)
+        .select_related("coupon")
+        .order_by("order")
+    )
+    coupons = Coupon.objects.filter(
+        is_active=True, valid_until__gte=now
+    )
+    return ok({
+        "items": [serialize_food_item(item) for item in items],
+        "hero_slides": [
+            {
+                "id": slide.id,
+                "title": slide.title,
+                "subtitle": slide.subtitle,
+                "image_url": media_url(slide.image),
+            }
+            for slide in slides
+        ],
+        "offers": [
+            {
+                "id": offer.id,
+                "title": offer.title,
+                "description": offer.description,
+                "coupon_code": offer.coupon.code if offer.coupon else "",
+                "image_url": media_url(offer.image),
+            }
+            for offer in offers
+        ],
+        "coupons": [
+            {
+                "code": coupon.code,
+                "discount_type": coupon.discount_type,
+                "discount_value": float(coupon.discount_value),
+                "minimum_order_value": float(coupon.minimum_order_value),
+            }
+            for coupon in coupons
+        ],
+    })
+
+
+def _find_valid_coupon(code, order_total, user):
+    now = timezone.now()
+    try:
+        coupon = Coupon.objects.get(code__iexact=code, is_active=True)
+    except Coupon.DoesNotExist:
+        return None, "Invalid coupon code."
+    if coupon.valid_until and coupon.valid_until < now:
+        return None, "This coupon has expired."
+    if coupon.valid_from and coupon.valid_from > now:
+        return None, "This coupon is not active yet."
+    if float(order_total) < float(coupon.minimum_order_value):
+        return None, (
+            f"Minimum order ₹{float(coupon.minimum_order_value):.0f} "
+            f"chahiye is coupon ke liye."
+        )
+    if coupon.one_time_per_user and user is not None:
+        if CouponUsage.objects.filter(coupon=coupon, user=user).exists():
+            return None, "Aap ye coupon already use kar chuke ho."
+    return coupon, None
+
+
+@csrf_exempt
+@student_required
+def food_coupon_validate(request, user):
+    if request.method != "POST":
+        return fail("POST required.", status=405)
+    body = json_body(request)
+    code = str(body.get("code", "")).strip()
+    order_total = float(body.get("order_total", 0) or 0)
+    if not code:
+        return fail("Enter a coupon code.")
+    coupon, error = _find_valid_coupon(code, order_total, user)
+    if error:
+        return fail(error)
+    return ok({
+        "code": coupon.code,
+        "discount_type": coupon.discount_type,
+        "discount_value": float(coupon.discount_value),
+        "minimum_order_value": float(coupon.minimum_order_value),
+    })
+
+
+def _new_order_number():
+    import uuid
+
+    return f"CU-{uuid.uuid4().hex[:8].upper()}"
+
+
+@csrf_exempt
+@student_required
+def food_place_order(request, user):
+    if request.method != "POST":
+        return fail("POST required.", status=405)
+    body = json_body(request)
+    raw_items = body.get("items") or []
+    if not raw_items:
+        return fail("Cart is empty.")
+
+    payment = str(body.get("payment", "cash"))
+    note = str(body.get("note", ""))
+    address = str(body.get("address", "")).strip() or "Chandigarh University"
+    landmark = str(body.get("landmark", ""))
+    coupon_code = str(body.get("coupon_code", "")).strip()
+
+    profile = getattr(user, "userprofile", None)
+    customer_name = (
+        (profile.full_name if profile and profile.full_name else user.get_full_name())
+        or user.username
+    )
+    customer_phone = (profile.phone if profile else "") or ""
+
+    # items ko vendor ke hisaab se group karo (Django cart jaisa split).
+    grouped = {}
+    for raw in raw_items:
+        try:
+            item_id = int(raw.get("item_id"))
+            quantity = int(raw.get("quantity", 1))
+        except (TypeError, ValueError):
+            continue
+        if quantity <= 0:
+            continue
+        try:
+            food_item = FoodItem.objects.get(id=item_id, is_available=True)
+        except FoodItem.DoesNotExist:
+            continue
+        grouped.setdefault(food_item.vendor_id, []).append((food_item, quantity))
+
+    if not grouped:
+        return fail("No valid item in the cart.")
+
+    cart_total = sum(
+        float(food_item.price) * quantity
+        for entries in grouped.values()
+        for food_item, quantity in entries
+    )
+
+    coupon = None
+    if coupon_code:
+        coupon, error = _find_valid_coupon(coupon_code, cart_total, user)
+        if error:
+            return fail(error)
+
+    discount_total = 0.0
+    if coupon:
+        if coupon.discount_type == "percent":
+            discount_total = cart_total * float(coupon.discount_value) / 100
+        else:
+            discount_total = float(coupon.discount_value)
+        discount_total = min(discount_total, cart_total)
+
+    created = []
+    remaining_discount = discount_total
+    for vendor_id, entries in grouped.items():
+        subtotal = sum(float(f.price) * q for f, q in entries)
+        discount = min(remaining_discount, subtotal)
+        remaining_discount -= discount
+        order = Order.objects.create(
+            order_number=_new_order_number(),
+            vendor_id=vendor_id,
+            customer=user,
+            customer_name=customer_name,
+            customer_phone=customer_phone,
+            delivery_address=address,
+            landmark=landmark,
+            payment_method=payment,
+            status="pending",
+            subtotal=subtotal,
+            discount=discount,
+            total_amount=subtotal - discount,
+            order_note=note,
+            delivery_otp=str(random.randint(1000, 9999)),
+        )
+        for food_item, quantity in entries:
+            OrderItem.objects.create(
+                order=order,
+                food_item=food_item,
+                item_name=food_item.name,
+                price=food_item.price,
+                quantity=quantity,
+            )
+            # ⭐ live stock: order aate hi deduct, khatam -> auto-unavailable
+            if food_item.stock > 0:
+                food_item.stock = max(0, food_item.stock - quantity)
+                if food_item.stock == 0:
+                    food_item.is_available = False
+                food_item.save()
+        created.append(order)
+
+    _notify(
+        user=user,
+        order=created[0],
+        title="Order placed",
+        message=f"{created[0].order_number} placed successfully.",
+    )
+    _seen_vendors = set()
+    for _o in created:
+        _vp = _o.vendor
+        if _vp is None or _vp.id in _seen_vendors:
+            continue
+        _seen_vendors.add(_vp.id)
+        _vendor_push(_vp, "New order received",
+                     f"{_o.order_number} - accept or reject now")
+        threading.Thread(
+            target=_order_alert_loop, args=(_o.id,), daemon=True).start()
+    if coupon:
+        CouponUsage.objects.create(coupon=coupon, user=user)
+        vendor_name = created[0].vendor.business_name if created[0].vendor else ""
+        _notify(
+            user=user,
+            order=created[0],
+            title="Coupon applied",
+            message=f"You saved ₹{discount_total:.0f} with {coupon.code} ({vendor_name}).",
+        )
+
+    return ok({
+        "order_numbers": [order.order_number for order in created],
+        "orders": [serialize_order(order, include_otp=True) for order in created],
+    })
+
+
+@student_required
+def food_my_orders(request, user):
+    orders = (
+        Order.objects.filter(customer=user)
+        .select_related("vendor")
+        .prefetch_related("items")
+        .order_by("-created_at")[:40]
+    )
+    return ok({
+        "orders": [
+            serialize_order(order, include_otp=True) for order in orders
+        ]
+    })
+
+
+@student_required
+def food_orders_status(request, user):
+    orders = (
+        Order.objects.filter(customer=user)
+        .select_related("vendor")
+        .order_by("-created_at")[:40]
+    )
+    return ok({
+        "orders": [
+            serialize_order(order, include_items=False, include_otp=True)
+            for order in orders
+        ]
+    })
+
+
+# ---------- ⭐ FCM PUSH (screen-off / lock-screen notifications) ----------
+_fcm_app = None
+
+
+def _fcm_init():
+    global _fcm_app
+    if _fcm_app is not None:
+        return _fcm_app
+    try:
+        import firebase_admin
+        from firebase_admin import credentials
+
+        path = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            "firebase-service-account.json",
+        )
+        if not os.path.exists(path):
+            return None
+        _fcm_app = firebase_admin.initialize_app(credentials.Certificate(path))
+        return _fcm_app
+    except Exception as exc:
+        print("[FCM] init failed:", exc)
+        return None
+
+
+def _notify(*args, **kwargs):
+    """Notification row + turant push."""
+    n = Notification.objects.create(*args, **kwargs)
+    try:
+        _push_user(n.user_id, n.title, n.message)
+    except Exception:
+        pass
+    return n
+
+
+_ORDER_ALERTS = set()
+
+
+def _push_tokens(tokens, title, message, high=False):
+    try:
+        from firebase_admin import messaging
+
+        app = _fcm_init()
+        if app is None or not tokens:
+            return
+        print(f"[FCM-PUSH] -> {len(tokens[:5])} tokens | {title}")
+        # ⭐ notification+data: screen-off/killed pe SYSTEM notification
+        # (Play services dikhata hai — guaranteed), high-importance channel
+        # se sound + heads-up + CU icon; foreground me app local heads-up banata hai.
+        resp = messaging.send_each_for_multicast(
+            messaging.MulticastMessage(
+                notification=messaging.Notification(title=title, body=message),
+                android=messaging.AndroidConfig(
+                    priority="high",
+                    notification=messaging.AndroidNotification(
+                        channel_id="cunnect_alert" if high else "cunnect_ping",
+                        sound="cunnect_alert" if high else "cunnect_ping",
+                        icon="cu_notif",
+                        priority="high",
+                        visibility="public",
+                        default_sound=False,
+                    ),
+                ),
+                data={"kind": "vendor" if high else "user"},
+                tokens=tokens[:5],
+            ),
+            app=app,
+        )
+        for tok, r in zip(tokens[:5], resp.responses):
+            if not r.success:
+                print("[FCM-PUSH] err:", r.exception)
+                err = f"{getattr(r.exception, 'code', '')} {r.exception}"
+                if "not-registered" in err or "NotRegistered" in err \
+                        or "SenderIdMismatch" in err or "sender-id-mismatch" in err \
+                        or "InvalidArgument" in err or "invalid-argument" in err:
+                    from myapp.models import DeviceToken as _DT
+                    _DT.objects.filter(token=tok).delete()
+                    print("[FCM-PUSH] stale token pruned")
+    except Exception as exc:
+        print("[FCM] push failed:", exc)
+
+
+@csrf_exempt
+def health(request):
+    """⭐ Render keep-awake ping endpoint (cron-job.org se)."""
+    return ok({"status": "ok"})
+
+
+def _push_user(user_id, title, message):
+    try:
+        from myapp.models import DeviceToken
+
+        tokens = list(
+            DeviceToken.objects.filter(user_id=user_id)
+            .order_by("-id").values_list("token", flat=True)
+        )
+        _push_tokens(tokens, title, message, high=False)
+    except Exception:
+        pass
+
+
+def _vendor_push(vendor_profile, title, message):
+    from myapp.models import DeviceToken
+
+    tokens = list(
+        DeviceToken.objects.filter(user_id=vendor_profile.user_id)
+        .order_by("-id").values_list("token", flat=True)
+    )
+    _push_tokens(tokens, title, message, high=True)
+
+
+def _order_alert_loop(order_id):
+    """vendor ke phone pe repeat ring jab tak accept/reject/silence."""
+    import time as _t
+
+    for _ in range(12):
+        _t.sleep(45)
+        try:
+            from food.models import Order
+
+            if order_id in _ORDER_ALERTS:
+                return
+            o = Order.objects.filter(id=order_id).first()
+            if o is None or o.status != "pending" or o.vendor is None:
+                return
+            _vendor_push(
+                o.vendor,
+                "Order pending - alert",
+                f"{o.order_number} still waiting. Accept or reject now.",
+            )
+        except Exception as exc:
+            print("[ALERT]", exc)
+
+
+
+@csrf_exempt
+def vendor_device_token(request):
+    """vendor ka FCM token save."""
+    if request.method != "POST":
+        return fail("POST required.", status=405)
+    user, profile = vendor_user(request)
+    if profile is None:
+        return fail("Vendor login required.", status=401)
+    from myapp.models import DeviceToken
+
+    token = str(json_body(request).get("token", "")).strip()
+    if len(token) < 20:
+        return fail("Token required.")
+    DeviceToken.objects.update_or_create(user=user, token=token)
+    return ok({"saved": True})
+
+
+@csrf_exempt
+def vendor_silence(request):
+    """repeat ring manual band."""
+    if request.method != "POST":
+        return fail("POST required.", status=405)
+    user, profile = vendor_user(request)
+    if profile is None:
+        return fail("Vendor login required.", status=401)
+    oid = json_body(request).get("id")
+    try:
+        _ORDER_ALERTS.add(int(oid))
+    except (TypeError, ValueError):
+        return fail("Bad id.")
+    return ok({"silenced": True})
+
+
+@csrf_exempt
+@student_required
+def device_token(request, user):
+    """⭐ app ka FCM token save karo (push ke liye)."""
+    if request.method != "POST":
+        return fail("POST required.", status=405)
+    from myapp.models import DeviceToken
+
+    token = str(json_body(request).get("token", "")).strip()
+    if len(token) < 20:
+        return fail("Token required.")
+    DeviceToken.objects.update_or_create(user=user, token=token)
+    return ok({"saved": True})
+
+
+@student_required
+def food_notifications(request, user):
+    notifications = Notification.objects.filter(user=user).order_by(
+        "-created_at"
+    )[:30]
+    return ok({
+        "notifications": [
+            {
+                "id": notification.id,
+                "title": notification.title,
+                "message": notification.message,
+                "is_read": notification.is_read,
+                "created_at_iso": iso(notification.created_at),
+            }
+            for notification in notifications
+        ],
+        "unread_count": Notification.objects.filter(
+            user=user, is_read=False
+        ).count(),
+    })
+
+
+@csrf_exempt
+@student_required
+def food_notifications_read(request, user):
+    if request.method != "POST":
+        return fail("POST required.", status=405)
+    Notification.objects.filter(user=user).update(is_read=True)
+    return ok({"read": True})
+
+
+# ---------------------------------------------------------------------
+# Vendor portal
+# ---------------------------------------------------------------------
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def vendor_login(request):
+    body = json_body(request)
+    phone = str(body.get("phone", "")).strip()
+    password = str(body.get("password", ""))
+    if not phone or not password:
+        return fail("Both phone and password are required.")
+    profile = VendorProfile.objects.filter(phone=phone).select_related("user").first()
+    if profile is None:
+        return fail("No vendor found for this phone number.", status=401)
+    user = authenticate(request, username=profile.user.username, password=password)
+    if user is None:
+        return fail("Invalid phone or password.", status=401)
+    token, _ = Token.objects.get_or_create(user=user)
+    return ok({
+        "token": token.key,
+        "vendor_id": profile.id,
+        "business_name": profile.business_name,
+        "vendor_type": profile.vendor_type,
+        "phone": profile.phone,
+        "owner_username": user.username,
+        "email": user.email or "",
+    })
+
+
+def _vendor_orders(vendor_profile):
+    return Order.objects.filter(vendor_id=vendor_profile.id).select_related(
+        "vendor"
+    ).prefetch_related("items")
+
+
+@student_required
+def vendor_dashboard(request, user):
+    vendor_user_, profile = vendor_user(request)
+    if profile is None:
+        return fail("Vendor account not found.", status=401)
+    orders = _vendor_orders(profile)
+    today = timezone.now().date()
+    today_sales = sum(
+        float(order.total_amount)
+        for order in orders.filter(created_at__date=today).exclude(
+            status__in=["rejected", "cancelled"]
+        )
+    )
+    incoming = orders.filter(status="pending").order_by("-created_at")[:8]
+    active = orders.filter(
+        status__in=["accepted", "preparing", "ready"]
+    ).order_by("-created_at")[:10]
+    history = orders.exclude(
+        status__in=["pending", "accepted", "preparing", "ready"]
+    ).order_by("-created_at")[:25]
+    out_for_delivery = orders.filter(
+        status="out_for_delivery", otp_verified=False
+    ).order_by("-created_at")[:10]
+    menu = FoodItem.objects.filter(vendor_id=profile.id)
+    return ok({
+        "incoming_count": incoming.count(),
+        "active_count": active.count(),
+        "today_sales": today_sales,
+        "menu_count": menu.count(),
+        "available_count": menu.filter(is_available=True).count(),
+        "kitchen_open": VENDOR_SESSION["kitchen"].get(profile.id, True),
+        "incoming_orders": [serialize_order(order) for order in incoming],
+        "active_orders": [serialize_order(order) for order in active],
+        "history_orders": [serialize_order(order) for order in history],
+        "out_for_delivery_orders": [
+            serialize_order(order) for order in out_for_delivery
+        ],
+    })
+
+
+VENDOR_ACTIONS = {
+    "accept": ("pending", "accepted"),
+    "reject": ("pending", "rejected"),
+    "prepare": ("accepted", "preparing"),
+    "ready": ("preparing", "ready"),
+}
+
+
+@csrf_exempt
+@student_required
+def vendor_order_action(request, user, order_id, action):
+    if request.method != "POST":
+        return fail("POST required.", status=405)
+    _, profile = vendor_user(request)
+    if profile is None:
+        return fail("Vendor account not found.", status=401)
+    if action not in VENDOR_ACTIONS:
+        return fail("Unknown action.", status=404)
+    expected_from, new_status = VENDOR_ACTIONS[action]
+    try:
+        order = Order.objects.get(id=order_id, vendor_id=profile.id)
+    except Order.DoesNotExist:
+        return fail("Order nahi mila.", status=404)
+    if order.status != expected_from:
+        return fail(f"Order is currently '{order.status}' — this action is not allowed.")
+    order.status = new_status
+    order.save(update_fields=["status", "updated_at"])
+    if order.customer_id:
+        _notify(
+            user_id=order.customer_id,
+            order=order,
+            title=f"Order {new_status}",
+            message=f"{order.order_number} is now {new_status}.",
+        )
+    return ok({"order": serialize_order(order)})
+
+
+@csrf_exempt
+@student_required
+def vendor_start_delivery(request, user, order_id):
+    if request.method != "POST":
+        return fail("POST required.", status=405)
+    _, profile = vendor_user(request)
+    if profile is None:
+        return fail("Vendor account not found.", status=401)
+    try:
+        order = Order.objects.get(id=order_id, vendor_id=profile.id)
+    except Order.DoesNotExist:
+        return fail("Order nahi mila.", status=404)
+    if order.status not in ("ready", "out_for_delivery"):
+        return fail("Mark the order 'ready' first.")
+    if not order.delivery_otp:
+        order.delivery_otp = str(random.randint(1000, 9999))
+    order.status = "out_for_delivery"
+    order.save(update_fields=["status", "delivery_otp", "updated_at"])
+    if order.customer_id:
+        _notify(
+            user_id=order.customer_id,
+            order=order,
+            title="Out for delivery",
+            message=f"{order.order_number} is out for delivery. OTP: {order.delivery_otp}",
+        )
+    return ok({"order": serialize_order(order, include_otp=True)})
+
+
+@csrf_exempt
+@student_required
+def vendor_verify_otp(request, user, order_id):
+    if request.method != "POST":
+        return fail("POST required.", status=405)
+    _, profile = vendor_user(request)
+    if profile is None:
+        return fail("Vendor account not found.", status=401)
+    try:
+        order = Order.objects.get(id=order_id, vendor_id=profile.id)
+    except Order.DoesNotExist:
+        return fail("Order nahi mila.", status=404)
+    otp = str(json_body(request).get("otp", "")).strip()
+    if order.status != "out_for_delivery":
+        return fail("Order is not out for delivery.")
+    if otp != order.delivery_otp:
+        return fail("Galat OTP.")
+    order.status = "completed"
+    order.otp_verified = True
+    order.delivered_at = timezone.now()
+    order.save(update_fields=["status", "otp_verified", "delivered_at", "updated_at"])
+    if order.customer_id:
+        _notify(
+            user_id=order.customer_id,
+            order=order,
+            title="Delivered",
+            message=f"{order.order_number} has been delivered. Enjoy!",
+        )
+    return ok({"order": serialize_order(order)})
+
+
+@student_required
+def vendor_menu(request, user):
+    _, profile = vendor_user(request)
+    if profile is None:
+        return fail("Vendor account not found.", status=401)
+    items = FoodItem.objects.filter(vendor_id=profile.id).select_related(
+        "vendor"
+    ).order_by("id")
+    return ok({"items": [serialize_food_item(item) for item in items]})
+
+
+@csrf_exempt
+@student_required
+def vendor_menu_toggle(request, user, item_id):
+    if request.method != "POST":
+        return fail("POST required.", status=405)
+    _, profile = vendor_user(request)
+    if profile is None:
+        return fail("Vendor account not found.", status=401)
+    try:
+        item = FoodItem.objects.get(id=item_id, vendor_id=profile.id)
+    except FoodItem.DoesNotExist:
+        return fail("Item not found.", status=404)
+    item.is_available = not item.is_available
+    item.save(update_fields=["is_available"])
+    return ok({"item": serialize_food_item(item)})
+
+
+def _item_payload(body):
+    name = str(body.get("name", "")).strip()
+    description = str(body.get("description", "")).strip()
+    category = str(body.get("category", "")).strip() or "other"
+    try:
+        price = float(body.get("price", 0) or 0)
+    except (TypeError, ValueError):
+        price = 0
+    is_available = bool(body.get("is_available", True))
+    try:
+        stock = int(body.get("stock", 0) or 0)
+    except (TypeError, ValueError):
+        stock = 0
+    if stock < 0:
+        stock = 0
+    return name, description, category, price, is_available, stock
+
+
+@csrf_exempt
+@student_required
+def vendor_menu_add(request, user):
+    if request.method != "POST":
+        return fail("POST required.", status=405)
+    _, profile = vendor_user(request)
+    if profile is None:
+        return fail("Vendor account not found.", status=401)
+    name, description, category, price, is_available, stock = _item_payload(
+        json_body(request)
+    )
+    if not name or price <= 0:
+        return fail("Item name and a valid price are required.")
+    item = FoodItem.objects.create(
+        name=name,
+        description=description[:250],
+        category=category[:50],
+        price=price,
+        vendor_id=profile.id,
+        is_available=is_available,
+        stock=stock,
+    )
+    return ok({"item": serialize_food_item(item)})
+
+
+@csrf_exempt
+@student_required
+def vendor_menu_edit(request, user, item_id):
+    if request.method != "POST":
+        return fail("POST required.", status=405)
+    _, profile = vendor_user(request)
+    if profile is None:
+        return fail("Vendor account not found.", status=401)
+    try:
+        item = FoodItem.objects.get(id=item_id, vendor_id=profile.id)
+    except FoodItem.DoesNotExist:
+        return fail("Item not found.", status=404)
+    name, description, category, price, is_available, stock = _item_payload(
+        json_body(request)
+    )
+    if not name or price <= 0:
+        return fail("Item name and a valid price are required.")
+    item.name = name
+    item.description = description[:250]
+    item.category = category[:50]
+    item.price = price
+    item.is_available = is_available
+    item.stock = stock
+    if stock > 0:
+        item.is_available = True  # ⭐ restock = wapas available
+    item.save()
+    return ok({"item": serialize_food_item(item)})
+
+
+@csrf_exempt
+@student_required
+def vendor_kitchen(request, user, state):
+    if request.method != "POST":
+        return fail("POST required.", status=405)
+    _, profile = vendor_user(request)
+    if profile is None:
+        return fail("Vendor account not found.", status=401)
+    if state not in ("on", "off"):
+        return fail("Unknown state.", status=404)
+    VENDOR_SESSION["kitchen"][profile.id] = state == "on"
+    return ok({"kitchen_open": state == "on"})
+
+
+@student_required
+def vendor_earnings(request, user):
+    _, profile = vendor_user(request)
+    if profile is None:
+        return fail("Vendor account not found.", status=401)
+    completed = (
+        Order.objects.filter(vendor_id=profile.id, status="completed")
+        .order_by("-created_at")[:400]
+    )
+    now = timezone.now()
+    week_start = (now - timedelta(days=now.weekday())).date()
+    weekly = []
+    week_total = 0.0
+    for offset in range(7):
+        day = week_start + timedelta(days=offset)
+        total = sum(
+            float(order.total_amount)
+            for order in completed
+            if order.created_at.date() == day
+        )
+        weekly.append({"label": day.strftime("%a"), "total": total})
+        week_total += total
+    return ok({
+        "week_total": week_total,
+        "weekly": weekly,
+        "completed_orders": [
+            serialize_order(order, include_items=False) for order in completed
+        ],
+    })
+
+
+# ---------------------------------------------------------------------
+# Delivery portal
+# ---------------------------------------------------------------------
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def delivery_login(request):
+    body = json_body(request)
+    phone = str(body.get("phone", "")).strip()
+    password = str(body.get("password", ""))
+    if not phone or not password:
+        return fail("Both phone and password are required.")
+    profile = DeliveryProfile.objects.filter(phone=phone).select_related(
+        "user"
+    ).first()
+    if profile is None:
+        return fail("No delivery partner found for this phone number.", status=401)
+    user = authenticate(request, username=profile.user.username, password=password)
+    if user is None:
+        return fail("Invalid phone or password.", status=401)
+    token, _ = Token.objects.get_or_create(user=user)
+    return ok({
+        "token": token.key,
+        "partner_id": str(profile.id),
+        "phone": profile.phone,
+    })
+
+
+@student_required
+def delivery_dashboard(request, user):
+    _, profile = delivery_user(request)
+    if profile is None:
+        return fail("Delivery account not found.", status=401)
+    ready = (
+        Order.objects.filter(status="ready")
+        .select_related("vendor")
+        .prefetch_related("items")
+        .order_by("created_at")[:15]
+    )
+    active = (
+        Order.objects.filter(status="out_for_delivery", otp_verified=False)
+        .select_related("vendor")
+        .prefetch_related("items")
+        .order_by("-created_at")[:15]
+    )
+    history = (
+        Order.objects.filter(status="completed")
+        .select_related("vendor")
+        .order_by("-created_at")[:25]
+    )
+    return ok({
+        "ready_orders": [serialize_order(order) for order in ready],
+        "active_orders": [serialize_order(order) for order in active],
+        "history_orders": [
+            serialize_order(order, include_items=False) for order in history
+        ],
+    })
+
+
+@csrf_exempt
+@student_required
+def delivery_claim(request, user, order_id):
+    if request.method != "POST":
+        return fail("POST required.", status=405)
+    _, profile = delivery_user(request)
+    if profile is None:
+        return fail("Delivery account not found.", status=401)
+    try:
+        order = Order.objects.get(id=order_id)
+    except Order.DoesNotExist:
+        return fail("Order nahi mila.", status=404)
+    if order.status != "ready":
+        return fail("This order cannot be claimed.")
+    order.status = "out_for_delivery"
+    order.delivery_partner_id = profile.id
+    if not order.delivery_otp:
+        order.delivery_otp = str(random.randint(1000, 9999))
+    order.save(update_fields=[
+        "status", "delivery_partner", "delivery_otp", "updated_at"
+    ])
+    if order.customer_id:
+        _notify(
+            user_id=order.customer_id,
+            order=order,
+            title="Out for delivery",
+            message=f"{order.order_number} is out for delivery. OTP: {order.delivery_otp}",
+        )
+    return ok({"order": serialize_order(order)})
+
+
+@csrf_exempt
+@student_required
+def delivery_verify_otp(request, user, order_id):
+    if request.method != "POST":
+        return fail("POST required.", status=405)
+    _, profile = delivery_user(request)
+    if profile is None:
+        return fail("Delivery account not found.", status=401)
+    try:
+        order = Order.objects.get(id=order_id)
+    except Order.DoesNotExist:
+        return fail("Order nahi mila.", status=404)
+    otp = str(json_body(request).get("otp", "")).strip()
+    if order.status != "out_for_delivery":
+        return fail("Order is not out for delivery.")
+    if otp != order.delivery_otp:
+        return fail("Galat OTP.")
+    order.status = "completed"
+    order.otp_verified = True
+    order.delivered_at = timezone.now()
+    order.save(update_fields=["status", "otp_verified", "delivered_at", "updated_at"])
+    if order.customer_id:
+        _notify(
+            user_id=order.customer_id,
+            order=order,
+            title="Delivered",
+            message=f"{order.order_number} has been delivered. Enjoy!",
+        )
+    return ok({"order": serialize_order(order)})
+
+
+# ---------------------------------------------------------------------
+# Printout
+# ---------------------------------------------------------------------
+
+
+def serialize_print_vendor(profile):
+    return {
+        "id": profile.id,
+        "business_name": profile.business_name,
+        "phone": profile.phone,
+        "bw_price_per_page": float(profile.bw_price_per_page),
+        "color_price_per_page": float(profile.color_price_per_page),
+    }
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+@student_required
+def print_page_count(request, user):
+    """⭐ Upload ki gayi PDF ke pages count (original pdf.js jaisa,
+    server-side) — dropdowns isi se bharte hain."""
+    doc = request.FILES.get("document")
+    if doc is None:
+        return fail("Document bhejo.")
+    name = str(getattr(doc, "name", "") or "").lower()
+    if name.endswith(".pdf"):
+        try:
+            pages = int(_count_pdf_pages(doc) or 1)
+        except Exception as exc:
+            print(f"[API-PRINT] page count failed: {exc}")
+            return fail(
+                "PDF pages could not be read. Please upload a valid PDF.")
+    else:
+        pages = 1
+    return ok({"pages": max(pages, 1)})
+
+
+@student_required
+def print_vendors(request, user):
+    profiles = VendorProfile.objects.filter(vendor_type="printout")
+    return ok({
+        "vendors": [serialize_print_vendor(profile) for profile in profiles]
+    })
+
+
+def _parse_page_ranges(raw, max_pages):
+    pages = set()
+    for part in str(raw or "").replace(";", ",").split(","):
+        part = part.strip()
+        if not part:
+            continue
+        if "-" in part:
+            try:
+                start, end = part.split("-", 1)
+                start, end = int(start), int(end)
+            except ValueError:
+                continue
+            for page in range(min(start, end), max(start, end) + 1):
+                if 1 <= page <= max_pages:
+                    pages.add(page)
+        else:
+            try:
+                page = int(part)
+            except ValueError:
+                continue
+            if 1 <= page <= max_pages:
+                pages.add(page)
+    return pages
+
+
+def _count_pdf_pages(file_obj):
+    try:
+        from pypdf import PdfReader
+
+        reader = PdfReader(file_obj)
+        return len(reader.pages)
+    except Exception:
+        return 1
+
+
+def serialize_print_order(order):
+    return {
+        "id": order.id,
+        "vendor_id": order.vendor_id,
+        "vendor_name": order.vendor.business_name if order.vendor else "",
+        "file_name": order.document.name.split("/")[-1] if order.document else "",
+        "file_url": media_url(order.document),
+        "pages": order.pages,
+        "copies": order.copies,
+        "print_side": order.print_side,
+        "bw_pages": order.bw_pages,
+        "color_pages": order.color_pages,
+        "bw_page_ranges": order.bw_page_ranges,
+        "color_page_ranges": order.color_page_ranges,
+        "notes": order.notes,
+        "status": order.status,
+        "total_price": float(order.final_amount),
+        "created_at_iso": iso(order.created_at),
+    }
+
+
+@csrf_exempt
+@student_required
+def print_place_order(request, user):
+    if request.method != "POST":
+        return fail("POST required.", status=405)
+    document = request.FILES.get("document")
+    if document is None:
+        return fail("Upload a file (field: document).")
+    try:
+        vendor_id = int(request.POST.get("vendor_id", 0))
+    except ValueError:
+        return fail("Select a vendor.")
+    vendor = VendorProfile.objects.filter(
+        id=vendor_id, vendor_type="printout"
+    ).first()
+    if vendor is None:
+        return fail("Print vendor not found.")
+    try:
+        copies = max(1, int(request.POST.get("copies", 1)))
+    except ValueError:
+        copies = 1
+    print_side = str(request.POST.get("print_side", "single"))
+    bw_ranges = str(request.POST.get("bw_page_ranges", ""))
+    color_ranges = str(request.POST.get("color_page_ranges", ""))
+    notes = str(request.POST.get("notes", ""))
+
+    pages = _count_pdf_pages(document.file)
+    color_pages = _parse_page_ranges(color_ranges, pages)
+    bw_pages_set = _parse_page_ranges(bw_ranges, pages)
+    if bw_pages_set:
+        bw_count = len(bw_pages_set - color_pages)
+    else:
+        bw_count = pages - len(color_pages)
+    color_count = len(color_pages)
+
+    total = (
+        bw_count * float(vendor.bw_price_per_page)
+        + color_count * float(vendor.color_price_per_page)
+    ) * copies
+
+    order = PrintOrder.objects.create(
+        vendor=vendor,
+        student=user,
+        document=document,
+        pages=pages,
+        copies=copies,
+        bw_pages=bw_count,
+        color_pages=color_count,
+        bw_page_ranges=bw_ranges[:500],
+        color_page_ranges=color_ranges[:500],
+        print_side=print_side,
+        notes=notes,
+        final_amount=total,
+        status="pending",
+    )
+    return ok({"order": serialize_print_order(order)})
+
+
+@student_required
+def print_my_orders(request, user):
+    orders = PrintOrder.objects.filter(student=user).select_related(
+        "vendor"
+    ).order_by("-created_at")[:40]
+    return ok({"orders": [serialize_print_order(order) for order in orders]})
+
+
+@student_required
+def print_vendor_dashboard(request, user):
+    _, profile = vendor_user(request)
+    if profile is None:
+        return fail("Vendor account not found.", status=401)
+    orders = PrintOrder.objects.filter(vendor_id=profile.id).select_related(
+        "vendor"
+    ).order_by("-created_at")[:40]
+    return ok({"orders": [serialize_print_order(order) for order in orders]})
+
+
+PRINT_ACTIONS = {
+    "accept": ("pending", "accepted"),
+    "reject": ("pending", "rejected"),
+    "printing": ("accepted", "printing"),
+    "ready": ("printing", "ready"),
+    "complete": ("ready", "completed"),
+}
+
+
+@csrf_exempt
+@student_required
+def print_order_action(request, user, order_id, action):
+    if request.method != "POST":
+        return fail("POST required.", status=405)
+    _, profile = vendor_user(request)
+    if profile is None:
+        return fail("Vendor account not found.", status=401)
+    if action not in PRINT_ACTIONS:
+        return fail("Unknown action.", status=404)
+    expected_from, new_status = PRINT_ACTIONS[action]
+    try:
+        order = PrintOrder.objects.get(id=order_id, vendor_id=profile.id)
+    except PrintOrder.DoesNotExist:
+        return fail("Print order not found.", status=404)
+    if order.status != expected_from:
+        # 'ready' se seedha complete bhi allow karo (vendor shortcut).
+        if not (action == "complete" and order.status == "ready"):
+            return fail(f"Order is currently '{order.status}'.")
+    order.status = new_status
+    order.save(update_fields=["status", "updated_at"])
+    if order.student_id:
+        _notify(
+            user_id=order.student_id,
+            title=f"Print order {new_status}",
+            message=f"{order.document.name.split('/')[-1]} is now {new_status}.",
+        )
+    return ok({"order": serialize_print_order(order)})
+
+
+@csrf_exempt
+@student_required
+def print_vendor_prices(request, user):
+    if request.method != "POST":
+        return fail("POST required.", status=405)
+    _, profile = vendor_user(request)
+    if profile is None or profile.vendor_type != "printout":
+        return fail("Print vendor account not found.", status=401)
+    body = json_body(request)
+    try:
+        bw = float(body.get("bw_price_per_page", profile.bw_price_per_page))
+        color = float(
+            body.get("color_price_per_page", profile.color_price_per_page)
+        )
+    except (TypeError, ValueError):
+        return fail("Enter a valid price.")
+    profile.bw_price_per_page = bw
+    profile.color_price_per_page = color
+    profile.save(update_fields=["bw_price_per_page", "color_price_per_page"])
+    return ok({"vendor": serialize_print_vendor(profile)})
+
+
+# ---------------------------------------------------------------------
+# Chat (network app)
+# ---------------------------------------------------------------------
+
+
+def serialize_room(room, user):
+    is_member = room.members.filter(id=user.id).exists()
+    pending = RoomJoinRequest.objects.filter(
+        room=room, user=user, status="pending"
+    ).exists()
+    return {
+        "id": room.id,
+        "name": room.name,
+        "privacy": room.privacy,
+        "members_count": room.members.count(),
+        "online_count": 1 if is_member else 0,
+        "official": bool(room.created_by and room.created_by.is_superuser),
+        "is_member": is_member,
+        "pending": pending,
+    }
+
+
+@student_required
+def chat_rooms(request, user):
+    public_rooms = ChatRoom.objects.filter(privacy="public")
+    member_rooms = ChatRoom.objects.filter(members=user)
+    rooms = (public_rooms | member_rooms).distinct().order_by("name")
+    return ok({"rooms": [serialize_room(room, user) for room in rooms]})
+
+
+@csrf_exempt
+@student_required
+def chat_rooms_create(request, user):
+    if request.method != "POST":
+        return fail("POST required.", status=405)
+    body = json_body(request)
+    name = str(body.get("name", "")).strip()
+    privacy = str(body.get("privacy", "public"))
+    if privacy not in ("public", "private"):
+        privacy = "public"
+    if not name:
+        return fail("Enter a room name.")
+    if ChatRoom.objects.filter(name__iexact=name).exists():
+        return fail("A room with this name already exists.")
+    room = ChatRoom.objects.create(
+        name=name, created_by=user, privacy=privacy
+    )
+    room.members.add(user)
+    return ok({"room": serialize_room(room, user)})
+
+
+def _room_or_fail(name, user, join_public=True):
+    try:
+        room = ChatRoom.objects.get(name__iexact=name)
+    except ChatRoom.DoesNotExist:
+        return None, fail("Room not found.", status=404)
+    if join_public and room.privacy == "public":
+        room.members.add(user)
+    return room, None
+
+
+@student_required
+def chat_room_detail(request, user, name):
+    room, error = _room_or_fail(name, user)
+    if error:
+        return error
+    if not room.members.filter(id=user.id).exists():
+        return fail("You are not a member of this room.", status=403)
+    messages = list(
+        Message.objects.filter(room=room, deleted_for_everyone=False)
+        .select_related("user")
+        .prefetch_related("likes")
+        .order_by("-created_at")[:100]
+    )
+    messages.reverse()
+    poll = (
+        Poll.objects.filter(room=room)
+        .prefetch_related("options__votes")
+        .order_by("-created_at")
+        .first()
+    )
+    poll_data = None
+    if poll is not None:
+        poll_data = {
+            "id": poll.id,
+            "question": poll.question,
+            "options": [
+                {
+                    "id": option.id,
+                    "text": option.text,
+                    "votes": option.votes.count(),
+                    "voted_by_me": option.votes.filter(user=user).exists(),
+                }
+                for option in poll.options.all()
+            ],
+        }
+    return ok({
+        "room": serialize_room(room, user),
+        "messages": [serialize_message(message, user) for message in messages],
+        "poll": poll_data,
+    })
+
+
+@csrf_exempt
+@student_required
+def chat_room_join(request, user, name):
+    if request.method != "POST":
+        return fail("POST required.", status=405)
+    room, error = _room_or_fail(name, user, join_public=False)
+    if error:
+        return error
+    if room.members.filter(id=user.id).exists():
+        return ok({"joined": True})
+    if room.privacy == "public":
+        room.members.add(user)
+        return ok({"joined": True})
+    RoomJoinRequest.objects.get_or_create(room=room, user=user)
+    return ok({"joined": False, "requested": True})
+
+
+@csrf_exempt
+@student_required
+def chat_send_message(request, user, name):
+    if request.method != "POST":
+        return fail("POST required.", status=405)
+    room, error = _room_or_fail(name, user)
+    if error:
+        return error
+    if not room.members.filter(id=user.id).exists():
+        return fail("Join the room first.", status=403)
+    if request.FILES:
+        content = str(request.POST.get("content", "")).strip()
+    else:
+        content = str(json_body(request).get("content", "")).strip()
+    image = request.FILES.get("image")
+    video = request.FILES.get("video")
+    attachment = request.FILES.get("attachment")
+    if not content and not image and not video and not attachment:
+        return fail("Message is empty.")
+    message = Message.objects.create(
+        room=room, user=user, content=content[:2000],
+        image=image or None, video=video or None,
+        attachment=attachment or None)
+    return ok({"message": serialize_message(message, user)})
+
+
+@csrf_exempt
+@student_required
+def chat_send_poll(request, user, name):
+    if request.method != "POST":
+        return fail("POST required.", status=405)
+    room, error = _room_or_fail(name, user)
+    if error:
+        return error
+    if not room.members.filter(id=user.id).exists():
+        return fail("Join the room first.", status=403)
+    body = json_body(request)
+    question = str(body.get("question", "")).strip()
+    options = [str(o).strip() for o in (body.get("options") or []) if str(o).strip()]
+    if not question or len(options) < 2:
+        return fail("Question + at least 2 options are required.")
+    marker = Message.objects.create(
+        room=room, user=user, content=f"📊 {question[:240]}"
+    )
+    poll = Poll.objects.create(
+        message=marker, room=room, created_by=user, question=question[:240]
+    )
+    for text in options[:8]:
+        PollOption.objects.create(poll=poll, text=text[:160])
+    return ok({"poll_id": poll.id})
+
+
+@csrf_exempt
+@student_required
+def chat_poll_vote(request, user, poll_id):
+    if request.method != "POST":
+        return fail("POST required.", status=405)
+    try:
+        poll = Poll.objects.get(id=poll_id)
+    except Poll.DoesNotExist:
+        return fail("Poll not found.", status=404)
+    try:
+        option_id = int(json_body(request).get("option_id", 0))
+    except (TypeError, ValueError):
+        return fail("Select an option.")
+    option = PollOption.objects.filter(id=option_id, poll=poll).first()
+    if option is None:
+        return fail("Option not found.")
+    PollVote.objects.filter(poll=poll, user=user).delete()
+    PollVote.objects.create(poll=poll, option=option, user=user)
+    return ok({"voted": True})
+
+
+@csrf_exempt
+@student_required
+def chat_message_like(request, user, message_id):
+    if request.method != "POST":
+        return fail("POST required.", status=405)
+    try:
+        message = Message.objects.get(id=message_id)
+    except Message.DoesNotExist:
+        return fail("Message nahi mila.", status=404)
+    if message.likes.filter(id=user.id).exists():
+        message.likes.remove(user)
+        liked = False
+    else:
+        message.likes.add(user)
+        liked = True
+    return ok({"liked": liked, "like_count": message.likes.count()})
+
+
+@csrf_exempt
+@student_required
+def chat_message_pin(request, user, message_id):
+    if request.method != "POST":
+        return fail("POST required.", status=405)
+    try:
+        message = Message.objects.get(id=message_id)
+    except Message.DoesNotExist:
+        return fail("Message nahi mila.", status=404)
+    if message.is_pinned:
+        message.is_pinned = False
+        message.pinned_by = None
+        message.pinned_at = None
+    else:
+        Message.objects.filter(room=message.room, is_pinned=True).update(
+            is_pinned=False, pinned_by=None, pinned_at=None
+        )
+        message.is_pinned = True
+        message.pinned_by = user
+        message.pinned_at = timezone.now()
+    message.save()
+    return ok({"pinned": message.is_pinned})
+
+
+# ---------------------------------------------------------------------
+# Store
+# ---------------------------------------------------------------------
+
+STORE_CATEGORIES = [
+    {
+        "key": "food",
+        "icon": "🍔",
+        "title": "Food",
+        "subtitle": "Campus kitchens",
+    },
+    {
+        "key": "printout",
+        "icon": "🖨",
+        "title": "Printout",
+        "subtitle": "PDF print karwao",
+    },
+    {
+        "key": "books",
+        "icon": "📚",
+        "title": "Books",
+        "subtitle": "Jald aa raha hai",
+    },
+    {
+        "key": "essentials",
+        "icon": "🧴",
+        "title": "Essentials",
+        "subtitle": "Jald aa raha hai",
+    },
+]
+
+
+@student_required
+def store_home(request, user):
+    profiles = VendorProfile.objects.filter(vendor_type="printout")
+    return ok({
+        "categories": STORE_CATEGORIES,
+        "print_vendors": [
+            serialize_print_vendor(profile) for profile in profiles
+        ],
+    })
+
+
+# ---------------------------------------------------------------------
+# UMS (scraper_app bridge)
+# ---------------------------------------------------------------------
+
+_UMS_LOCK = threading.Lock()
+_UMS_STATE = {}  # uid -> {"scraper": ..., "cookies": ..., "dashboard": {...}}
+
+# ⭐ REAL-TIME + NO RE-LOGIN: credentials/cookies disk pe persist karo
+# taaki runserver restart ya session-expiry pe user ko dobara login na
+# karna pade - backend silently cookies reuse / re-auth karta hai.
+_UMS_SAVE_FILE = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+    "ums_saved_logins.json",
+)
+
+
+def _ums_saved_load():
+    try:
+        with open(_UMS_SAVE_FILE, encoding="utf-8") as f:
+            data = json.load(f)
+        return data if isinstance(data, dict) else {}
+    except Exception:
+        return {}
+
+
+def _ums_saved_update(uid, **kw):
+    try:
+        data = _ums_saved_load()
+        entry = data.get(uid) or {}
+        for k, v in kw.items():
+            if v is not None:
+                entry[k] = v
+        data[uid] = entry
+        tmp = _UMS_SAVE_FILE + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(data, f)
+        os.replace(tmp, _UMS_SAVE_FILE)
+    except Exception as exc:
+        print(f"[API-UMS] persist failed: {exc}")
+
+
+def _ums_owner(request):
+    """⭐ Kis app-user ka UMS hai (multi-student isolation)."""
+    try:
+        u = user_from_token(request)
+        return u.username if u else ""
+    except Exception:
+        return ""
+
+
+def _ums_reauth(uid, password):
+    """Silent re-login (bina captcha ke ho tabhi). Success pe cookies."""
+    from scraper_app.scraper_backend import CUIMSScraperBackend
+
+    if not password:
+        return None
+    try:
+        scraper = CUIMSScraperBackend(uid=uid)
+        r1 = scraper.execute_stage1() or {}
+        if not r1.get("success") or r1.get("has_captcha"):
+            return None
+        r2 = scraper.execute_stage2(password, captcha_code="") or {}
+        if not r2.get("success"):
+            return None
+        return {"scraper": scraper, "cookies": r2.get("cookies") or {}}
+    except Exception as exc:
+        print(f"[API-UMS] auto re-auth failed: {exc}")
+        return None
+
+
+def _ums_start_captcha(uid):
+    """⭐ ANY-NETWORK: portal captcha maange to image app ko do, scraper
+    pending rakho taaki verify hote hi live scrape ho sake."""
+    import base64
+
+    from scraper_app.scraper_backend import CUIMSScraperBackend
+
+    if not uid or uid == "__demo__":
+        return None
+    try:
+        scraper = CUIMSScraperBackend(uid=uid)
+        r1 = scraper.execute_stage1() or {}
+        if not r1.get("success") or not r1.get("has_captcha"):
+            return None
+        if not scraper.captcha_image_bytes:
+            return None
+        b64 = base64.b64encode(scraper.captcha_image_bytes).decode()
+        with _UMS_LOCK:
+            st = _UMS_STATE.setdefault(uid, {"uid": uid})
+            st["pending_captcha"] = scraper
+        return b64
+    except Exception as exc:
+        print(f"[API-UMS] captcha fetch failed: {exc}")
+        return None
+
+
+def _ums_auto_session(uid):
+    """Memory me session na ho (restart) to saved cookies/password se
+    khud restore karo - user ko login screen nahi dikhani."""
+    if not uid or uid == "__demo__":
+        with _UMS_LOCK:
+            return _UMS_STATE.get(uid)
+    with _UMS_LOCK:
+        state = _UMS_STATE.get(uid)
+    if state and state.get("scraper") and state.get("cookies"):
+        return state
+    saved = _ums_saved_load().get(uid) or {}
+    if not saved:
+        return state
+    restored = None
+    if saved.get("cookies"):
+        from scraper_app.scraper_backend import CUIMSScraperBackend
+
+        restored = {"scraper": CUIMSScraperBackend(uid=uid),
+                    "cookies": saved.get("cookies") or {}}
+    if saved.get("password"):
+        fresh = _ums_reauth(uid, saved["password"])
+        if fresh:
+            restored = fresh
+            _ums_saved_update(uid, cookies=fresh["cookies"])
+    if not restored:
+        return state
+    with _UMS_LOCK:
+        old_state = _UMS_STATE.get(uid) or {}
+        old_state.update(restored)
+        old_state.setdefault("uid", uid)
+        _UMS_STATE[uid] = old_state
+        return old_state
+
+
+def _ums_error(result):
+    message = result.get("error") or "UMS se connect nahi ho paya."
+    return fail(message)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def ums_stage1(request):
+    from scraper_app.scraper_backend import CUIMSScraperBackend
+
+    body = json_body(request)
+    uid = str(body.get("uid", "")).strip()
+    if not uid:
+        return fail("Apna CUIMS UID daalo.")
+    scraper = CUIMSScraperBackend(uid=uid)
+    result = scraper.execute_stage1()
+    if not result.get("success"):
+        return _ums_error(result)
+    import base64
+
+    captcha_b64 = None
+    if result.get("has_captcha") and scraper.captcha_image_bytes:
+        captcha_b64 = base64.b64encode(scraper.captcha_image_bytes).decode()
+    with _UMS_LOCK:
+        _UMS_STATE[uid] = {"scraper": scraper, "dashboard": None, "uid": uid}
+    return ok({
+        "uid": uid,
+        "has_captcha": bool(result.get("has_captcha")),
+        "captcha_b64": captcha_b64,
+    })
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def ums_stage2(request):
+    body = json_body(request)
+    uid = str(body.get("uid", "")).strip()
+    password = str(body.get("password", ""))
+    captcha = str(body.get("captcha", "")).strip()
+    if not uid or not password:
+        return fail("UID aur password chahiye.")
+    with _UMS_LOCK:
+        state = _UMS_STATE.get(uid)
+    if state is None:
+        return fail("Enter your UID and tap NEXT first (stage 1).", status=400)
+    scraper = state["scraper"]
+    auth_result = scraper.execute_stage2(password, captcha_code=captcha)
+    if not auth_result.get("success"):
+        return _ums_error(auth_result)
+    cookies = auth_result.get("cookies", {})
+    # ⭐ UMS ko isi app-user se bind karo (multi-student isolation)
+    _ums_saved_update(uid, password=password, cookies=cookies,
+                      owner=_ums_owner(request))
+    dashboard = _scrape_ums_dashboard(scraper, cookies, state=state)
+    with _UMS_LOCK:
+        state["cookies"] = cookies
+        state["dashboard"] = dashboard
+        state["dashboard_at"] = time.time()
+    return ok({"uid": uid, **dashboard})
+
+
+def _scrape_ums_dashboard(scraper, cookies, state=None):
+    """Original scraper_app authenticate-flow ka EXACT mirror:
+    wahi functions, wahi order (phase-1 parallel + phase-2 results +
+    phase-3 risky) + original dashboard render ke SAARE template keys —
+    results dropdown (available_sessions), SGPA/CGPA, fee normalize
+    (has_money/cleared/all_paid), course-modal dlog pack."""
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    from scraper_app.views import (
+        academic_semester_number,
+        attach_plan_urls,
+        clean_attendance_records,
+        declared_result_semesters,
+        merge_session_pool,
+        normalize_fee_data,
+        normalize_subject_grades,
+        normalize_timetable_map,
+        numbered_sessions,
+        sort_timetable_slots,
+    )
+
+    uid = scraper.uid
+    if state is None:
+        state = {}
+    dashboard = {
+        "student_name": "",
+        "uid": uid,
+        "overall_attendance": None,
+        "total_attended": 0,
+        "total_held": 0,
+        "total_missed": 0,
+        "attendance": [],
+        "timetable": {},
+        "marks": [],
+        "subject_grades": [],
+        "exam_results": [],
+        "available_sessions": [],
+        "active_session": "",
+        "active_sgpa": "0.00",
+        "student_cgpa": "0.00",
+        "total_credits": 0,
+        "result_pending": False,
+        "notices": [],
+        "fee_summary": {},
+        "fee_records": [],
+        "hostel_details": {"found": False},
+        "student_profile": {"found": False},
+        "course_plan": {"found": False},
+    }
+
+    def _parallel(tasks, workers=6):
+        out = {}
+        if not tasks:
+            return out
+        with ThreadPoolExecutor(max_workers=min(workers, len(tasks))) as pool:
+            futures = {pool.submit(fn): name for name, fn in tasks}
+            for fut in as_completed(futures):
+                name = futures[fut]
+                try:
+                    out[name] = fut.result()
+                except Exception as exc:
+                    print(f"[API-UMS] parallel scrape '{name}' failed: {exc}")
+                    out[name] = None
+        return out
+
+    # ── Attendance (serial, pehle — original jaisa) ──
+    try:
+        attendance_result = scraper.scrape_attendance_records(cookies) or {}
+    except Exception as exc:
+        print(f"[API-UMS] attendance failed: {exc}")
+        attendance_result = {}
+    state["encrypt_codes"] = [
+        str(r.get("EncryptCode")).strip()
+        for r in (attendance_result.get("records") or [])
+        if r.get("EncryptCode")
+    ][:3]
+    if attendance_result.get("success"):
+        records = clean_attendance_records(attendance_result.get("records", []))
+        attended_sum = sum(int(r.get("attended", 0) or 0) for r in records)
+        held_sum = sum(int(r.get("total", 0) or 0) for r in records)
+        dashboard["attendance"] = records
+        # ⭐ Portal "Eligible" math (user proof): DL (IDL/ADL/VDL) ya
+        # Medical Leave lagne pe portal delivered/attended/percentage ko
+        # eligible numbers pe adjust kar deta hai. App bhi SAME dikhae.
+        _el_att_sum = 0
+        _el_held_sum = 0
+        try:
+            def _num(x):
+                try:
+                    return int(float(str(x).strip() or 0))
+                except (TypeError, ValueError):
+                    return 0
+
+            def _fnum(x):
+                try:
+                    return float(str(x).replace("%", "").strip() or 0)
+                except (TypeError, ValueError):
+                    return 0.0
+
+            def _nkey(k):
+                return "".join(ch for ch in str(k).lower() if ch.isalnum())
+
+            def _get(_nk, *names):
+                for _nm in names:
+                    if _nk.get(_nm) not in (None, ""):
+                        return _nk[_nm]
+                return None
+
+            _el_att_sum = 0
+            _el_held_sum = 0
+            for _rr in (attendance_result.get("records") or []):
+                if not isinstance(_rr, dict):
+                    continue
+                _nk = {_nkey(k): v for k, v in _rr.items()}
+                _ck = _nkey(str(_rr.get("Code") or _rr.get("CourseCode") or ""))
+                if not _ck:
+                    _t = str(_rr.get("Title") or "")
+                    _ck = _nkey(_t.split(":", 1)[0]) if ":" in _t else ""
+                if not _ck:
+                    continue
+                _rec = None
+                for _r in records:
+                    if _nkey(_r.get("code")) == _ck:
+                        _rec = _r
+                        break
+                if _rec is None:
+                    continue
+                _dl = _num(_nk.get("idl")) + _num(_nk.get("adl"))                     + _num(_nk.get("vdl"))
+                _rec["medical_leave"] = _num(
+                    _nk.get("medicalleave") or _nk.get("medical"))
+                _ed = _get(_nk, "eligibledelivered",
+                           "eligibilitydelivered", "edelivered")
+                _ea = _get(_nk, "eligibleattended",
+                           "eligibilityattended", "eattended")
+                _ep = _get(_nk, "eligiblepercentage",
+                           "eligibilitypercentage", "eligibleperc",
+                           "epercentage")
+                _td = _num(_nk.get("totaldelv") or _nk.get("totaldelivered"))
+                if _ed is None and _td and (_dl or _rec["medical_leave"]):
+                    _ed = max(_td - _dl - _rec["medical_leave"], 0)
+                if _ed is not None and _num(_ed) > 0:
+                    _excl = max(_dl, max(_td - _num(_ed), 0))
+                    _rec["duty_leave"] = _excl if _excl > 0 else _dl
+                    _rec["total"] = _num(_ed)
+                    if _ea is not None:
+                        _rec["attended"] = _num(_ea)
+                    if _ep is not None and _fnum(_ep) > 0:
+                        _rec["percentage"] = _fnum(_ep)
+                    elif _rec["total"]:
+                        _rec["percentage"] = round(
+                            _rec["attended"] / _rec["total"] * 100, 2)
+                    _pct = float(_rec["percentage"] or 0)
+                    _att = int(_rec["attended"] or 0)
+                    _tot = int(_rec["total"] or 0)
+                    if _pct >= 75:
+                        _rec["miss"] = max(
+                            0, int((100 * _att - 75 * _tot) // 75))
+                        _rec["need"] = 0
+                    else:
+                        _rec["miss"] = 0
+                        _rec["need"] = max(
+                            0, int(((75 * _tot - 100 * _att) + 24) // 25))
+                else:
+                    _rec["duty_leave"] = _dl
+                _el_att_sum += int(_rec.get("attended") or 0)
+                _el_held_sum += int(_rec.get("total") or 0)
+            if records:
+                dashboard["total_attended"] = _el_att_sum
+                dashboard["total_held"] = _el_held_sum
+                dashboard["total_missed"] = max(_el_held_sum - _el_att_sum, 0)
+        except Exception:
+            dashboard["total_attended"] = attended_sum
+            dashboard["total_held"] = held_sum
+            dashboard["total_missed"] = max(held_sum - attended_sum, 0)
+        # Mirror original dashboard.html: portal overall authoritative,
+        # else AVG of per-course percentages (only delivered courses).
+        _pcts = [
+            float(r.get("percentage", 0) or 0)
+            for r in records
+            if int(r.get("total", 0) or 0) > 0
+        ]
+        avg_percentage = round(sum(_pcts) / len(_pcts), 1) if _pcts else 0.0
+        overall = attendance_result.get("overall")
+        if not (isinstance(overall, (int, float)) and 0 <= float(overall) <= 100):
+            # ⭐ portal overall na mile to weighted (attended/held) —
+            # simple avg se portal wala % alag hota hai (62.62 vs 60 wala bug)
+            _wa_att = _el_att_sum if _el_held_sum > 0 else attended_sum
+            _wa_held = _el_held_sum if _el_held_sum > 0 else held_sum
+            overall = (_wa_att / _wa_held * 100) if _wa_held > 0 else avg_percentage
+        dashboard["overall_attendance"] = round(float(overall), 2)
+
+    fee_fn = getattr(scraper, "scrape_fee_records", None)
+
+    # ── Phase-1: safe pages parallel (original set + daily attendance) ──
+    _p1 = _parallel([
+        ("timetable", lambda: scraper.scrape_timetable(cookies)),
+        ("marks", lambda: scraper.scrape_marks_records(cookies)),
+        ("fees", lambda: fee_fn(cookies) if callable(fee_fn) else None),
+        ("notices", lambda: scraper.scrape_home_announcements(cookies)),
+        ("profile", lambda: scraper.scrape_student_profile(cookies)),
+        ("daily", lambda: scraper.scrape_daily_attendance(
+            cookies, encrypt_codes=state.get("encrypt_codes"))),
+    ])
+
+    timetable_result = _p1.get("timetable") or {}
+    if timetable_result.get("success"):
+        dashboard["timetable"] = sort_timetable_slots(
+            normalize_timetable_map(timetable_result.get("timetable", {})))
+
+    marks_result = _p1.get("marks") or {}
+    if marks_result.get("success"):
+        dashboard["marks"] = marks_result.get("marks", []) or []
+    session_pool = merge_session_pool(
+        marks_result.get("available_sessions") or [], [])
+    active_session = str(marks_result.get("active_session") or "")
+    state["marks_codes"] = [
+        item.get("code", "") for item in marks_result.get("marks", [])
+        if item.get("code")
+    ]
+
+    fees_result = _p1.get("fees") or None
+    if fees_result and fees_result.get("success"):
+        state["receipts_map"] = fees_result.get("receipts_map", {}) or {}
+        fee_summary, fee_records = normalize_fee_data(
+            fees_result.get("summary", {}) or {},
+            fees_result.get("records", []) or [],
+        )
+        # ⭐ Receipt PDFs: original session-proxy -> API proxy (uid query)
+        for record in fee_records:
+            receipt_no = str(record.get("receipt") or "").strip()
+            if receipt_no and receipt_no in state["receipts_map"]:
+                record["receipt_url"] = (
+                    f"/api/ums/receipt/{receipt_no}/?uid={uid}"
+                )
+        dashboard["fee_summary"] = fee_summary
+        dashboard["fee_records"] = fee_records
+
+    notices_result = _p1.get("notices") or None
+    if notices_result and notices_result.get("success"):
+        dashboard["notices"] = notices_result.get("announcements", []) or []
+
+    profile_result = _p1.get("profile") or None
+    if profile_result and profile_result.get("success"):
+        profile_result["has_photo"] = bool(
+            profile_result.get("photo_b64")
+            or profile_result.get("photo_url")
+        )
+        dashboard["student_profile"] = profile_result
+        dashboard["student_name"] = profile_result.get("name", "")
+
+    daily_result = _p1.get("daily") or None
+    daily_attendance = {}
+    if daily_result and daily_result.get("success"):
+        daily_attendance = daily_result
+    # ⭐ Duty/medical leave: portal aisi lectures ko conducted NAHI maanta.
+    # Scraper inhe tone=present deta hai - yahan "leave" karo taaki app me
+    # DL chip dikhe aur lecture count na ho (present/absent me na jude).
+    try:
+        _LEAVE_SET = ("dl", "duty", "on duty", "on-duty", "od", "ml",
+                      "medical", "leave", "holiday")
+        _dl_daily = {}
+        for _sub in (daily_attendance.get("subjects") or []):
+            if not isinstance(_sub, dict):
+                continue
+            for _e in (_sub.get("entries") or []):
+                if not isinstance(_e, dict):
+                    continue
+                _st = str(_e.get("status") or "").strip().lower()
+                if _st.startswith(_LEAVE_SET):
+                    _e["tone"] = "leave"
+                    _cc = str(_sub.get("code") or "").strip().upper()
+                    _dl_daily[_cc] = _dl_daily.get(_cc, 0) + 1
+        # daily leave counts ko course records me merge (max, double-count se bachne ke liye)
+        if _dl_daily:
+            for _r in (dashboard.get("attendance") or []):
+                _cc = str(_r.get("code") or "").strip().upper()
+                if _cc in _dl_daily:
+                    _r["duty_leave"] = max(
+                        int(_r.get("duty_leave") or 0), _dl_daily[_cc])
+    except Exception:
+        pass
+    state["daily_attendance"] = daily_attendance
+
+    # ── Phase-2: exam results (original jaisa — marks codes + session) ──
+    batch_match = re.match(r"^(\d{2})", str(uid))
+    batch_year = int(batch_match.group(1)) if batch_match else None
+    results_result = {}
+    try:
+        results_result = scraper.scrape_exam_results(
+            cookies,
+            sem_id=active_session or None,
+            marks_codes=state.get("marks_codes"),
+            semester_number=(
+                academic_semester_number(active_session, batch_year)
+                if active_session else None
+            ),
+        ) or {}
+    except Exception as exc:
+        print(f"[API-UMS] exam results failed: {exc}")
+
+    exam_results = []
+    student_cgpa = "0.00"
+    result_pending = False
+    result_active_sgpa = ""
+    result_active_cgpa = ""
+    subjects = []
+    total_credits = 0
+    if results_result.get("success"):
+        exam_results = results_result.get("results", []) or []
+        student_cgpa = results_result.get("global_cgpa", "0.00")
+        result_pending = bool(results_result.get("semester_pending"))
+        result_active_sgpa = str(results_result.get("active_sgpa") or "")
+        result_active_cgpa = str(results_result.get("active_cgpa") or "")
+        subjects, total_credits = normalize_subject_grades(
+            results_result.get("subject_grades", []) or [])
+        session_pool = merge_session_pool(
+            session_pool, results_result.get("available_sems") or [])
+        result_active_sem = str(results_result.get("active_sem") or "")
+        if not active_session and result_active_sem:
+            active_session = result_active_sem
+    dashboard["exam_results"] = exam_results
+    dashboard["subject_grades"] = subjects
+    dashboard["student_cgpa"] = student_cgpa
+    dashboard["total_credits"] = total_credits
+    dashboard["result_pending"] = result_pending
+
+    # ⭐ Results dropdown (original render jaisa — saare sessions + pending flag)
+    numbered = numbered_sessions(session_pool, uid)
+    declared_nums = declared_result_semesters(exam_results)
+    dashboard["available_sessions"] = [
+        {
+            "id": sn["id"],
+            "name": f"Semester {sn['sem_num']}",
+            "selected": sn["id"] == active_session,
+            "pending": sn["sem_num"] not in declared_nums,
+        }
+        for sn in numbered
+    ]
+    dashboard["active_session"] = active_session
+
+    # ⭐ Active semester ka SGPA (original regex match + fallbacks)
+    active_sem_num = next(
+        (sn["sem_num"] for sn in numbered if sn["id"] == active_session),
+        None,
+    )
+    active_sgpa = "0.00"
+    if active_sem_num is not None:
+        for result in exam_results:
+            match = re.search(
+                r"\b(?:semester|sem)\s*[-:]?\s*(\d+)\b",
+                str(result.get("semester", "")), flags=re.I)
+            if match and int(match.group(1)) == active_sem_num:
+                active_sgpa = str(result.get("sgpa", "0.00"))
+                break
+    if active_sgpa == "0.00" and result_active_sgpa:
+        active_sgpa = result_active_sgpa
+    if active_sgpa == "0.00" and exam_results:
+        active_sgpa = str(exam_results[-1].get("sgpa", "0.00"))
+    if (not student_cgpa or student_cgpa == "0.00") and result_active_cgpa:
+        student_cgpa = result_active_cgpa
+        dashboard["student_cgpa"] = student_cgpa
+    dashboard["active_sgpa"] = active_sgpa
+
+    # ── Phase-3: risky pages (hostel + course plan) ──
+    _p3 = _parallel([
+        ("hostel", lambda: scraper.scrape_hostel_details(cookies)),
+        ("course_plan", lambda: scraper.scrape_course_plan(cookies)),
+    ])
+    hostel_result = _p3.get("hostel") or None
+    if hostel_result and hostel_result.get("success"):
+        dashboard["hostel_details"] = hostel_result
+
+    course_plan_result = _p3.get("course_plan") or None
+    plan_credits = {}
+    if course_plan_result and (
+        course_plan_result.get("success") or course_plan_result.get("found")
+    ):
+        plan = attach_plan_urls(course_plan_result)
+        courses = []
+        for index, course in enumerate(plan.get("courses") or []):
+            item = dict(course)
+            if item.get("plan_view_url"):
+                item["plan_view_url"] = f"/api/ums/pdf/{index}/?uid={uid}"
+            credits_label = ""
+            for meta in item.get("meta") or []:
+                cm = re.search(r"(\d+(?:\.\d+)?)\s*Credits?", str(meta), re.I)
+                if cm:
+                    credits_label = f"{cm.group(1)} Credits"
+                    break
+            code_key = str(item.get("code") or "").strip().upper()
+            if code_key:
+                plan_credits[code_key] = (
+                    item.get("plan_view_url") or "", credits_label)
+            courses.append(item)
+        page_pdfs = []
+        for offset, entry in enumerate(plan.get("page_pdfs") or []):
+            link = dict(entry)
+            if link.get("view_url"):
+                link["view_url"] = f"/api/ums/pdf/{1000 + offset}/?uid={uid}"
+            page_pdfs.append(link)
+        plan["courses"] = courses
+        plan["page_pdfs"] = page_pdfs
+        dashboard["course_plan"] = plan
+
+    # ── ⭐ Course-modal pack (original dlog/dlog_days/ring_off enrich) ──
+    try:
+        dsubj = (daily_attendance or {}).get("subjects") or []
+        smap = {}
+        for s in dsubj:
+            if isinstance(s, dict):
+                key = str(s.get("code") or "").strip().upper()
+                if key:
+                    smap[key] = s
+
+        def _days_of(entries):
+            groups = []
+            cur = None
+            for e in entries:
+                if cur is None or cur["date"] != e.get("date"):
+                    cur = {"date": e.get("date", ""),
+                           "wday": e.get("wday", ""),
+                           "p": 0, "a": 0, "entries": []}
+                    groups.append(cur)
+                cur["entries"].append(e)
+                if e.get("tone") == "present":
+                    cur["p"] += 1
+                elif e.get("tone") == "absent":
+                    cur["a"] += 1
+            return groups
+
+        packed = []
+        for r in dashboard["attendance"]:
+            key = str(r.get("code") or "").strip().upper()
+            subj = smap.get(key)
+            att = int(r.get("attended") or 0)
+            tot = int(r.get("total") or 0)
+            try:
+                pct = float(r.get("percentage") or 0)
+            except (TypeError, ValueError):
+                pct = 0.0
+            plan_url, credits_label = plan_credits.get(key, ("", ""))
+            item = dict(r)
+            item["dlog"] = subj
+            item["dlog_days"] = (
+                _days_of(subj.get("entries") or []) if subj else [])
+            item["ring_off"] = round(
+                188.5 * (100.0 - min(pct, 100.0)) / 100.0, 1)
+            item["dplan_url"] = plan_url
+            item["dplan_credits"] = credits_label
+            packed.append(item)
+        dashboard["attendance"] = packed
+    except Exception as exc:
+        print(f"[API-UMS] course-modal pack skip: {exc}")
+
+    # ⭐ Semester-switch / receipt / photo proxies ke liye state extras
+    state["pool"] = session_pool
+    state["active_session"] = active_session
+    state["batch_year"] = batch_year
+    state["cookies"] = cookies
+    if state.get("uid"):
+        _ums_saved_update(state["uid"], cookies=cookies)
+    state["last_scrape_ok"] = bool(
+        (attendance_result or {}).get("success")
+        or (dashboard.get("timetable") or {}))
+    return dashboard
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def ums_demo(request):
+    dashboard = {
+        "student_name": "Demo Student",
+        "uid": "DEMO0001",
+        "overall_attendance": 82.4,
+        "total_attended": 91,
+        "total_held": 113,
+        "student_cgpa": "8.1",
+        "active_sgpa": "7.9",
+        "total_credits": 20,
+        "result_pending": True,
+        "active_session": "26271",
+        "available_sessions": [
+            {"id": "25262", "name": "Semester 1", "selected": False, "pending": False},
+            {"id": "26271", "name": "Semester 2", "selected": True, "pending": False},
+            {"id": "26272", "name": "Semester 3", "selected": False, "pending": True},
+        ],
+        "marks": [
+            {"code": "CSE201", "title": "Data Structures", "marks": [
+                {"element": "Sessional 1", "obtained": 18, "total": 20},
+                {"element": "Sessional 2", "obtained": 17, "total": 20},
+            ]},
+            {"code": "CSE202", "title": "Operating Systems", "marks": [
+                {"element": "Sessional 1", "obtained": 15, "total": 20},
+            ]},
+        ],
+        "total_missed": 22,
+        "course_plan": {
+            "found": True,
+            "page_pdfs": [
+                {"label": "Academic Calendar 2026-27",
+                 "view_url": "http://localhost:8000/api/ums/pdf/?u=cal"},
+                {"label": "Syllabus Handbook CSE",
+                 "view_url": "http://localhost:8000/api/ums/pdf/?u=syl"},
+            ],
+            "courses": [
+                {"code": "CSE201", "title": "Data Structures",
+                 "meta": ["4 CREDITS", "THEORY"],
+                 "plan_view_url": "http://localhost:8000/api/ums/pdf/?u=cse201",
+                 "plan": [{"rows": [
+                     ["Unit", "Topic", "Lectures"],
+                     ["1", "Arrays & Stacks", "L1-L6"],
+                     ["2", "Trees & Heaps", "L7-L12"],
+                 ]}]},
+                {"code": "CSE202", "title": "Operating Systems",
+                 "meta": ["3 CREDITS", "THEORY"],
+                 "plan_view_url": "", "plan": []},
+            ],
+        },
+        "attendance": [
+            {"code": "CSE201", "title": "Data Structures", "attended": 34,
+             "total": 40, "percentage": 85.0, "miss": 5, "need": 0},
+            {"code": "CSE202", "title": "Operating Systems", "attended": 27,
+             "total": 38, "percentage": 71.1, "miss": 0, "need": 5},
+            {"code": "CSE203", "title": "DBMS", "attended": 30,
+             "total": 35, "percentage": 85.7, "miss": 4, "need": 0},
+        ],
+        "timetable": {
+            "MON": {"slots": [
+                {"time": "09:00 - 10:00", "type": "THEORY",
+                 "title": "Data Structures", "teacher": "Dr. Sharma",
+                 "code": "CSE201", "room": "AB-204"},
+                {"time": "10:00 - 11:00", "type": "THEORY",
+                 "title": "DBMS", "teacher": "Prof. Mehta",
+                 "code": "CSE203", "room": "AB-105"},
+            ]},
+            "TUE": {"slots": [
+                {"time": "09:00 - 10:00", "type": "THEORY",
+                 "title": "Operating Systems", "teacher": "Dr. Verma",
+                 "code": "CSE202", "room": "AB-301"},
+                {"time": "14:00 - 16:00", "type": "PRACTICAL",
+                 "title": "DS Lab", "teacher": "Dr. Sharma",
+                 "code": "CSE201", "room": "Lab-3"},
+            ]},
+        },
+        "exam_results": [
+            {"semester": "Sem 1", "sgpa": "8.3", "sessions": [
+                {"name": "End Sem", "subjects": [
+                    {"code": "CSE101", "title": "Programming Fundamentals",
+                     "credits": 4, "internal": 28, "external": 45,
+                     "score": 73.0, "grade": "A"},
+                    {"code": "CSE102", "title": "Maths I", "credits": 4,
+                     "internal": 26, "external": 41, "score": 67.0,
+                     "grade": "B+"},
+                ]},
+            ]},
+            {"semester": "Sem 2", "sgpa": "7.9", "sessions": [
+                {"name": "End Sem", "subjects": [
+                    {"code": "CSE111", "title": "OOP with C++", "credits": 4,
+                     "internal": 27, "external": 43, "score": 70.0,
+                     "grade": "A"},
+                ]},
+            ]},
+        ],
+        "notices": [
+            {"title": "Mid-sem exam schedule released",
+             "department": "Examination Cell", "date": "21 Aug 2026",
+             "desc": "Mid-semester exams 1-7 September tak honge.",
+             "files": [
+                 {"name": "exam_schedule.pdf",
+                  "url": "http://localhost:8000/api/ums/pdf/?u=exsch"},
+             ]},
+            {"title": "Tech fest registrations open",
+             "department": "Cultural Committee", "date": "18 Aug 2026",
+             "desc": "CUnnect tech fest ke liye team registrations start."},
+        ],
+        "fee_summary": {"total": "95,000", "paid": "70,000", "due": "25,000",
+                        "has_money": True, "cleared": False, "all_paid": False,
+                        "meter": True, "paid_pct": 73.7, "due_pct": 26.3,
+                        "latest": "15 Jul 2026", "receipt_count": 2},
+        "fee_records": [
+            {"receipt": "RCPT-1187", "title": "Exam Fee", "amount": 25000,
+             "date": "15 Jul 2026", "status": "Paid", "semester": "2026-27",
+             "receipt_url": ""},
+            {"receipt": "RCPT-1023", "title": "Tuition Fee", "amount": 45000,
+             "date": "10 Jan 2026", "status": "Paid", "semester": "2025-26",
+             "receipt_url": ""},
+        ],
+        "hostel_details": {"found": True, "sections": [
+            {"heading": "Hostel", "rows": [
+                {"label": "Hostel Name", "value": "Boys Hostel 2"},
+                {"label": "Room No", "value": "B2-114"},
+                {"label": "Status", "value": "Active"},
+            ]},
+        ]},
+        "student_profile": {"found": True, "name": "Demo Student",
+                            "sections": [
+            {"heading": "Academic", "rows": [
+                {"label": "UID", "value": "DEMO0001"},
+                {"label": "Program", "value": "BTech CSE"},
+                {"label": "Year", "value": "2nd Year"},
+            ]},
+        ]},
+    }
+    with _UMS_LOCK:
+        _UMS_STATE["__demo__"] = {"dashboard": dashboard}
+        _UMS_STATE["DEMO0001"] = {"dashboard": dashboard}
+    return ok({"uid": "DEMO0001", **dashboard})
+
+
+@student_required
+def ums_saved_uids(request, user):
+    """⭐ Sirf ISI app-user ke apne saved UMS accounts (multi-student
+    isolation) - doosre student ka UMS kabhi nahi dikhega."""
+    data = _ums_saved_load()
+    uids = [
+        str(u)
+        for u, e in data.items()
+        if isinstance(e, dict)
+        and (e.get("password") or e.get("cookies"))
+        and str(e.get("owner") or "") == user.username
+    ]
+    return ok({"uids": uids})
+
+
+@student_required
+def ums_dashboard(request, user):
+    """⭐ REAL-TIME: har app-open/SYNC pe fresh scrape (refresh=1), warna
+    4-min TTL. Session mare to saved password se silent re-auth + retry."""
+    uid = request.GET.get("uid", "").strip() or "__demo__"
+    # ⭐ multi-student isolation: doosre user ka UMS block
+    if uid != "__demo__":
+        entry = _ums_saved_load().get(uid) or {}
+        owner = str(entry.get("owner") or "")
+        if owner and owner != user.username:
+            return fail("Ye UMS account aapke app login se linked nahi hai.",
+                        status=403)
+    refresh = request.GET.get("refresh", "") in ("1", "true", "yes")
+    state = _ums_auto_session(uid)
+    if state is None:
+        return fail(
+            "UMS session nahi mila — app me UMS login karo.", status=404)
+    if not state.get("scraper"):
+        if state.get("dashboard"):
+            return ok(state["dashboard"])
+        return fail("UMS session not found — please login again.",
+                    status=404)
+    now = time.time()
+    stale = now - float(state.get("dashboard_at") or 0) > 240
+    busy = now - float(state.get("scraping_at") or 0) < 25
+    if (refresh or stale or not state.get("dashboard")) and not (
+            busy and state.get("dashboard")):
+        state["scraping_at"] = now
+        dashboard = _scrape_ums_dashboard(
+            state["scraper"], state.get("cookies") or {}, state=state)
+        if not state.get("last_scrape_ok"):
+            saved = _ums_saved_load().get(uid) or {}
+            fresh = _ums_reauth(uid, saved.get("password") or "")
+            if fresh:
+                state["scraper"] = fresh["scraper"]
+                state["cookies"] = fresh["cookies"]
+                _ums_saved_update(uid, cookies=fresh["cookies"])
+                dashboard = _scrape_ums_dashboard(
+                    state["scraper"], state["cookies"], state=state)
+        if not state.get("last_scrape_ok"):
+            # ⭐ Bahar ke network pe portal captcha maangta hai - image app
+            # bhejo, student verify karega phir live scrape hoga.
+            b64 = _ums_start_captcha(uid)
+            if b64:
+                dashboard = dict(dashboard)
+                dashboard["needs_captcha"] = True
+                dashboard["captcha_b64"] = b64
+        with _UMS_LOCK:
+            state["dashboard"] = dashboard
+            state["dashboard_at"] = time.time()
+        # ⭐ attendance present/absent mark hua -> student ko push
+        try:
+            if state.get("last_scrape_ok"):
+                recs = dashboard.get("attendance") or []
+                snap = {}
+                for r in recs:
+                    snap[str(r.get("code") or "")] = (
+                        int(r.get("attended", 0) or 0),
+                        int(r.get("total", 0) or 0))
+                prev = state.get("att_snap")
+                if prev and snap and prev != snap:
+                    changed = []
+                    for code, (a, t) in snap.items():
+                        if not code:
+                            continue
+                        pa, pt = prev.get(code, (a, t))
+                        if a != pa or t != pt:
+                            status = ("Present ✔" if a > pa
+                                      else ("Absent ✘" if t > pt else "Updated"))
+                            changed.append(f"{code}: {status} ({a}/{t})")
+                    if changed:
+                        _push_user(user.id, "Attendance Updated 📋",
+                                   " | ".join(changed[:3]))
+                if snap:
+                    state["att_snap"] = snap
+        except Exception as exc:
+            print(f"[UMS-ATT-PUSH] {exc}")
+    return ok(state["dashboard"])
+
+
+@csrf_exempt
+@require_http_methods(["GET"])
+def ums_captcha(request):
+    """⭐ Fresh captcha image (app ka 'Verification Required' dialog)."""
+    uid = request.GET.get("uid", "").strip()
+    b64 = _ums_start_captcha(uid)
+    if not b64:
+        return fail("Portal captcha nahi maang raha / portal unreachable.")
+    return ok({"needs_captcha": True, "captcha_b64": b64})
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def ums_verify_captcha(request):
+    """⭐ Student ka captcha code -> portal login -> turant live scrape."""
+    body = json_body(request)
+    uid = str(body.get("uid", "")).strip()
+    code = str(body.get("code", "")).strip()
+    if not uid or not code:
+        return fail("Captcha code daalo.")
+    with _UMS_LOCK:
+        state = _UMS_STATE.get(uid) or {}
+        scraper = state.get("pending_captcha")
+    if scraper is None:
+        return fail("Captcha expire ho gaya - refresh karke dobara try karo.",
+                    status=400)
+    saved = _ums_saved_load().get(uid) or {}
+    password = saved.get("password") or ""
+    if not password:
+        return fail("Saved password nahi mila - UMS login dobara karo.",
+                    status=400)
+    auth = scraper.execute_stage2(password, captcha_code=code) or {}
+    if not auth.get("success"):
+        return fail(str(auth.get("error") or
+                        "Galat captcha - dobara try karo."))
+    cookies = auth.get("cookies") or {}
+    _ums_saved_update(uid, cookies=cookies, owner=_ums_owner(request))
+    with _UMS_LOCK:
+        state["scraper"] = scraper
+        state["cookies"] = cookies
+        state.pop("pending_captcha", None)
+        _UMS_STATE[uid] = state
+    dashboard = _scrape_ums_dashboard(scraper, cookies, state=state)
+    with _UMS_LOCK:
+        state["dashboard"] = dashboard
+        state["dashboard_at"] = time.time()
+    return ok({"uid": uid, **dashboard})
+
+
+def ums_course_pdf(request, index):
+    """Lecture-plan PDF proxy — original course_plan_pdf_view ko
+    session inject karke delegate karta hai (Flutter ke paas web
+    session nahi hota, isliye uid query se state restore)."""
+    from scraper_app.views import course_plan_pdf_view
+
+    uid = request.GET.get("uid", "").strip()
+    state = _ums_auto_session(uid)
+    if not state or not state.get("scraper"):
+        return HttpResponseNotFound(
+            "UMS session nahi mila — app mein dobara UMS login karo."
+        )
+    scraper = state["scraper"]
+    request.session["scraper_state"] = {
+        "base_url": getattr(scraper, "base_url", None),
+        "uid": uid,
+        "cookies": state.get("cookies") or {},
+    }
+    request.session["course_plan"] = (state.get("dashboard") or {}).get(
+        "course_plan"
+    ) or {}
+    request.session.modified = True
+    return course_plan_pdf_view(request, index)
+
+
+@student_required
+def ums_semester(request, user):
+    """⭐ Results dropdown: session tap -> us semester ke marks + results
+    (original ?tab=marks&session_id=X flow ka mirror)."""
+    from scraper_app.views import (
+        declared_result_semesters,
+        merge_session_pool,
+        normalize_subject_grades,
+        numbered_sessions,
+    )
+
+    uid = request.GET.get("uid", "").strip() or str(user.username)
+    state = _ums_auto_session(uid)
+    if not state or not state.get("scraper"):
+        return fail("UMS session not found — please login again.", status=404)
+    requested = str(request.GET.get("session_id") or "").strip()
+    dashboard = dict(state.get("dashboard") or {})
+    current = str(state.get("active_session") or "")
+    pool = state.get("pool") or []
+    if not requested:
+        requested = current
+
+    if requested and requested != current:
+        scraper = state["scraper"]
+        cookies = state.get("cookies") or {}
+        try:
+            marks_result = scraper.scrape_marks_records(
+                cookies_dict=cookies, session_id=requested) or {}
+        except Exception as exc:
+            print(f"[API-UMS] semester marks failed: {exc}")
+            marks_result = {}
+        numbered = numbered_sessions(pool, uid)
+        sem_num = next(
+            (sn["sem_num"] for sn in numbered if sn["id"] == requested),
+            None,
+        )
+        codes = [
+            item.get("code", "")
+            for item in marks_result.get("marks", [])
+            if item.get("code")
+        ]
+        try:
+            exam_result = scraper.scrape_exam_results(
+                cookies_dict=cookies,
+                sem_id=requested,
+                marks_codes=codes,
+                semester_number=sem_num,
+            ) or {}
+        except Exception as exc:
+            print(f"[API-UMS] semester results failed: {exc}")
+            exam_result = {}
+        if not marks_result.get("success") and not exam_result.get("success"):
+            return fail(
+                "Ye semester portal se nahi mila — thodi der baad try karo.",
+                status=502,
+            )
+        if marks_result.get("success"):
+            dashboard["marks"] = marks_result.get("marks", []) or []
+        if exam_result.get("success"):
+            subjects, total_credits = normalize_subject_grades(
+                exam_result.get("subject_grades", []) or [])
+            dashboard["exam_results"] = exam_result.get("results", []) or []
+            dashboard["subject_grades"] = subjects
+            dashboard["student_cgpa"] = exam_result.get("global_cgpa", "0.00")
+            dashboard["result_pending"] = bool(
+                exam_result.get("semester_pending"))
+            dashboard["total_credits"] = total_credits
+            pool = merge_session_pool(
+                pool, exam_result.get("available_sems") or [])
+            state["pool"] = pool
+            state["active_session"] = requested
+            dashboard["active_session"] = requested
+            active_sgpa = "0.00"
+            for result in dashboard["exam_results"]:
+                match = re.search(
+                    r"\b(?:semester|sem)\s*[-:]?\s*(\d+)\b",
+                    str(result.get("semester", "")), flags=re.I)
+                if (match and sem_num is not None
+                        and int(match.group(1)) == sem_num):
+                    active_sgpa = str(result.get("sgpa", "0.00"))
+                    break
+            if active_sgpa == "0.00" and exam_result.get("active_sgpa"):
+                active_sgpa = str(exam_result.get("active_sgpa"))
+            if active_sgpa == "0.00" and dashboard["exam_results"]:
+                active_sgpa = str(
+                    dashboard["exam_results"][-1].get("sgpa", "0.00"))
+            dashboard["active_sgpa"] = active_sgpa
+            if ((not dashboard.get("student_cgpa")
+                    or dashboard["student_cgpa"] == "0.00")
+                    and exam_result.get("active_cgpa")):
+                dashboard["student_cgpa"] = str(
+                    exam_result.get("active_cgpa"))
+        # ⭐ Dropdown refresh (pool badal sakta hai)
+        declared_nums = declared_result_semesters(
+            dashboard.get("exam_results") or [])
+        active_now = str(dashboard.get("active_session") or "")
+        dashboard["available_sessions"] = [
+            {
+                "id": sn["id"],
+                "name": f"Semester {sn['sem_num']}",
+                "selected": sn["id"] == active_now,
+                "pending": sn["sem_num"] not in declared_nums,
+            }
+            for sn in numbered_sessions(pool, uid)
+        ]
+        state["dashboard"] = dashboard
+    return ok(dashboard)
+
+
+def ums_fee_receipt(request, receipt_id):
+    """⭐ Fee receipt PDF proxy — original fee_receipt_view ko state se
+    session inject karke delegate (uid query, browser se direct khulta hai)."""
+    from scraper_app.views import fee_receipt_view
+
+    uid = request.GET.get("uid", "").strip()
+    state = _ums_auto_session(uid)
+    if not state or not state.get("scraper"):
+        return HttpResponseNotFound(
+            "UMS session nahi mila — app mein dobara UMS login karo."
+        )
+    scraper = state["scraper"]
+    request.session["scraper_state"] = {
+        "base_url": getattr(scraper, "base_url", None),
+        "uid": uid,
+        "cookies": state.get("cookies") or {},
+    }
+    request.session["fee_receipts_map"] = state.get("receipts_map") or {}
+    request.session.modified = True
+    return fee_receipt_view(request, receipt_id)
+
+
+def ums_profile_photo(request):
+    """⭐ Profile photo proxy — original profile_photo_view mirror."""
+    from scraper_app.views import profile_photo_view
+
+    uid = request.GET.get("uid", "").strip()
+    state = _ums_auto_session(uid)
+    if not state or not state.get("scraper"):
+        return HttpResponseNotFound("UMS session nahi mila.")
+    scraper = state["scraper"]
+    request.session["scraper_state"] = {
+        "base_url": getattr(scraper, "base_url", None),
+        "uid": uid,
+        "cookies": state.get("cookies") or {},
+    }
+    request.session["student_profile"] = (
+        (state.get("dashboard") or {}).get("student_profile") or {}
+    )
+    request.session.modified = True
+    return profile_photo_view(request)
+
+
+ID_CARD_MAX_BYTES = 6 * 1024 * 1024
+
+
+@csrf_exempt
+def ums_id_card(request):
+    """⭐ College ID card — GET: image serve, POST {image: dataURL}: save
+    (original id_card_upload_view/image_view ka API mirror, state-based)."""
+    uid = request.GET.get("uid", "").strip()
+    state = _ums_auto_session(uid)
+    if not state:
+        if request.method == "GET":
+            return HttpResponse(status=404)
+        return JsonResponse(
+            {"ok": False, "error": "UMS login required"}, status=401)
+
+    if request.method == "GET":
+        b64 = state.get("id_card")
+        if not b64:
+            return HttpResponse(status=404)
+        try:
+            raw = base64.b64decode(b64)
+        except Exception:
+            return HttpResponse(status=404)
+        resp = HttpResponse(
+            raw, content_type=state.get("id_card_type") or "image/jpeg")
+        resp["Cache-Control"] = "private, max-age=60"
+        return resp
+
+    body = json_body(request)
+    data_url = str(body.get("image") or "")
+    if not data_url.startswith("data:image/") or "," not in data_url:
+        return JsonResponse({"ok": False, "error": "sirf image file chalegi"})
+    try:
+        raw = base64.b64decode(data_url.split(",", 1)[1], validate=True)
+    except Exception:
+        return JsonResponse({"ok": False, "error": "image data corrupt hai"})
+    if not raw:
+        return JsonResponse({"ok": False, "error": "empty image"})
+    if len(raw) > ID_CARD_MAX_BYTES:
+        return JsonResponse({"ok": False, "error": "image bahut badi hai"})
+    if raw.startswith(b"\xff\xd8\xff"):
+        ctype = "image/jpeg"
+    elif raw.startswith(b"\x89PNG"):
+        ctype = "image/png"
+    elif raw.startswith(b"RIFF"):
+        ctype = "image/webp"
+    else:
+        return JsonResponse(
+            {"ok": False, "error": "jpeg/png/webp image hi bhejo"})
+    with _UMS_LOCK:
+        state["id_card"] = base64.b64encode(raw).decode("ascii")
+        state["id_card_type"] = ctype
+        state["id_card_v"] = int(time.time())
+    print(f"[API-IDCard] upload ok: uid={uid} size={len(raw) // 1024}KB")
+    return JsonResponse({"ok": True, "v": state["id_card_v"]})
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def ums_id_card_remove(request):
+    uid = request.GET.get("uid", "").strip()
+    state = _ums_auto_session(uid)
+    if state:
+        for key in ("id_card", "id_card_type", "id_card_v"):
+            state.pop(key, None)
+    return JsonResponse({"ok": True})
+
+
+def ums_ping(request):
+    """⭐ Realtime sync (original dashboard_data ka lite mirror) —
+    cached attendance numbers + alive flag, bina portal hit."""
+    uid = request.GET.get("uid", "").strip()
+    state = _ums_auto_session(uid)
+    if not state or not state.get("dashboard"):
+        return JsonResponse({"ok": False, "alive": False}, status=401)
+    dash = state["dashboard"]
+    return JsonResponse({
+        "ok": True,
+        "alive": True,
+        "attendance": {
+            "global": dash.get("overall_attendance") or 0,
+            "attended": dash.get("total_attended") or 0,
+            "held": dash.get("total_held") or 0,
+            "records": [
+                {
+                    "code": r.get("code", ""),
+                    "percentage": r.get("percentage") or 0,
+                    "attended": r.get("attended") or 0,
+                    "total": r.get("total") or 0,
+                    "miss": r.get("miss") or 0,
+                    "need": r.get("need") or 0,
+                }
+                for r in (dash.get("attendance") or [])
+                if isinstance(r, dict)
+            ],
+        },
+    })
+
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def ums_logout(request):
+    body = json_body(request)
+    uid = str(body.get("uid", "")).strip()
+    with _UMS_LOCK:
+        if uid and uid in _UMS_STATE:
+            del _UMS_STATE[uid]
+            try:
+                _data = _ums_saved_load()
+                if uid in _data:
+                    del _data[uid]
+                    with open(_UMS_SAVE_FILE, "w", encoding="utf-8") as _f:
+                        json.dump(_data, _f)
+            except Exception:
+                pass
+        _UMS_STATE.pop("__demo__", None)
+    return ok({"logged_out": True})

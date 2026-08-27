@@ -1,0 +1,18 @@
+[Unit]
+Description=CUnnect Backend (Django + Daphne ASGI)
+After=network.target
+
+[Service]
+User=ubuntu
+WorkingDirectory=/home/ubuntu/myproject
+Environment="DJANGO_ALLOWED_HOSTS=*"
+Environment="DJANGO_DEBUG=false"
+# ⭐ Email (OTP) ke liye SMTP creds — jo env vars settings.py use karta hai:
+Environment="CUNNECT_SMTP_USER="
+Environment="CUNNECT_SMTP_APP_PASSWORD="
+ExecStart=/home/ubuntu/venv/bin/daphne -b 0.0.0.0 -p 8000 myproject.asgi:application
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,96 @@
+from django.urls import path
+
+from . import views
+
+urlpatterns = [
+    # ---- student auth / dashboard ----
+    path("health/", views.health),
+    path("auth/student-login/", views.student_login),
+    path("student/dashboard/", views.student_dashboard),
+    path("student/support/", views.student_support),
+    path("student/profile/", views.student_profile),
+
+    # ---- food ----
+    path("food/home/", views.food_home),
+    path("food/coupon/validate/", views.food_coupon_validate),
+    path("food/orders/", views.food_place_order),
+    path("food/my-orders/", views.food_my_orders),
+    path("food/orders/status/", views.food_orders_status),
+    path("device/token/", views.device_token),
+    path("vendor/device/token/", views.vendor_device_token),
+    path("vendor/silence/", views.vendor_silence),
+    path("food/notifications/", views.food_notifications),
+    path("food/notifications/read/", views.food_notifications_read),
+
+    # ---- vendor portal ----
+    path("vendor/login/", views.vendor_login),
+    path("vendor/dashboard/", views.vendor_dashboard),
+    path("vendor/orders/<int:order_id>/start-delivery/", views.vendor_start_delivery),
+    path("vendor/orders/<int:order_id>/verify-otp/", views.vendor_verify_otp),
+    path("vendor/orders/<int:order_id>/<str:action>/", views.vendor_order_action),
+    path("vendor/menu/", views.vendor_menu),
+    path("vendor/menu/add/", views.vendor_menu_add),
+    path("vendor/menu/<int:item_id>/edit/", views.vendor_menu_edit),
+    path("vendor/menu/<int:item_id>/toggle/", views.vendor_menu_toggle),
+    path("vendor/kitchen/<str:state>/", views.vendor_kitchen),
+    path("vendor/earnings/", views.vendor_earnings),
+
+    # ---- delivery portal ----
+    path("delivery/login/", views.delivery_login),
+    path("delivery/dashboard/", views.delivery_dashboard),
+    path("delivery/claim/<int:order_id>/", views.delivery_claim),
+    path("delivery/verify-otp/<int:order_id>/", views.delivery_verify_otp),
+
+    # ---- printout ----
+    path("print/pages/", views.print_page_count),
+    path("print/vendors/", views.print_vendors),
+    path("print/orders/", views.print_place_order),
+    path("print/my-orders/", views.print_my_orders),
+    path("print/vendor/dashboard/", views.print_vendor_dashboard),
+    path("print/vendor/prices/", views.print_vendor_prices),
+    path("print/orders/<int:order_id>/<str:action>/", views.print_order_action),
+
+    # ---- chat (network app) ----
+    path("chat/rooms/", views.chat_rooms),
+    path("chat/rooms/create/", views.chat_rooms_create),
+    path("chat/rooms/<str:name>/", views.chat_room_detail),
+    path("chat/rooms/<str:name>/join/", views.chat_room_join),
+    path("chat/rooms/<str:name>/messages/", views.chat_send_message),
+    path("chat/rooms/<str:name>/polls/", views.chat_send_poll),
+    path("chat/polls/<int:poll_id>/vote/", views.chat_poll_vote),
+    path("chat/messages/<int:message_id>/like/", views.chat_message_like),
+    path("chat/messages/<int:message_id>/pin/", views.chat_message_pin),
+
+    # ---- store ----
+    path("store/home/", views.store_home),
+
+    # ---- UMS (scraper_app bridge) ----
+    path("auth/login1/", views.api_login_step1),
+    path("auth/login2/", views.api_login_step2),
+    path("auth/register/", views.api_register),
+    path("auth/otp-verify/", views.api_otp_verify),
+    path("auth/resend-otp/", views.api_resend_otp),
+    path("auth/forgot/", views.api_forgot_password),
+    path("auth/reset-password/", views.api_reset_password),
+    path("auth/complete-profile/", views.api_complete_profile),
+    path("ums/stage1/", views.ums_stage1),
+    path("ums/stage2/", views.ums_stage2),
+    path("ums/demo/", views.ums_demo),
+    path("ums/saved-uids/", views.ums_saved_uids),
+    path("ums/dashboard/", views.ums_dashboard),
+    path("store/hostel/", views.store_hostel),
+    path("store/hostel/order/", views.store_hostel_order),
+    path("store/hostel/my-orders/", views.store_hostel_my_orders),
+    path("vendor/hostel-orders/", views.vendor_hostel_orders),
+    path("vendor/hostel-order-status/", views.vendor_hostel_order_status),
+    path("ums/captcha/", views.ums_captcha),
+    path("ums/verify-captcha/", views.ums_verify_captcha),
+    path("ums/pdf/<int:index>/", views.ums_course_pdf),
+    path("ums/semester/", views.ums_semester),
+    path("ums/receipt/<str:receipt_id>/", views.ums_fee_receipt),
+    path("ums/photo/", views.ums_profile_photo),
+    path("ums/id-card/", views.ums_id_card),
+    path("ums/id-card/remove/", views.ums_id_card_remove),
+    path("ums/ping/", views.ums_ping),
+    path("ums/logout/", views.ums_logout),
+]

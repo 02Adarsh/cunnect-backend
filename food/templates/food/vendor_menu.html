@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Manage Menu · CUnnect Vendor</title>
+  <style>
+    :root { --bg:#090909; --panel:#151515; --line:#2b2b2b; --red:#f10b1d; --green:#38b765; --muted:#a0a0a0; }
+    * { box-sizing:border-box; }
+    html,body { min-height:100%; margin:0; }
+    body { background:#000; color:#f5f5f5; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif; }
+    .app { width:100%; max-width:620px; min-height:100vh; margin:0 auto; padding-bottom:30px; background:var(--bg); }
+    .header { position:sticky; top:0; z-index:5; height:58px; display:grid; grid-template-columns:42px 1fr 42px; align-items:center; padding:0 9px; border-bottom:1px solid #202020; background:rgba(5,5,5,.98); }
+    .back { width:36px; height:36px; display:grid; place-items:center; border-radius:50%; color:#fff; font-size:25px; text-decoration:none; }
+    .brand { justify-self:center; color:#eee; font-size:22px; font-weight:850; letter-spacing:-1.2px; } .brand strong { color:var(--red); }
+    .page-top { display:flex; align-items:flex-end; justify-content:space-between; gap:12px; padding:22px 14px 17px; border-bottom:1px solid var(--line); }
+    h1 { margin:0 0 4px; font-size:21px; letter-spacing:-.5px; } .page-top p { margin:0; color:var(--muted); font-size:12px; }
+    .add-btn { display:inline-flex; align-items:center; justify-content:center; min-height:35px; padding:0 12px; border-radius:9px; background:var(--red); color:#fff; font-size:12px; font-weight:800; text-decoration:none; white-space:nowrap; }
+    .message { margin:12px 14px 0; padding:10px 12px; border:1px solid rgba(56,183,101,.45); border-radius:9px; background:rgba(56,183,101,.1); color:#a7eac0; font-size:12px; }
+    .message.error { border-color:rgba(241,11,29,.5); background:rgba(241,11,29,.1); color:#ffabb2; }
+    .menu-list { padding:12px 14px; }
+    .menu-item { display:flex; align-items:center; gap:11px; min-height:88px; padding:11px 0; border-bottom:1px solid var(--line); }
+    .item-image { width:65px; height:65px; flex:0 0 65px; border-radius:9px; background:#222; object-fit:cover; }
+    .item-copy { min-width:0; flex:1; } .item-name { overflow:hidden; font-size:13px; font-weight:800; text-overflow:ellipsis; white-space:nowrap; } .item-meta { margin-top:3px; color:var(--red); font-size:11.5px; font-weight:700; } .item-category { margin-top:4px; color:var(--muted); font-size:10.5px; text-transform:capitalize; }
+    .item-actions { display:grid; justify-items:end; gap:7px; } .status-form { margin:0; }
+    .status-btn { min-width:76px; padding:5px 7px; border:1px solid #3c3c3c; border-radius:99px; background:#151515; color:#aaa; cursor:pointer; font-size:9.5px; font-weight:800; }
+    .status-btn.available { border-color:rgba(56,183,101,.48); background:rgba(56,183,101,.09); color:#93e4ae; }
+    .edit-link { color:#ff8791; font-size:10.5px; font-weight:750; text-decoration:none; }
+    .empty { padding:65px 20px; color:var(--muted); text-align:center; font-size:13px; } .empty strong { display:block; margin-bottom:7px; color:#eee; font-size:16px; }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header class="header">
+      <a class="back" href="{% url 'vendor_dashboard' %}" aria-label="Back to dashboard">‹</a>
+      <div class="brand"><strong>CU</strong>nnect</div>
+      <span></span>
+    </header>
+
+    <section class="page-top">
+      <div><h1>Manage Menu</h1><p>{{ vendor.business_name }} · {{ menu_items|length }} item{{ menu_items|length|pluralize }}</p></div>
+      <a class="add-btn" href="{% url 'vendor_add_item' %}">+ Add Item</a>
+    </section>
+
+    {% if messages %}
+      {% for message in messages %}
+        <div class="message {{ message.tags }}">{{ message }}</div>
+      {% endfor %}
+    {% endif %}
+
+    {% if menu_items %}
+    <section class="menu-list">
+      {% for item in menu_items %}
+      <article class="menu-item">
+        {% if item.image %}
+          <img class="item-image" src="{{ item.image.url }}" alt="{{ item.name }}">
+        {% else %}
+          <div class="item-image"></div>
+        {% endif %}
+
+        <div class="item-copy">
+          <div class="item-name">{{ item.name }}</div>
+          <div class="item-meta">₹{{ item.price|floatformat:0 }}</div>
+          <div class="item-category">{{ item.get_category_display }}</div>
+        </div>
+
+        <div class="item-actions">
+          <form class="status-form" method="post" action="{% url 'vendor_toggle_item' item.id %}">
+            {% csrf_token %}
+            <button class="status-btn {% if item.is_available %}available{% endif %}" type="submit">
+              {% if item.is_available %}Available{% else %}Unavailable{% endif %}
+            </button>
+          </form>
+          <a class="edit-link" href="{% url 'vendor_edit_item' item.id %}">Edit item</a>
+        </div>
+      </article>
+      {% endfor %}
+    </section>
+    {% else %}
+    <section class="empty"><strong>No menu items yet</strong>Add your first food item for students to see it in the Food menu.</section>
+    {% endif %}
+  </main>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1a171db4aacf655',t:'MTc4Mzg3Mzk1NQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>

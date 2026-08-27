@@ -1,0 +1,1791 @@
+
+
+
+<!DOCTYPE html>
+
+<html lang="en">
+<head><meta charset="utf-8" /><meta name="theme-color" content="#ce3333" /><meta http-equiv="X-UA-Compatible" content="IE=edge" /><meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests" /><meta name="viewport" content="width=device-width, initial-scale=1" /><link rel="dns-prefetch" href="https://student.culko.in" /><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" /><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="" /><link href="https://fonts.googleapis.com/css2?family=Barlow:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&amp;family=Nunito:ital,wght@0,200..1000;1,200..1000&amp;family=Poppins:wght@300;400;500;600&amp;family=Roboto:ital,wght@0,100..900;1,100..900&amp;display=swap" rel="stylesheet" /><title>
+	Chandigarh University Management System |  Unnao Campus
+</title><link rel="stylesheet" href="assets/css/bootstrap.min.css" /><link rel="stylesheet" href="assets/css/font-awesome.min.css" /><link rel="stylesheet" href="assets/css/style.css" /><link rel="stylesheet" href="assets/css/material-btn.css" /><link rel="stylesheet" href="assets/css/responsive.css" /><link rel="stylesheet" href="assets/css/style.css" /><link rel="stylesheet" href="assets/css/style-new.css" /><link rel="stylesheet" href="n-css/sidenav.css" /><link rel="stylesheet" href="n-css/scrollbar.css" /><link rel="stylesheet" href="css/toastr8.min.css" /><link rel="stylesheet" href="css/sweet-alert.css" /><link rel="stylesheet" href="Scripts/jquery-ui.css" /><link href="css/apprise.min.css" rel="stylesheet" /><link rel="stylesheet" href="Help/help-css.css" /><link rel="stylesheet" href="assets/css/live-video.css" />
+
+
+    <script src="Scripts/apprise-1.5.min.js"></script>
+    <script type="text/javascript" src="Scripts/jquery-2.0.3.min.js"></script>
+    <script type="text/javascript" src="Scripts/sweet-alert.min.js"></script>
+    <!-- Bootstrap JS and dependencies -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
+    <!--- Analytics CUCHD --->
+    <!-- Global site tag (gtag.js) - Google Analytics -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=UA-108822757-1"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag() { dataLayer.push(arguments); }
+        gtag('js', new Date());
+
+        gtag('config', 'UA-108822757-1');
+    </script>
+
+
+
+    <style>
+        body, html {
+            height: 100%;
+            width: 100%;
+        }
+
+        #div_exam img {
+            width: 100%;
+        }
+
+        #div_exam {
+            width: 146px;
+            position: absolute;
+            left: 0;
+            top: 10px;
+        }
+
+        .header-right {
+            position: relative;
+        }
+
+        #menu-loading {
+            /*position: absolute;
+            top: 9px;
+            left: 50%;*/
+            display: none;
+            width: 20px;
+            height: 20px;
+        }
+        .loading{ top: 16px; left: 50%; }
+        #short_links .col-sm-3 {
+            width: 20%;
+        }
+
+        .logo {
+            position: relative;
+        }
+        .logo i {
+            position: absolute;
+            top: 50%;
+            right: -30px;
+            width: 20px;
+            height: 20px;
+            line-height: 20px;
+            border-radius: 50%;
+            transform: translateY(-50%);
+            font-size: 36px;
+        }
+        #footer {
+            position: relative;
+        }
+        #a_bugreport {
+            /*position: absolute;
+            right: 13px;
+            bottom: 28px;*/
+            color: red;
+            font-size: 13px;
+        }
+        div[id*="divUniEmail"] {
+            position: absolute;
+            top: 102px;
+            background: #fff;
+            padding: 10px;
+            height: auto;
+            z-index: 99;
+            border-radius: 10px;
+            border: 1px solid #cecece;
+            z-index: 999999;
+            right: 10px;
+            transition: all 0.4s ease-in-out 0s;
+            -webkit-transition: all 0.4s ease-in-out 0s;
+            display: none;
+            width:calc(100% - 20px);
+        }
+        div[id*="div_OE"] {
+            /*position: relative;
+            z-index:999;*/
+        }
+        #short_links {
+            overflow: visible !important;
+        }
+        @media only screen and (max-width: 767px) {
+            #short_links .col-sm-3 {
+                width: 50%;
+            }
+            #short_links .col-sm-3:last-child {
+                padding-right: 7px;
+            }
+            div[id*="divUniEmail"]{
+                width:310px;
+            }
+        }
+        /* 22-08-2023 */
+        #divChangePassword input[type="submit"], 
+        #divChangePassword input[type="button"],
+        #divChangeWifiPassword input[type="submit"], 
+        #divChangeWifiPassword input[type="button"]{
+            padding: 0px !important;
+        }
+        input[type=submit], input[type=button] {
+            padding: 7px 15px !important;
+        }
+
+        /*header {
+            background: #fff;
+            box-shadow: none;
+            border-bottom: 1px solid #dadbdd;
+        }*/
+
+        .page-search {
+            padding: 13px 30px;
+    }
+        .header-left {
+            /*width: 260px;
+                border-right: 1px solid #dadbdd;
+            padding: 7px 0;*/
+        }
+
+        .user-profile-link h6 {
+            color: #405189;
+        }
+
+        .header-right {
+            padding: 0;
+        }
+        .user-profile-link > span {
+            height: 38px;
+            width: 38px;
+        }
+
+
+        .user-dropdown {
+            width: 190px;
+            background: #fff;
+            box-shadow: none;
+            top: 74px;
+            padding: 0;
+            box-shadow: 0 5px 10px rgba(30,32,37,.12);
+        }
+        .user-dropdown ul li a {
+            padding: 10px 10px;
+            font-size: 14px;
+        }
+        .user-dropdown ul li a:hover{
+            background: #f1f1f1;
+            color: #333;
+        }
+
+        .user-profile-link small.uid{
+            display: block;
+            margin-top: 2px;
+        }
+
+        .setting-dropdown {
+            width: 210px;
+            background: #fff;
+            box-shadow: none;
+            top: 52px;
+            right: -11px;
+            padding: 0;
+            box-shadow: 0 5px 10px rgba(30,32,37,.12);
+        }
+
+        .setting-dropdown ul li{
+            margin: 0 !important;
+        }
+        .setting-dropdown ul li a {
+            padding: 10px 10px;
+            font-size: 14px;
+        }
+        .setting-dropdown ul li a:hover{
+            background: #f1f1f1;
+            color: #333;
+        }
+
+        .info-icon{
+            width: auto;
+        }
+        .home-links ul li,
+        .all-notifications ul>li{
+            margin-left: 25px;
+        }
+
+
+        /*.main-wrapper {
+            background: #f3f3f9;
+            padding: 72px 0 0 260px;
+        }
+        .inner-wrapper {
+            padding: 30px 15px;
+        }*/
+        .page-search-input input[type="text"] {
+            height: 48px;
+            width: 100%;
+            border-radius: 30px;
+            background-color: rgba(228, 228, 228, 0.5);
+            padding: 0 25px;
+            color: #000;
+            transition: all 0.4s ease-in-out 0s;
+            -webkit-transition: all 0.4s ease-in-out 0s;
+            border: 1px solid #fff;
+        }
+
+        /*.uims-sidebar {
+            width: 260px;
+            background: #fff;
+            box-shadow: none;
+            padding-top: 75px;
+            border-right: 1px solid #dadbdd;
+        }*/
+        .uims-sidebar li {
+            border-bottom: 0;
+        }
+        .uims-sidebar li a {
+            color: #fff;
+            font-size: 14px;
+            line-height: 17px;
+            padding:15px;
+            position: relative;
+            font-weight: normal;
+            border-radius:30px;
+        }
+        .uims-sidebar li a span.arrow {
+            position: absolute;
+            right: 5px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+        .uims-sidebar ul .sub-menu li{
+            background-color: transparent;
+            border-color: #f5f5f5;
+            border: 0;
+        }
+        .uims-sidebar ul .sub-menu li a{
+            position: relative;
+            color: #fff;
+        }
+        .uims-sidebar ul .sub-menu li a::before {
+            content: '';
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 7px;
+            height: 2px;
+            background: #fff;
+        }
+        .uims-sidebar ul ul {
+            padding: 0;
+            /*border-bottom: 1px solid #fff;*/
+        }
+        .uims-sidebar ul ul li a {
+            display: block;
+            padding: 12px 16px 12px 35px;
+            line-height: 16px;
+            font-size: 14px;
+        }
+        .menu-content li[aria-expanded="true"] a {
+            background-color: #B80101;
+            color: #fff !important;
+        }
+        li[aria-expanded="true"] a .arrow::before {
+            transform: rotate(90deg);
+        }
+        .uims-sidebar li a:hover {
+            background-color:#B80101;
+        }
+        .uims-sidebar ul ul ul {
+            padding: 0;
+        }
+
+        .user-profile-link {
+            background: #f1f1f1;
+            padding: 18px 20px;
+        }
+
+        .shortLinks {
+            display: flex;
+            justify-content: space-between;
+            margin: 0 -10px;
+        }
+        /*.shortLinks__item:first-child{
+            padding-left: 0;
+        }
+        .shortLinks__item:last-child{
+            padding-right: 0;
+        }*/
+        .shortLinks__item {
+            width: 100%;
+            padding: 0 10px;
+        }
+        .shortLinks__item a {
+            width: 100%;
+            background: #fff;
+            padding: 20px;
+            position: relative;
+        }
+        .shortLinks__item a span {
+            position: absolute;
+            right: 20px;
+            bottom: 20px;
+            background: #e5f3fe;
+            width: 40px;
+            height: 40px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .shortLinks__item a h6 {
+            font-size: 16px;
+            color: #354781;
+            font-weight: 600;
+        }
+        .shortLinks__item a small {
+            font-size: 12px;
+            border-bottom: 2px solid #ddd;
+            color: #333;
+            display: inline-block;
+            text-transform: uppercase;
+            margin-top: 15px;
+        }
+
+        #loader img{
+            border-radius: 50%;
+            width: 35px
+        }
+        footer {
+            /*padding: 20px 0;
+            background: #f3f3f9;
+            margin-top: 0;
+            border-top: 1px solid #ddd;*/
+        }
+
+        .uims-sidebar.swipe {
+            left: -275px;
+        }
+
+        .box-shadow-common {
+            box-shadow: rgba(100,98,92,.06) 0 0 15px 4px;
+            border: 0;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        body {
+            background: #F7F7F5 !important;
+        }
+
+        /*table#rAttachments {
+            background: #f1f1f1 !important;
+        }*/
+        table#rAttachments td{
+            padding: 0!important;
+        }
+        #divChangePassword,
+        #divChangeWifiPassword{
+            background-color: rgba(30, 30, 30, 50%) !important;
+        }
+
+        #divChangePassword .modal-content,
+        #divChangeWifiPassword .modal-content {
+            border-radius: 10px;
+            box-shadow: rgba(100,98,92,.06) 0 0 15px 4px;
+        }
+
+        #divChangePassword input[type=text], 
+        #divChangePassword select, 
+        #divChangePassword input[type=password], 
+        #divChangePassword textarea,
+        #divChangeWifiPassword input[type=text], 
+        #divChangeWifiPassword select, 
+        #divChangeWifiPassword input[type=password], 
+        #divChangeWifiPassword textarea {
+            height: 43px;
+            border-radius: 6px;
+            padding: 0 14px;
+        }
+
+        #divChangePassword input[type=submit], 
+        #divChangePassword input[type=button],
+        #divChangeWifiPassword input[type=submit], 
+        #divChangeWifiPassword input[type=button] {
+            font-size: 14px;
+            cursor: pointer;
+            width: 100%;
+            height: 43px;
+            border-radius: 6px;
+            font-weight: 600;
+            line-height: 43px;
+        }
+        #divChangePassword .modal-header,
+        #divChangeWifiPassword .modal-header {
+            background: #fff;
+            border: 0;
+            padding:10px;
+        }
+        #divChangePassword .modal-header h4,
+        #divChangeWifiPassword .modal-header h4 {
+            color: #333;
+            font-weight: 600;
+        }
+        #divChangePassword .modal-header .close,
+        #divChangeWifiPassword .modal-header .close {
+            color: #999;
+            right: 5px;
+            position: relative;
+            top: 4px;
+        }
+
+        #divChangePassword .modal-body,
+        #divChangeWifiPassword .modal-body {
+            padding: 10px 20px 15px;
+        }
+
+        #divChangePassword .modal-dialog,
+        #divChangeWifiPassword .modal-dialog {
+            max-width: 400px;
+            margin: 40px auto;
+            padding: 0 20px;
+            width: 100%;
+        }
+        .form_header {
+            background: #B80101;
+            padding: 12px;
+            border-bottom: 0;
+            text-align: center;
+            margin: 0;
+            line-height: 18px;
+            font-size: 18px;
+            color: #fff;
+            border-radius: 10px;
+            font-weight: bold;
+            margin-bottom: 20px;
+        } 
+        table{
+            background: #fff !important;
+                border-color: #ddd;
+        }
+        table th {
+            padding: 0;
+            background-color: #eeeeee !important;
+            font-weight: 500 !important;
+            padding: 3px 10px !important;
+            font-size: 14px !important;
+        }
+        table th:hover{ background-color: #eeeeee !important; }
+        table td {
+            padding: 3px 10px;
+        }
+
+        .NavigationSearchPC {
+	        background: #fff;
+	        left: 0;
+	        right: 0;
+	        top: 0;
+            width:100%;
+	        padding-top: 52px;
+        }
+        .divUniEmail{ color:#232323; }
+        .modal { z-index:1060; }
+        .modal.fade .modal-dialog{ transition: transform .35s ease-out; }
+        .modal-backdrop.in{ opacity:.5; }
+        .modal.fade.in .modal-dialog{ transform: translate(0,0); }
+        .modal.fade.in { opacity: 1; }
+        .fade{ transition: opacity .35s linear; }
+        .nav-tabMessage li a{ padding:10px 15px; border-radius:5px 5px 0 0; }
+        .nav-tabMessage li{ display:flex; }
+        /*.modal.show .modal-dialog{ border:10px solid green; }*/
+        @media only screen and (min-width: 1920px){
+            .inner-wrapper{
+                max-width: 1920px;
+                margin: auto;
+            }
+        }
+        @media only screen and (max-width: 1365px){
+            .page-search {
+                width: 37%;
+            }
+            /*.main-wrapper {
+                padding-left: 0;
+            }*/
+            .uims-sidebar {
+                /*left: -265px;*/
+            }
+            .uims-sidebar.swipe {
+                left: 0;
+                z-index: 9999;
+            }
+            .modal-backdrop{
+                    background-color: rgb(30 30 30 / 37%) !important;
+            }
+        }
+        @media only screen and (max-width: 1199px){
+            .page-search {
+                padding: 13px 0;
+                width: 30%;
+            }
+            .home-links ul li, .all-notifications ul>li {
+                margin-left: 20px;
+            }
+            .shortLinks {
+                flex-direction: row;
+                flex-wrap: wrap;
+            }
+            .shortLinks__item {
+                width: 33%;
+                padding: 0 10px;
+            }
+        }
+        @media only screen and (max-width: 991px){
+            .info-icon svg,
+            .home-links svg{
+                width: 16px;
+                height: 16px;
+            }
+            .home-links ul li, .all-notifications ul>li {
+                margin-left: 15px;
+            }
+            .home-links > ul > li > a{
+                font-size: 0
+            }
+            .page-search-input input[type="text"]{
+                padding-right: 40px
+            }
+            /*#txtUserSearch001_PC {
+                background-position: 92% center;
+            }*/
+            .user-profile-link {
+                background: transparent;
+            }
+            .page-search {
+                width: 36%;
+            }
+        }
+        @media only screen and (max-width: 767px){
+            .page-search {
+                position: absolute;
+                display: none;
+                width: 100% !important;
+                top: 45px;
+                background: #fff;
+                padding: 8px 13px;
+            }
+            .page-search.open{
+                display: block
+            } 
+            .all-notifications, .home-links {
+                position: relative;
+                top: 0;
+                right: 0;
+            }
+            .header-right{
+                width: auto;
+            }
+            header::before{
+                display: none !important;
+            }
+
+            .shortLinks__item {
+                width: 50%;
+                padding: 0 10px;
+            }
+            /*.row {
+                margin-right: -15px !important;
+                margin-left: -15px !important;
+            }*/
+            .all-notifications{
+                width: auto;
+            }
+
+            .mob-search {
+                display: inline-block !important;
+            }
+            .mob-search svg{
+                width: 16px;
+                height: 16px;
+            }
+        }
+
+        @media only screen and (max-width: 575px){
+            .user-n-mob {
+                display: block;
+            }
+            .user-profile-link h6{
+                display: none
+            }
+            .user-n-mob h5{
+                font-size: 14px;
+                font-weight: 500;
+                color: #405189;
+            }
+            .user-n-mob h5 small{
+                display: block;
+                margin-top: 2px;
+            }
+        }
+
+
+        @media only screen and (max-width: 479px){
+            .shortLinks__item a span {
+                position: relative;
+                margin-top: 15px;
+                display: block;
+                left: 0;
+                bottom: 0;
+            }
+            .shortLinks__item a span svg {
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%,-50%);
+            }
+            .shortLinks__item{
+                margin-bottom: 20px;
+            }
+            .shortLinks__item a{
+                height: 100%;
+                margin-bottom: 0;
+            }
+
+            /*.header-left {
+                width: 116px;
+                text-align: right;
+            }*/
+            .logo {
+                width: 70px;
+            }
+            .user-profile-link {
+                padding: 7px 10px;
+                margin-left: 0;
+            }
+            .info-icon svg, .home-links svg {
+                width: 14px;
+                height: 14px;
+            }
+            .mob-search svg{
+                width: 14px;
+                height: 14px;
+            }
+            .home-links ul li, .all-notifications ul>li {
+                margin-left: 10px;
+            }
+            .home-links ul li:first-child, .all-notifications ul>li:first-child{
+                margin-left: 0 !important;
+            }
+            .user-profile-link > span {
+                margin: 0;
+            }
+            .all-notifications, .home-links {
+                margin-top: 5px;
+            }
+            .main-wrapper {
+                padding-top: 72px;
+            }
+            .inner-wrapper {
+                padding: 0 15px;
+            }
+            .all-notifications {
+                margin-right: 15px;
+            }
+            .user-dropdown{
+                top: 51px;
+            }
+            .setting-dropdown {
+                top: 34px;
+            }
+        }
+
+
+        /* 22-08-2023 */
+    </style>
+    
+</head>
+<body class="body-gradient">
+    <form method="post" action="./frmStudentCourseWiseAttendanceSummary.aspx?type=etgkYfqBdH1fSfc255iYGw%3d%3d" onsubmit="javascript:return WebForm_OnSubmit();" id="form1">
+<div class="aspNetHidden">
+<input type="hidden" name="__EVENTTARGET" id="__EVENTTARGET" value="" />
+<input type="hidden" name="__EVENTARGUMENT" id="__EVENTARGUMENT" value="" />
+<input type="hidden" name="__VIEWSTATE" id="__VIEWSTATE" value="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" />
+</div>
+
+<script type="text/javascript">
+//<![CDATA[
+var theForm = document.forms['form1'];
+if (!theForm) {
+    theForm = document.form1;
+}
+function __doPostBack(eventTarget, eventArgument) {
+    if (!theForm.onsubmit || (theForm.onsubmit() != false)) {
+        theForm.__EVENTTARGET.value = eventTarget;
+        theForm.__EVENTARGUMENT.value = eventArgument;
+        theForm.submit();
+    }
+}
+//]]>
+</script>
+
+
+<script src="/WebResource.axd?d=pynGkmcFUV13He1Qd6_TZPq3HaZr2PUdbYniTyCZWQerr8wwVfNZHSaVFb4PngwIEXnszWZGXzZTXgGQ1iRJ9Q2&amp;t=638774887141545536" type="text/javascript"></script>
+
+
+<script src="/ScriptResource.axd?d=nv7asgRUU0tRmHNR2D6t1HCdginbJmlJVNe02kSYkBgNayiRFlIT_COidOrGaNp07M_WSoyUmyEK-NnIoZsorBM1SVHyxutKLzV0hLh1C2Fyp9MNJp7mxgFz9DjD4LlbiTGd7FnedwNo7HwtiiSZ0A2&amp;t=ffffffffa57c377b" type="text/javascript"></script>
+<script src="/ScriptResource.axd?d=D9drwtSJ4hBA6O8UhT6CQh3Y8nY4nhn-sbcXorRHtj0cBE5I40ap3pm5ZhBLjISGJGHNCO3jE-8UUnTJUCdI9PFb-ROrRgR9gFoNavG67iuXd43wgajodstUMhLg1vnACp0EIr0g130ggVzyoWHnoxdI7KRfrcuvaLralQk01qk1&amp;t=ffffffffacea8b1a" type="text/javascript"></script>
+<script type="text/javascript">
+//<![CDATA[
+if (typeof(Sys) === 'undefined') throw new Error('ASP.NET Ajax client-side framework failed to load.');
+//]]>
+</script>
+
+<script src="/ScriptResource.axd?d=JnUc-DEDOM5KzzVKtsL1tdNhMGMooJ95FrQOhCiulFF25Cl3gpR-57cckv1m6GobAssTaZGZ8HkgoLQWr90wXoSDPGyUobU2rLgDYbcJqHlvbPExbdsIQVK4KVP9Q8IsRKhDdAHM0Sy2sg22bfR0UpKuVgayOTI7x5WW_FzraVke-GSWRCv2E5NPpfdUP7fE0&amp;t=ffffffffacea8b1a" type="text/javascript"></script>
+<script src="/ScriptResource.axd?d=V7lYofBNDiSYOgSlDiTISpWQzXwHkdwb_MyQo9JoDqXv1GErNGoxyxvNBawo0CpmimIDli_6RgRpuDdKbSQ7C8nsqLCX_bEw4eHA_psm0-9G62oXZC3EhjXGt49l_xn_oUPP_hQ2MtNdqhDi3389qgJr4l0F3NCMtJ751pfp9nU1&amp;t=ffffffff9b7d03cf" type="text/javascript"></script>
+<script src="/ScriptResource.axd?d=8HBMVpJM49mm80uR-ggjY9_O4NHujT-HsBEsHUjCcGslRgkZk7NZQJq1InktUR18D6otBlNrtHuIil5S3XKZBNLBoizi068Jdo28ymNIsnXZgqnmzzPGMZSD4J9Tyqzz3HniSQox53H456DZyV3FyQ2&amp;t=ffffffff9b7d03cf" type="text/javascript"></script>
+<script src="/ScriptResource.axd?d=vQR2N7McTtmzjONdj8pDQPdvnkuSyfYQAvJvDncncxIDqvSbUk7HwZWSmo6cHtvIwRVO-wHw4VjG_biYk0fJNAJel_Bu4t7YIEyS4U19SRYjIDC2iVKmpC6glilG3MgWvusRDgsvJ-Y69-ByrgfswbMplKgFDDZy65jmdJYy7AM1&amp;t=ffffffff9b7d03cf" type="text/javascript"></script>
+<script src="/ScriptResource.axd?d=8CjII1v0OLoMNKf5zGXmemIk3OzZlcpC2D0DaIe6EdALuOS1S4p0g2jtrkaaKB7KNyn9U1-OOXUlpQaQCwNGBoxjO1694M0VPAa9vUZ2wFLhl-__QFn8KUh1NnDDknG3QkLOk5jCXH45FT2L4dgUM8FGG5cbyofdu0oLRNERZm81&amp;t=ffffffff9b7d03cf" type="text/javascript"></script>
+<script src="/ScriptResource.axd?d=yoepU9WTnNLBrovfoMoPb7Koo3z_0NFPum7qDjpzw8cl7PKoNog8KvJ4diNqXzMRNAPpm2L7mIXnzizbAvX4QISmDHJ-19WNQFlOkTYmhOQSXyVtxRdkVyuN02T7YaAAUij1lETDwdLrwOURi-wWHM5C8Hbav2-aSp9a1pw6H9ipsRRGHW3W_zzG3eJWTuXRUMBRHpzSTgNReOINmv2lsA2&amp;t=ffffffff9b7d03cf" type="text/javascript"></script>
+<script type="text/javascript">
+//<![CDATA[
+function WebForm_OnSubmit() {
+if (typeof(ValidatorOnSubmit) == "function" && ValidatorOnSubmit() == false) return false;
+return true;
+}
+//]]>
+</script>
+
+<div class="aspNetHidden">
+
+	<input type="hidden" name="__VIEWSTATEGENERATOR" id="__VIEWSTATEGENERATOR" value="2B53A81D" />
+	<input type="hidden" name="__EVENTVALIDATION" id="__EVENTVALIDATION" value="ls3LFfI0JBGFt959IdMTCDzhiPSd6BUA5GWNWMrDUDqsZljyy4zTS2vOkHR4sBKn5BAD1w5n1P3VRnRsnWKRdELaXG8S1AUFxyT7pfj6Ci+L6cSSVWjQdxsHjUclTYUuDAKaw2tRFBHVwVW3oA4BhmmMyfMEwAaqtTCbpJ2yLRQXQcPrrqR1EVoAiqfScKOENvLuOqrl2ReKdNUFw72PS3Qj5CQaIgAXJF5z++9TuO9iZLQmYnnY8qU/8CV4Jy4QvtDsMYp73xGWGOBHHeECq+FJ2QHRMGZPprvGEoRYrFhsUiwSHL0r3SF62GPsPJwucAGxEcHHNISbouCVMyOLoPblbKbozZhmNrpbKi+YGCkoHeiv2F1s2Q2kgn+tTtUI9Ur4Pm7BN9XWZNhbTCS0giFPlswBm6joWgNzfjAYMTOCOpwudJRU1S8Ng3rGPKJn6eao3gQpmX/1vvcWGc11Txn5JaAenLIOvfQ9VxTUZ9cMzWp2GTGHP+3086NzKTJ4ZHrKIJnGKXfGSQBn+SW63sSFp4XWgzShnMBRPSEgQ85iZEY5lVT7eg4MuPrjJ8VN" />
+</div>
+        <input type="hidden" name="ctl00$hfInfoMessage" id="hfInfoMessage" />
+        <input type="hidden" name="ctl00$hfUserTheme" id="hfUserTheme" />
+        <input type="hidden" name="ctl00$hfWindowScroll" id="hfWindowScroll" />
+
+        <input type="hidden" name="ctl00$hfMessagePageNumber" id="hfMessagePageNumber" />
+        <input type="hidden" name="ctl00$hfIsNewMessage" id="hfIsNewMessage" />
+        <input type="hidden" name="ctl00$hfAlertPageNumber" id="hfAlertPageNumber" />
+        <input type="hidden" name="ctl00$hfIsNewAlert" id="hfIsNewAlert" />
+        <input type="hidden" name="ctl00$hfAlertsCount" id="hfAlertsCount" />
+        <input type="hidden" name="ctl00$hfMessagesCount" id="hfMessagesCount" />
+        <input type="hidden" name="ctl00$hfIsMobile" id="hfIsMobile" />
+
+         
+        <input type="hidden" name="ctl00$hfbytes" id="hfbytes" />
+        <input type="hidden" name="ctl00$hfname" id="hfname" />
+        
+        <script type="text/javascript">
+//<![CDATA[
+Sys.WebForms.PageRequestManager._initialize('ctl00$ScriptManager1', 'form1', [], [], [], 90, 'ctl00');
+//]]>
+</script>
+
+        <div id="loader-wrapper">
+            <div id="loader">
+                <img src="assets/uploads/loader.gif" alt="Loading" />
+                <p>Loading...</p>
+            </div>
+        </div>
+        <div class="main-wrapper" id="mainWrap">
+            <header id="header" class="position-fixed header d-flex">
+                
+                <div class="topbar d-flex position-absolute" id="myElement">
+                    <div class="header-left bg-transparent">
+                        <button class="navbar-toggler position-absolute collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#uims_sidebar" aria-controls="uims_sidebar" aria-expanded="false" aria-label="Toggle navigation" onclick="slideLeft()">
+                            
+                            <img id="Image1" class="img-fluid" alt="logo" src="../assets/upload-images/icon-hamburger.svg" />
+                        </button>
+                        <a class="navbar-brand"><img class="img-fluid" src="../assets/upload-images/logo-main-black.png" width="100" /></a>
+                    </div>
+                    <div class="ms-auto d-flex outer-area">
+                        <div class="search-bar d-flex">
+                            <div class="search-form d-flex align-items-center">
+                                <span id="s-total-search" class="total-results position-absolute"></span>
+                                <input type="text" name="query" class="search-result" placeholder="Search here" autocomplete="off" id="txtUserSearch001_PC" />
+                                <img src="assets/uploads/loader.gif" class="loading position-absolute" id="menu-loading" />
+                                <div class="NavigationSearchPC position-absolute">
+                                </div>
+                            </div>
+                        </div>
+                        <nav class="header-nav ms-auto">
+                            
+                            <ul class="d-flex align-items-center">
+                                <li class="nav-item d-block d-lg-none" id="searchBox">
+                                    <a class="nav-link nav-icon d-flex justify-content-center align-items-center search-icon search-bar-toggle" href="#" >
+                                        <img src="../assets/upload-images/icon-search.svg" alt="Search" />
+                                    </a>
+                                </li>
+                                <li class="nav-item dropdown">
+                                    <a class="nav-link nav-icon d-flex nav-settings justify-content-center align-items-center" id="div_NotiCount" href="#" data-bs-toggle="dropdown" aria-expanded="false">
+                                        <img src="../assets/upload-images/icon-notifications.svg" alt="Notifications" />
+                                        <span class="other-notify badge badge-number badge-red align-items-center justify-content-center" id="spanNoti_Count">0</span>
+                                    </a>          
+                                    <ul class="dropdown-menu dropdown-menu-end dropdown-menu-arrow notifications" id="noti_content">
+                                        <li class="dropdown-header d-flex">
+                                            You have 0 new notifications
+                                            <a href="#"><span class="badge d-flex rounded-pill bg-primary p-2 ms-2">View all</span></a>
+                                        </li>
+                                        
+                                        <li>
+                                            <hr class="dropdown-divider">
+                                        </li>
+                                        <li class="dropdown-footer">
+                                            <a href="#">Show all notifications</a>
+                                        </li>
+                                    </ul>
+                                </li>
+                                <li class="nav-item dropdown">
+                                    <a href="StudentHome.aspx" id="aHome" class="nav-link nav-icon d-flex align-items-center justify-content-center" data-bs-toggle="dropdown">
+                                        <img src="../assets/upload-images/icon-messages.svg" alt="Messages" />
+                                        <span class="badge badge-number d-flex align-items-center justify-content-center">0</span>
+                                    </a>
+                                    <ul class="dropdown-menu dropdown-menu-end dropdown-menu-arrow messages">
+                                        <li class="dropdown-header">
+                                            You have 0 new messages
+                                            <a href="#"><span class="badge rounded-pill bg-primary p-2 ms-2">View all</span></a>
+                                        </li>
+                                        <li>
+                                            <hr class="dropdown-divider">
+                                        </li>                                        
+                                        <li>
+                                            <hr class="dropdown-divider">
+                                        </li>
+                                        <li class="dropdown-footer">
+                                            <a href="#">Show all messages</a>
+                                        </li>
+                                    </ul>
+                                </li>
+                                <li class="nav-item dropdown">
+                                    <a class="nav-link nav-icon nav-library d-flex align-items-center justify-content-center" href="#" id="div_LibCount">
+                                        <img src="../assets/upload-images/icon-books.svg" alt="Messages" />
+                                        <span class="badge badge-number badge-light d-flex align-items-center justify-content-center" id="spanLib_Count">0</span>
+                                    </a>
+                                    
+                                </li>
+                                
+                                <li class="nav-item dropdown pe-3 userInfo">
+                                    <a class="nav-link nav-profile d-flex align-items-center pe-0" href="#" data-bs-toggle="dropdown" aria-expanded="false">
+                                        <div class="d-none d-md-block dropdown-toggle position-relative ps-2">
+                                            <div class="u-name d-flex">
+                                                <span>Hello,</span>Ayan
+                                            </div>
+                                            <small class="uid">25LBCS1294</small>
+                                        </div>
+                                        <img src="data:image;base64,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" id="imgFullProfilePic" alt="Profile" class="rounded-circle" />
+                                    </a>
+                                    <ul class="dropdown-menu dropdown-menu-end dropdown-menu-arrow profile">
+                                        <li class="dropdown-header d-flex flex-column">
+                                            <h6>Ayan ahmad khan</h6>
+                                        </li>
+                                        <li class="user-n-mob">
+                                            <h5></h5>
+                                        </li>
+                                        
+                                        <li>
+                                            <hr class="dropdown-divider">
+                                        </li>
+                                        <li id="liProfile">
+                                            <a class="dropdown-item d-flex align-items-center" href="frmStudentProfile.aspx">
+                                                <i class="bi bi-person"></i>
+                                                <span>My Profile</span>
+                                            </a>
+                                        </li>
+                                        <li>
+                                            <hr class="dropdown-divider">
+                                        </li>
+                                        <li>
+                                            <a id="LinkButton2" class="dropdown-item d-flex align-items-center" href="javascript:__doPostBack(&#39;ctl00$LinkButton2&#39;,&#39;&#39;)">
+                                                <i class="bi bi-gear"></i>
+                                                <span>Account Settings</span>
+                                            </a>
+                                        </li>
+                                        <li>
+                                            <hr class="dropdown-divider">
+                                        </li>
+                                        <li>
+                                            <a id="LinkButton3" class="dropdown-item d-flex align-items-center" href="javascript:__doPostBack(&#39;ctl00$LinkButton3&#39;,&#39;&#39;)" style="text-decoration: none;">
+                                                <i class="bi bi-lock"></i>
+                                                <span>Change Password</span>
+                                            </a>
+                                        </li>
+                                        <li>
+                                            <hr class="dropdown-divider">
+                                        </li>
+                                        <li id="liWifiPassword" class="message-item d-flex">
+                                            <a id="lbtnChangeWifiPassword" class="dropdown-item d-flex align-items-center" href="javascript:__doPostBack(&#39;ctl00$lbtnChangeWifiPassword&#39;,&#39;&#39;)" style="text-decoration: none;">
+                                                <i class="bi bi-wifi"></i>
+                                                <span>Change Internet Password</span>
+                                            </a>
+                                        </li>
+							            
+                                        <li>
+                                            <hr class="dropdown-divider">
+                                        </li>
+                                        <li>
+                                            <a class="dropdown-item d-flex align-items-center" onclick="Logout()">
+                                                <i class="bi bi-box-arrow-right"></i>
+                                                <span>Sign Out</span>
+                                            </a>
+                                        </li>
+                                    </ul>
+                                </li>
+                            </ul>
+                        </nav>
+                    </div>
+                </div>
+            </header>
+            <div id="uims_sidebar" class="uims-sidebar d-lg-block sidebar leftSidebar leftSidebar-collapse position-fixed collapse">
+	            <div class="mobile-header align-items-center d-flex d-lg-none justify-content-between">
+		            <a class="navbar-brand"><img class="img-fluid" src="/assets/upload-images/logo-main.png" width="165" /></a>
+		            <button class="navbar-toggler d-lg-none navbar-toggler collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#uims_sidebar" aria-controls="uims_sidebar" aria-expanded="false" aria-label="Toggle navigation" onclick="slideLeft()">
+			            <span class="navbar-toggler-icon"><img src="/assets/upload-images/icon-close.svg" /></span>
+		            </button>
+	            </div>
+                <div class="header-left">
+                    <button class="navbar-toggler position-absolute d-none d-lg-none collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#uims_sidebar" aria-controls="uims_sidebar" aria-expanded="false" aria-label="Toggle navigation" onclick="slideLeft()">
+                        
+                        <img id="img_logo" class="img-fluid" alt="logo" src="assets\uploads\login-logo-main.png" />
+                    </button>
+                    <button class="navbar-toggler position-absolute d-none d-sm-none d-lg-block collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#uims_sidebar" aria-controls="uims_sidebar" aria-expanded="false" aria-label="Toggle navigation" onclick="slideLeft()">
+                        <span class="navbar-toggler-icon"><img src="../assets/upload-images/icon-hamburger-white.svg" class="img-fluid" /></span>
+                    </button>
+                    <a class="navbar-brand d-none d-lg-block" href="StudentHome.aspx"><img class="img-fluid" src="../assets/upload-images/logo-main.png" width="165" /></a>
+                </div>
+	            <div class="scroll-bar">
+		            <ul id="menu-content" class="nav flex-column menu-content collapse out" id="menu-content">
+			            
+					            <li data-toggle="collapse" data-target='#3563' class="collapsed">
+						            <a href='javascript:void(0);' class="a-uims-nav">
+							            Academics<span class="arrow"></span></a>
+						            
+					            </li>
+					            <ul id='3563' class='sub-menu collapse'><li><a class='a-uims-nav' href='javascript:void(0);'>Department of Life Long(DLL)</a></li><li><a class='a-uims-nav' href='frmStudentCourseWiseAttendanceSummary.aspx?type=etgkYfqBdH1fSfc255iYGw=='>My Attendance</a></li><li><a class='a-uims-nav' href='frmStudentWinningCampAttendanceSummary.aspx?type=etgkYfqBdH1fSfc255iYGw=='>My Attendance ACP/Winning Camp</a></li><li><a class='a-uims-nav' href='frmMyCourse.aspx'>My Courses and Lecture Plan</a></li><li><a class='a-uims-nav' href='frmMyTimeTable.aspx'>My Time Table</a></li><li><a class='a-uims-nav' href='frmWinningCampMyTimetable.aspx'>My Time Table ACP/Winning Camp</a></li><li><a class='a-uims-nav' href='javascript:void(0);'>Project</a></li><li><a class='a-uims-nav' href='frmResourceLibrary.aspx'>Resource Library</a></li><li data-toggle='collapse' data-target='#4138' class='collapsed'><a class='a-uims-nav' href='javascript:void(0);'>Social Internship<span class='arrow'></span></a></li><ul id='4138' class='sub-menu collapse'><li><a class='a-uims-nav' href='frmStudentDailyDiary.aspx '>Daily Diary</a></li><li><a class='a-uims-nav' href='frmStudentSocialInternshipEntry.aspx'>Model Selection & Activity Upload</a></li><li><a class='a-uims-nav' href='frmStudentSocialInternshipEntryPart2.aspx'>Model Selection Part 2 & Activity Upload</a></li></ul></ul>
+				            
+					            <li data-toggle="collapse" data-target='#2403' class="collapsed">
+						            <a href='javascript:void(0);' class="a-uims-nav">
+							            Accounts<span class="arrow"></span></a>
+						            
+					            </li>
+					            <ul id='2403' class='sub-menu collapse'><li><a class='a-uims-nav' href='frmAccountsStudentReceiptList.aspx'>Accounts Reciept</a></li><li><a class='a-uims-nav' href='frmAccountStudentDetails.aspx'>Accounts Statement/ Fee Payment</a></li></ul>
+				            
+					            <li data-toggle="collapse" data-target='#3566' class="collapsed">
+						            <a href='javascript:void(0);' class="a-uims-nav">
+							            Administration<span class="arrow"></span></a>
+						            
+					            </li>
+					            <ul id='3566' class='sub-menu collapse'><li data-toggle='collapse' data-target='#4214' class='collapsed'><a class='a-uims-nav' href='javascript:void(0);'>Centre for Global Education (CGE)<span class='arrow'></span></a></li><ul id='4214' class='sub-menu collapse'><li><a class='a-uims-nav' href='frmCentreForGlobalEducationCGE_ISTP.aspx'>International Short-Term Program (ISTP)</a></li><li><a class='a-uims-nav' href='frmCentreForGlobalEducationCGE_ITP.aspx'>International Transfer Program (ITP)</a></li><li><a class='a-uims-nav' href='frmCentreForGlobalEducationCGE_SEP.aspx'>Semester Exchange Program (SEP)</a></li><li><a class='a-uims-nav' href='frmCentreForGlobalEducationCGE_USA.aspx'>USA</a></li></ul><li><a class='a-uims-nav' href='frmStudentComplaintAgainstHarassment.aspx'>Complaint Against Harassment</a></li><li><a class='a-uims-nav' href='frmStudentAdmissionDocumentsUpload.aspx'>Document Upload</a></li><li><a class='a-uims-nav' href='frmInternationalStudentBasicInformation.aspx'>International Student Application Form </a></li><li><a class='a-uims-nav' href='frmICTSServices.aspx'>ITP (International Transfer Program) Services</a></li><li><a class='a-uims-nav' href='frmInternationalProgramEnrolment.aspx'>OIR Enrollment Form</a></li><li><a class='a-uims-nav' href='frmOIRServices.aspx'>OIR Services</a></li><li><a class='a-uims-nav' href='frmUploadInternationalStudentMedicalInsurance.aspx'>University Medical Insurance</a></li></ul>
+				            
+					            <li data-toggle="collapse" data-target='#2850' class="collapsed">
+						            <a href='frmLoanLetterApplication.aspx' class="a-uims-nav">
+							            Apply for Loan Documents<span class="arrow"></span></a>
+						            
+					            </li>
+					            
+				            
+					            <li data-toggle="collapse" data-target='#3880' class="collapsed">
+						            <a href='frmAppCounsellingTherapyClinicRegistration.aspx' class="a-uims-nav">
+							            Counseling Therapy Clinic Registration<span class="arrow"></span></a>
+						            
+					            </li>
+					            
+				            
+					            <li data-toggle="collapse" data-target='#3713' class="collapsed">
+						            <a href='javascript:void(0);' class="a-uims-nav">
+							            DCPD<span class="arrow"></span></a>
+						            
+					            </li>
+					            <ul id='3713' class='sub-menu collapse'><li><a class='a-uims-nav' href='frmCareerOptionOther.aspx?Type=QGVcrLuOjfitECW4+veVzA=='>Career Options by DCPD</a></li><li data-toggle='collapse' data-target='#3714' class='collapsed'><a class='a-uims-nav' href='javascript:void(0);'>Evening CUCAT<span class='arrow'></span></a></li><ul id='3714' class='sub-menu collapse'><li><a class='a-uims-nav' href='frmMockTestNew.aspx'>Mock Test</a></li><li><a class='a-uims-nav' href='frmStuQuestionSolution.aspx'>View Question Solution</a></li></ul></ul>
+				            
+					            <li data-toggle="collapse" data-target='#4193' class="collapsed">
+						            <a href='frmDLLMOOCCoordinatorList.aspx' class="a-uims-nav">
+							            DLL MOOC Coordinator List<span class="arrow"></span></a>
+						            
+					            </li>
+					            
+				            
+					            <li data-toggle="collapse" data-target='#2342' class="collapsed">
+						            <a href='javascript:void(0);' class="a-uims-nav">
+							            E Library<span class="arrow"></span></a>
+						            
+					            </li>
+					            <ul id='2342' class='sub-menu collapse'><li><a class='a-uims-nav' href='frmOpenAuthentication.aspx?id=PA8f2gBZPN2G5vACgUpS8q8aPNbtEWoFpGvx9fSSTn5SBSUkvaW1F4+WDbeuEVgrByLqYAw71dFjOnpINJQkb1nS/VwF0vUGdaNa/ZxXLbPWzD1EDuitwgCqnL4LzayY'>EBSCO eBook Academic Collection</a></li><li><a class='a-uims-nav' href='frmOpenAuthentication.aspx?id=PA8f2gBZPN2G5vACgUpS8q8aPNbtEWoFpGvx9fSSTn5SBSUkvaW1F4+WDbeuEVgrByLqYAw71dFjOnpINJQkb1nS/VwF0vUGdaNa/ZxXLbMj6WG9aUk6g/X7ApvmbBzR'>EBSCO Management Collection</a></li><li><a class='a-uims-nav' href='frmOpenAuthentication.aspx?id=PA8f2gBZPN2G5vACgUpS8q8aPNbtEWoFpGvx9fSSTn5SBSUkvaW1F4+WDbeuEVgrByLqYAw71dFjOnpINJQkb1nS/VwF0vUGdaNa/ZxXLbMa+4YBf7yAR+H/jNSXzgUV'>EBSCOhost  E-Journal Access(Art and Architecture)</a></li><li><a class='a-uims-nav' href='frmOpenAuthentication.aspx?id=QV5dHL7jXjFoMfhJzyRSB8mHytDcqoV5f4Wom3J0nlRXzfF6WI0M1CH0kkL/8BpGYTEyZlvrVdogWC2fw3Akc8lFubnuUo4BnEATg248VJXkQapuALK1TryDjmoT7t3eOXYb07XbuxPD2oE+obUlNg=='>IEEE</a></li><li><a class='a-uims-nav' href='frmOpenAuthentication.aspx?id=QV5dHL7jXjFoMfhJzyRSB8mHytDcqoV5f4Wom3J0nlRXzfF6WI0M1CH0kkL/8BpGQpb7uMfdWl8yF4aRUmP6Zsn6AQJaRnEB7/gtSzVR1p585pFZUqCcLP0Md1FrzDxE'>J-Gate (Science & Technology)</a></li><li><a class='a-uims-nav' href='frmOpenAuthentication.aspx?id=QV5dHL7jXjFoMfhJzyRSB8mHytDcqoV5f4Wom3J0nlRXzfF6WI0M1CH0kkL/8BpGQpb7uMfdWl8yF4aRUmP6Zsn6AQJaRnEB7/gtSzVR1p585pFZUqCcLP0Md1FrzDxE'>J-Gate (Soc. Science and Humanities)</a></li><li><a class='a-uims-nav' href='frmOpenAuthentication.aspx?id=PA8f2gBZPN2G5vACgUpS8q8aPNbtEWoFpGvx9fSSTn5rGd65jzE8cRuauaYj2tJnH0PJZ8oauJ+rb9nxzuaAexyENYqhaXlaXq/+C2p07L/8z27ruNOLpK4peo2XgI8A'>Publication Finder and Open Athens</a></li><li><a class='a-uims-nav' href='frmOpenAuthentication.aspx?id=nfiADxpckRxbzXbfgdwrIInRiQfwBTLb6/+Drz4Hfuu1f/+GiF1v7htWc6qZ4UfeZ8rCtYt+mAXwUTxgui+nIVYMH/X2+Mz5T0N9xRCq1O7h9QK5KPVsxhQgLnm25vNLWngZ7jKKbHleD9V5LzqaNEdPHmQrgYDKSejwnT8cE+y+fkzv+sKNmr1tKO6Ax8X20DEzMdIuHk6qSwoUsEES/mvO9tbVtnt1MFx0J9xqrshfF359RI86VFsSRY6J30wDg9WSMpPa4j3V28dJRMP5MvBH+hj+t0X5vazU4wBNAqs='>Web of Science</a></li></ul>
+				            
+					            <li data-toggle="collapse" data-target='#3565' class="collapsed">
+						            <a href='javascript:void(0);' class="a-uims-nav">
+							            Examination<span class="arrow"></span></a>
+						            
+					            </li>
+					            <ul id='3565' class='sub-menu collapse'><li><a class='a-uims-nav' href='FrmStudentFormsDetails.aspx'>Examaination Form Details</a></li><li><a class='a-uims-nav' href='frmStudentDatesheet.aspx'>My Date Sheet</a></li><li data-toggle='collapse' data-target='#4168' class='collapsed'><a class='a-uims-nav' href='javascript:void(0);'>Raise Query<span class='arrow'></span></a></li><ul id='4168' class='sub-menu collapse'><li><a class='a-uims-nav' href='StudentQueryMaster.aspx'>Student Query Master</a></li></ul><li data-toggle='collapse' data-target='#2190' class='collapsed'><a class='a-uims-nav' href='javascript:void(0);'>Result<span class='arrow'></span></a></li><ul id='2190' class='sub-menu collapse'><li><a class='a-uims-nav' href='result.aspx'>Result ( Regular )</a></li></ul><li><a class='a-uims-nav' href='frmAMCATStudentResult.aspx?type=6kjkaB6U01jsNZdSPYT2YA=='>Student AMCAT Result</a></li><li data-toggle='collapse' data-target='#2600' class='collapsed'><a class='a-uims-nav' href='javascript:void(0);'>Student Marks View<span class='arrow'></span></a></li><ul id='2600' class='sub-menu collapse'><li><a class='a-uims-nav' href='frmStudentReappearMarksView.aspx'>Student Marks View Reappear</a></li><li><a class='a-uims-nav' href='frmStudentMarksView.aspx'>Student Marks View Regular</a></li></ul><li><a class='a-uims-nav' href='frmStudentPracticleDateSheet.aspx'>Student Practical Date Sheet</a></li><li><a class='a-uims-nav' href='frmAMCATStudentResult.aspx?type=S4w6En2dn/RLwsoo51Osyw=='>Student Technical Result</a></li></ul>
+				            
+					            <li data-toggle="collapse" data-target='#4157' class="collapsed">
+						            <a href='javascript:void(0);' class="a-uims-nav">
+							            Hostel<span class="arrow"></span></a>
+						            
+					            </li>
+					            <ul id='4157' class='sub-menu collapse'><li><a class='a-uims-nav' href='frmStudenHostelDetails.aspx'>Details</a></li></ul>
+				            
+					            <li data-toggle="collapse" data-target='#2836' class="collapsed">
+						            <a href='frmStudentHostelLeave.aspx' class="a-uims-nav">
+							            Hostel Leave<span class="arrow"></span></a>
+						            
+					            </li>
+					            
+				            
+					            <li data-toggle="collapse" data-target='#3567' class="collapsed">
+						            <a href='javascript:void(0);' class="a-uims-nav">
+							            Library<span class="arrow"></span></a>
+						            
+					            </li>
+					            <ul id='3567' class='sub-menu collapse'><li><a class='a-uims-nav' href='frmLibraryRepository.aspx'>CU E-Repository </a></li></ul>
+				            
+					            <li data-toggle="collapse" data-target='#2185' class="collapsed">
+						            <a href='frmStudentProfile.aspx' class="a-uims-nav">
+							            My Profile<span class="arrow"></span></a>
+						            
+					            </li>
+					            
+				            
+					            <li data-toggle="collapse" data-target='#2199' class="collapsed">
+						            <a href='frmTakeTest.aspx' class="a-uims-nav">
+							            Online Test<span class="arrow"></span></a>
+						            
+					            </li>
+					            
+				            
+					            <li data-toggle="collapse" data-target='#4199' class="collapsed">
+						            <a href='javascript:void(0);' class="a-uims-nav">
+							            PhD<span class="arrow"></span></a>
+						            
+					            </li>
+					            
+				            
+					            <li data-toggle="collapse" data-target='#2932' class="collapsed">
+						            <a href='javascript:void(0);' class="a-uims-nav">
+							            Student Leave Application<span class="arrow"></span></a>
+						            
+					            </li>
+					            <ul id='2932' class='sub-menu collapse'><li><a class='a-uims-nav' href='frmStudentApplyDutyLeave.aspx'>Duty Leave</a></li><li><a class='a-uims-nav' href='frmStudentMedicalLeaveApply.aspx'>Medical Leave</a></li></ul>
+				            
+					            <li data-toggle="collapse" data-target='#2192' class="collapsed">
+						            <a href='javascript:void(0);' class="a-uims-nav">
+							            Student Relation Management System<span class="arrow"></span></a>
+						            
+					            </li>
+					            <ul id='2192' class='sub-menu collapse'><li><a class='a-uims-nav' href='javascript:void(0);'>Clubs & Societies</a></li><li><a class='a-uims-nav' href='frmStudentEventReview.aspx'>Event Review</a></li><li><a class='a-uims-nav' href='frmSWCRequest.aspx'>Online Student Care Center Requests</a></li><li><a class='a-uims-nav' href='frmTalentSearchProgram.aspx'>Talent Search Program</a></li></ul>
+				            
+					            <li data-toggle="collapse" data-target='#4194' class="collapsed">
+						            <a href='javascript:void(0);' class="a-uims-nav">
+							            TPP UILAH<span class="arrow"></span></a>
+						            
+					            </li>
+					            
+				            
+					            <li data-toggle="collapse" data-target='#4159' class="collapsed">
+						            <a href='javascript:void(0);' class="a-uims-nav">
+							            Transport<span class="arrow"></span></a>
+						            
+					            </li>
+					            <ul id='4159' class='sub-menu collapse'><li><a class='a-uims-nav' href='frmTransportDetails.aspx'>Details</a></li><li><a class='a-uims-nav' href='frmStudentTransportConsent.aspx'>Transport Consent</a></li><li><a class='a-uims-nav' href='frmStudentTransportConsent.aspx'>Transport Consent</a></li></ul>
+				            
+					            <li data-toggle="collapse" data-target='#4172' class="collapsed">
+						            <a href='javascript:void(0);' class="a-uims-nav">
+							            UCMC<span class="arrow"></span></a>
+						            
+					            </li>
+					            <ul id='4172' class='sub-menu collapse'><li data-toggle='collapse' data-target='#4178' class='collapsed'><a class='a-uims-nav' href='javascript:void(0);'>Competitive Exams Career Options<span class='arrow'></span></a></li><ul id='4178' class='sub-menu collapse'><li><a class='a-uims-nav' href='frmresources.aspx?type=3MjtO9wiGLhI6em0bw+XikP5Cb/RMH/7S57lk08Obqs='>Judicial Services Preparation</a></li></ul></ul>
+				            
+					            <li data-toggle="collapse" data-target='#4210' class="collapsed">
+						            <a href='frmStuUniformCollection.aspx' class="a-uims-nav">
+							            Uniform Management<span class="arrow"></span></a>
+						            
+					            </li>
+					            
+				            
+		            </ul>
+	            </div>
+            </div>
+            <div class="body-overlay"></div>
+            <div class="inner-wrapper">
+                <div id="short_links" class="d-flex content-boxes row g-3">
+                    <div class="col-sm-6 col-xl-3 col-6">
+                        <a href="frmImportantlink.aspx" id="div_top_1" class="bg-red d-flex card-info">
+                            <div class="card-icon rounded-circle red-box d-flex align-items-center justify-content-center">
+                                <img src="/assets/upload-images/icon-links.svg" alt="Important Links" class="img-fluid" />
+                            </div>
+                            <div class="d-flex flex-column cardBox justify-content-center">
+                                <h4>Important Links</h4>
+                                <span class="moreLink d-flex text-uppercase">Click Here</span>
+                            </div>
+                        </a>
+                    </div>
+                    
+                    <div class="col-sm-6 col-xl-3 col-6">
+                        <a href="https://www.culko.in/online-request/" id="div_top_3" class="card-info bg-blue d-flex">
+                            <div class="card-icon rounded-circle blue-box d-flex align-items-center justify-content-center">
+                                <img src="/assets/upload-images/icon-facilitation.svg" alt="Facilitation" class="img-fluid" id="Layer_1" />
+                            </div>
+                            <div class="d-flex flex-column cardBox justify-content-center">
+                                <h4>Student Facilitation</h4>
+                                <span class="moreLink d-flex text-uppercase">Click to View</span>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="col-sm-6 col-xl-3 col-6">
+                        <div id="div_top_5" class="d-flex">
+
+                            
+                            <a id="lbtnLMSSSO" class="d-flex card-info bg-yellow" href="javascript:__doPostBack(&#39;ctl00$lbtnLMSSSO&#39;,&#39;&#39;)">
+                                <div class="card-icon rounded-circle yellow-box d-flex align-items-center justify-content-center">
+                                    <img src="/assets/upload-images/icon-study.svg" alt="CU-LMS" class="img-fluid" />
+                                </div>
+                                <div class="d-flex flex-column cardBox justify-content-center">
+                                    <h4>CU-LMS</h4>
+                                    <span class="moreLink d-flex text-uppercase d-flex">My LMS</span>
+                                </div>
+                            </a>
+                        </div>
+                    </div>
+                    
+                    <div class="col-sm-6 col-xl-3 col-6 d-none">
+                        <a href="frmSWCRequest.aspx" id="div_top_4" class="d-flex card-info bg-yellow">
+                            <div class="card-icon rounded-circle yellow-box d-flex align-items-center justify-content-center">
+                                <img src="/assets/upload-images/icon-antiragging.svg" alt="Anti Ragging" class="img-fluid" />
+                            </div>
+                            <div class="d-flex flex-column cardBox justify-content-center">
+                                <h4>Student Center</h4>
+                                <span class="moreLink d-flex text-uppercase d-flex">Get Help</span>
+                            </div>
+                        </a>
+                    </div>
+                   <div class="col-sm-6 col-xl-3 col-6 position-relative">
+                        <div id="div_OE" class="card-info emp-info d-flex card-thumb">
+                            <div class="card-icon rounded-circle email-box d-flex align-items-center justify-content-center">
+                                <img src="/assets/upload-images/icon-email-lg.svg" alt="Anti Ragging" class="img-fluid" width="40" />
+                            </div>
+                            <div class="d-flex flex-column cardBox justify-content-center">
+                                <h4>My University Email</h4>
+                                <span class="moreLink d-flex text-uppercase d-flex">View Details</span>
+                            </div>
+                        </div>
+                        <div id="divUniEmail" class="divUniEmail" style="display: none;">Dear Ayan ahmad khan, <br/><span style="display:block; margin-top:5px">Your EmailId: <b>25LBCS1294@culkomail.in</span></b> <span style="display:block; margin-top:10px">Password: <b>B#720459530813ol</b></span> <span style="display:block; margin-top:10px">(One Time Password)</span><br/> To activate click <a style="display:block; padding:0" href="https://culkomail.in" target="_blank">https://culkomail.in</a>
+		   <p style="font-size:10px; font-style:italic;margin-top:5px">Note: This is one-time password for your outlook ID. You need to use your changed password every time you have to log in to your account</p></div>
+                    </div>
+                </div>
+                
+                    
+                    
+                    
+                    
+    <style>  
+        #divattendcalc {     
+            position: fixed;
+            right: 5px;
+            top: 45%;
+            width: 50px;
+            cursor: pointer;
+            z-index: 2;
+        }
+
+            #divattendcalc input[type="image"] {
+                width: 100%;
+            }
+
+        @media (max-width: 480px) {
+            .Attendance_Calc {
+                height: 400px;
+                overflow-y: scroll;
+                overflow-x: hidden;
+            }
+
+            div[id*="lblAttendancePer"] {
+                line-height: 20px;
+            }
+        }
+    </style>
+    
+    <div class="form_header">My Attendance <span id="ContentPlaceHolder1_ls"></span></div>
+    <div class="col-md-12" style="margin-bottom:20px !important; border-bottom:1px solid #dadada; padding-bottom:15px !important">
+                   <div class="col-md-3"></div>
+                  <div class="col-md-2 text-right"><label style="padding-top:8px">Select Academic Session</label></div>
+                <div class="col-md-3 text-left">
+                        <select name="ctl00$ContentPlaceHolder1$ddlSession" id="ddlSession">
+	<option selected="selected" value="26271">CurrentSession (26271)</option>
+
+</select>
+                </div>
+                  <div class="clearfix"></div>
+              </div>
+
+    
+
+
+<script src="n-js/highcharts.js"></script>  
+<script src="n-js/exporting.js"></script>
+<script src="Scripts/jquery-ui.js"></script>
+<link href="Scripts/jquery-ui.css" rel="stylesheet" />
+
+<script src="assets/js/student/student_attendance_summary_1.3.js?ver=1"></script>
+
+<style type="text/css">
+    .highcharts-credits {
+        display: none;
+    }
+
+    .overlay {
+        height: 100%;
+        width: 100%;
+        z-index: 9999;
+        opacity: 0.5;
+        position: absolute;
+        vertical-align: central;
+    }
+
+    SortTable {
+        border: 1px solid #ccc;
+        border-collapse: collapse;
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        table-layout: fixed;
+    }
+
+        SortTable caption {
+            font-size: 1.5em;
+            margin: .5em 0 .75em;
+        }
+
+        SortTable tr {
+            background: #f8f8f8;
+            border: 1px solid #ddd;
+            padding: .35em;
+        }
+
+        SortTable th,
+        SortTable td {
+            padding: .625em;
+            text-align: center;
+        }
+
+        SortTable th {
+            font-size: .85em;
+            letter-spacing: .1em;
+            text-transform: uppercase;
+        }
+
+    .ui-icon {
+        width: 16px;
+        height: 16px;
+    }
+
+
+    .ui-icon,
+    .ui-widget-content .ui-icon {
+        background-image: url("images/ui-icons_444444_256x240.png");
+    }
+
+    .ui-widget-header .ui-icon {
+        background-image: url("images/ui-icons_444444_256x240.png");
+    }
+
+    .my-inp {
+    }
+
+        .my-inp label {
+            display: inline-block;
+            vertical-align: middle;
+        }
+
+        .my-inp input {
+            display: inline-block;
+            vertical-align: middle;
+            width: 170px;
+            padding: 6px 12px;
+            font-size: 14px;
+            line-height: 1.42857143;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            -webkit-box-shadow: inset 0 1px 1px rgba(0,0,0,.075);
+            box-shadow: inset 0 1px 1px rgba(0,0,0,.075);
+            -webkit-transition: border-color ease-in-out .15s,-webkit-box-shadow ease-in-out .15s;
+            -o-transition: border-color ease-in-out .15s,box-shadow ease-in-out .15s;
+            transition: border-color ease-in-out .15s,box-shadow ease-in-out .15s;
+        }
+
+        .my-inp select {
+            width: 250px;
+            display: inline-block;
+        }
+
+    @media screen and (max-width: 600px) {
+        table {
+            border: 0;
+        }
+
+            table caption {
+                font-size: 1.3em;
+            }
+
+            table thead {
+                border: none;
+                clip: rect(0 0 0 0);
+                height: 1px;
+                margin: -1px;
+                overflow: hidden;
+                padding: 0;
+                position: absolute;
+                width: 1px;
+            }
+
+            table tr {
+                border-bottom: 3px solid #ddd;
+                display: block;
+                margin-bottom: .625em;
+            }
+
+            table td {
+                border-bottom: 1px solid #ddd;
+                display: block;
+                font-size: .8em;
+                text-align: right;
+            }
+
+                table td:before {
+                    content: attr(data-label);
+                    float: left;
+                    font-weight: bold;
+                    text-transform: uppercase;
+                }
+
+                table td:last-child {
+                    border-bottom: 0;
+                }
+    }
+</style>
+
+<div class="overlay" style="display: none;">
+    <img height="100%" width="100%" src="images/three-bar-loader.gif" />
+</div>
+
+<br />
+<div class="row">
+    <div class="col-sm-1"></div>
+    <div class="col-sm-3">
+        <b>UID: #<label class="uid"></label></b>
+    </div>
+    <div class="col-sm-1"></div>
+    <div class="col-sm-3">
+        <b>Semester: <label class="semester"></label></b>
+    </div>
+    <div class="col-sm-1"></div>
+    <div class="col-sm-3">
+        <b>Name: <label class="name"></label></b>
+    </div>
+
+
+</div>
+<br />
+<div class="row">
+    <div class="col-sm-4 my-inp">
+        <label>Filter By:</label>
+        <select name="ctl00$ContentPlaceHolder1$wucStudentAttendanceSummary1$drpfilter" id="drpfilter" class="form-control">
+	<option value="All">Till Date(All days)</option>
+	<option value="DS">Date Wise</option>
+
+</select>
+    </div>
+    <div id="div_filter" style="display: none">
+        <div class="col-sm-3 my-inp">
+            <label>From Date:</label>
+            <input name="ctl00$ContentPlaceHolder1$wucStudentAttendanceSummary1$txtfromdate" type="text" autocomplete="off" id="txtfromdate" class="form-control" />
+            
+        </div>
+        <div class="col-sm-3 my-inp">
+            <label>To Date:</label>
+            <input name="ctl00$ContentPlaceHolder1$wucStudentAttendanceSummary1$txttodate" type="text" autocomplete="off" id="txttodate" class="form-control" />
+            
+            <span id="ContentPlaceHolder1_wucStudentAttendanceSummary1_cmpVal1" style="color:Red;visibility:hidden;">*Invalid Data</span>
+        </div>
+
+    </div>
+    <div class="col-sm-2">
+        <input type="button" value="Search" onclick="getDataDateWise()" />
+        
+    </div>
+    <div class="col-sm-12">
+        <b>Search Criteria:</b><span id="lbtype">Till Date(All days)</span>
+    </div>
+</div>
+
+<br />
+
+<div id="Chart">
+    <div id="container"></div>
+</div>
+
+<table id='SortTable' class="table table-bordered table-striped" style="text-align: center;">
+    <thead>
+        <tr>
+            <th>Course Code</th>
+            <th>Title</th>
+            
+
+
+            <th>Total Delv.</th>
+            <th>Total Attd.</th>
+            
+            
+           
+             <th>IDL</th>
+             <th>ADL</th>
+            
+            <th>VDL</th>
+            <th>Medical Leave</th>
+             <th>Eligible Delivered</th>
+             <th>Eligible Attended</th>
+             <th>Eligible Percentage</th>
+            
+            <th>View Attendance</th>
+
+        </tr>
+    </thead>
+    <tbody>
+    </tbody>
+</table>
+
+
+
+<div class="row Note">
+    <div class="col-sm-12" style="font-weight: 500; color: #FF0000; font-size: 15px;">
+     
+        <b>Types of Duty Leaves</b>
+        <ul>
+            <li>IDL	: Industrial Duty Leave</li>
+            <li>ADL	: Assigned Duty Leave</li>
+            <li>VDL : Voluntary Duty Leave</li>
+                             
+        </ul>
+    </div>
+
+</div>
+
+<center><input type="submit" name="ctl00$ContentPlaceHolder1$wucStudentAttendanceSummary1$download" value="Download as PDF" id="ContentPlaceHolder1_wucStudentAttendanceSummary1_download" /></center>
+
+<div id="popupid" class="sidenav" style="transition: all 0.5s ease 0s; width: 0px; z-index: 15;">
+    <div style="display: block; margin: auto; width: 90%;">
+
+        <h2 style="font-size: 18px; text-align: center; color: #d30505; padding: 0px">Attendance Summary
+                <input type="button" value="Print Data" onclick="printData()" /><br />
+            * Please note Absent(Duty Leave) or Absent(Medical Leave) are counted as absent. Benefit of these leaves will  applicable as per policy of minimum physical attendance.
+
+
+        </h2>
+
+        <div style="background: #fff; max-height: 500px;" align="center">
+            <div class="closebtn" onclick="Closepopupfunction();">
+                X
+            </div>
+            <div>
+
+
+
+                <div style="max-height: 500px; overflow-x: hidden; overflow-y: auto;" id="div_attend_details">
+                    <div class="row print">
+
+                        <div class="col-sm-3">
+                            <b>UID: #<label class="uid"></label></b>
+                        </div>
+
+                        <div class="col-sm-3">
+                            <b>Semester: <label class="semester"></label></b>
+                        </div>
+
+                        <div class="col-sm-3">
+                            <b>Name: <label class="name"></label></b>
+                        </div>
+                        <div class="col-sm-3">
+                            <b>Course Code: <label class="CourseCode"></label></b>
+                        </div>
+                        
+                    </div>
+                    <table id="fullreport" class="print table table-bordered table-hover table-condensed" style="overflow: auto; text-align: center;">
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<div id="givefeedback" class="sidenav" style="transition: all 0.5s ease 0s; width: 0px; z-index: 15;">
+ <div style="display: block; margin: auto; width: 90%;">
+
+        <h2 style="font-size: 18px; text-align: center; color: #d30505; padding: 0px">
+               
+           
+
+
+        </h2>
+
+        <div style="background: #fff; max-height: 500px;" align="center">
+            <div class="closebtn" onclick="Closefeedbackfunction();">
+                X
+            </div>
+            </div>
+
+    
+   
+
+     </div>
+</div>
+
+
+
+
+
+
+
+
+
+
+    
+
+
+                
+            </div>
+            <footer id="footer" class="footer d-flex flex-column">
+			    <div class="top-footer d-flex align-items-center justify-content-center flex-column">
+				    <a href="#"><img src="/assets/upload-images/logo-black.svg" class="img-fluid" alt="Chandigarh University" /></a>
+				    <ul class="social-icons d-flex">
+					    <li><a href="#"><img src="/assets/upload-images/icon-fb.svg" class="img-fluid" alt="Facebook" /></a></li>
+					    <li><a href="#"><img src="/assets/upload-images/icon-twitter.svg" class="img-fluid" alt="Twitter" /></a></li>
+					    <li><a href="#"><img src="/assets/upload-images/icon-vimeo.svg" class="img-fluid" alt="Vimeo" /></a></li>
+					    <li><a href="https://www.youtube.com/@Chandigarhuniversity"><img src="/assets/upload-images/icon-youtube.svg" class="img-fluid" alt="Youtube" width="30" /></a></li>
+				    </ul>
+			    </div>
+                <div class="text-end">
+                    <a href="bugreport.aspx" id="a_bugreport" title="Report a bug">Report a Bug  <i class="fa fa-bug" aria-hidden="true"></i></a>
+                </div>
+			    <div class="bottom-footer d-flex justify-content-between">
+					<div class="footer-txt">© 2025 Chandigarh University, Lucknow - Kanpur Highway-27, Unnao, Uttar Pradesh, India.</div>
+					<div class="footer-txt"><a href="tel:18002701411"><img src="/assets/upload-images/icon-phone.svg" class="img-fluid" width="15" alt="phone" />General Helpline No: 18002701411</a></div>
+					<div class="footer-txt"><a href="mailto:studentcare@culko.in"><img src="/assets/upload-images/icon-email.svg" class="img-fluid" width="15" alt="Email ID" />studentcare@culko.in</a></div>
+				</div>
+		    </footer>
+            
+        </div>
+
+        
+
+        <div id="div_help_popup" class="modal fade" role="dialog" style="z-index: 99999; background: rgba(255, 255, 255, 0.9); display:none;">
+            <div class="modal-dialog">
+
+                <!-- Modal content-->
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <button type="button" class="close" data-dismiss="modal" onclick="OpenNewPopUp('0','div_help_popup')">&times;</button>
+                        <h4 class="modal-title text-center">UIMS HELP</h4>
+                    </div>
+                    <div id="help_content" style="height: 450px; overflow-y: scroll;" class="modal-body">
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        
+
+        
+
+        
+
+        
+        <!-- Modal -->
+
+        
+
+        
+
+        
+
+
+        
+
+        
+
+        
+
+
+
+
+        
+
+        <div id="div_libpopup" class="modal fade" role="dialog" style="z-index: 999999; background: rgba(255, 255, 255, 0.9); display:none;">
+            <div class="modal-dialog">
+
+                <!-- Modal content-->
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h4 class="modal-title text-center w-100">LIBRARY MESSAGES</h4>
+                        <button type="button" class="close" data-dismiss="modal" onclick="OpenNewPopUp('0','div_libpopup')">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <ul id="tabs" class="nav nav-tabs nav-tabMessage">
+                            <li class="active"><a data-toggle="tab" href="#t1">Pending</a></li>
+                            <li><a data-toggle="tab" href="#t2">History</a></li>
+                        </ul>
+                        <div id="div_lib_content">
+                        </div>
+                        <!-- Bootstrap Accordion -->
+                        <div class="panel-group" id="accordion" role="tablist" aria-multiselectable="true"></div>
+                        <!-- /Bootstrap Accordion -->
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        
+
+
+
+
+        
+
+        <div id="div_celebrations" class="sidenav" style="transition: all 0.5s ease 0s; width: 0px; z-index: 15;">
+            <div style="display: block; margin: auto; width: 100%;">
+
+                <div style="background: #fff;">
+                    <div class="div_celebrations_Popup">
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+
+
+
+        
+
+        <div id="divForcePopUp" class="divForcePopup modal fade" role="dialog" style="z-index: 99999; background: rgba(255, 255, 255, 0.9);">
+            <div class="modal-dialog" style="width: 98%; max-width:98%;">
+
+                <!-- Modal content-->
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <button type="button" class="close" data-dismiss="modal" onclick="OpenNewPopUp('0','divForcePopUp')">×</button>
+                        <h4 class="modal-title text-center w-100">IMPORTANT INFORMATION</h4>
+                    </div>
+                    <div class="modal-body" id="divForcePopUp_content">
+                    </div>
+                </div>
+
+            </div>
+        </div>
+        
+
+
+
+
+        
+        <div id="UpdateProgress1" style="display:none;">
+	
+                <div id="loader-wrapper">
+                    <div id="loader">
+                        <img src="assets/uploads/loader.gif">
+                        <p>Loading...</p>
+                    </div>
+                </div>
+            
+</div>
+        
+        
+
+
+        <script src="assets/js/bootstrap.min.js"></script>
+
+        <script type="text/javascript" src="assets/js/materialize.js"></script>
+        <script type="text/javascript" src="Scripts/UIMSHome4.0.js?version=4.2"></script>
+        <script type="text/javascript" src="n-js/jquery.scrollbar.js"></script>
+        <script type="text/javascript" src="Scripts/toastr8.min.js"></script>
+        <script type="text/javascript" src="Scripts/jquery-ui.js"></script>
+
+        
+
+
+        
+    <script>
+        $(".mob-search a").click(function(){
+            $(".page-search").toggleClass("open");
+        });
+    </script>
+    <script>
+        const myElement = document.getElementById('myElement');
+        const searchBox = document.getElementById('searchBox');
+        searchBox.addEventListener('click', function () {
+            myElement.classList.toggle('searchOuter');
+        });
+        function slideLeft() {
+            const mainWrap = document.getElementById('mainWrap');
+            mainWrap.classList.toggle('slideLeft');
+            const sidebarMenu = document.getElementById('uims_sidebars');
+            //uims_sidebar.classList.toggle('slideLeft');
+        }
+        function flip() {
+            $('.card-thumb').toggleClass('flipped');
+        }
+    </script>
+    
+<script type="text/javascript">
+//<![CDATA[
+var Page_Validators =  new Array(document.getElementById("ContentPlaceHolder1_wucStudentAttendanceSummary1_cmpVal1"));
+//]]>
+</script>
+
+<script type="text/javascript">
+//<![CDATA[
+var ContentPlaceHolder1_wucStudentAttendanceSummary1_cmpVal1 = document.all ? document.all["ContentPlaceHolder1_wucStudentAttendanceSummary1_cmpVal1"] : document.getElementById("ContentPlaceHolder1_wucStudentAttendanceSummary1_cmpVal1");
+ContentPlaceHolder1_wucStudentAttendanceSummary1_cmpVal1.controltovalidate = "txttodate";
+ContentPlaceHolder1_wucStudentAttendanceSummary1_cmpVal1.errormessage = "*Invalid Data";
+ContentPlaceHolder1_wucStudentAttendanceSummary1_cmpVal1.validationGroup = "datefilter";
+ContentPlaceHolder1_wucStudentAttendanceSummary1_cmpVal1.type = "Date";
+ContentPlaceHolder1_wucStudentAttendanceSummary1_cmpVal1.dateorder = "mdy";
+ContentPlaceHolder1_wucStudentAttendanceSummary1_cmpVal1.cutoffyear = "2049";
+ContentPlaceHolder1_wucStudentAttendanceSummary1_cmpVal1.century = "2000";
+ContentPlaceHolder1_wucStudentAttendanceSummary1_cmpVal1.evaluationfunction = "CompareValidatorEvaluateIsValid";
+ContentPlaceHolder1_wucStudentAttendanceSummary1_cmpVal1.controltocompare = "txtfromdate";
+ContentPlaceHolder1_wucStudentAttendanceSummary1_cmpVal1.controlhookup = "txtfromdate";
+ContentPlaceHolder1_wucStudentAttendanceSummary1_cmpVal1.operator = "GreaterThanEqual";
+//]]>
+</script>
+
+
+<script type="text/javascript">
+//<![CDATA[
+setTimeout(function () {getReport('5aK8tz2NKop+VpQgD9XAIU6z44/jD3Nm8HIldV9oorU=','26271');}, 200);
+var Page_ValidationActive = false;
+if (typeof(ValidatorOnLoad) == "function") {
+    ValidatorOnLoad();
+}
+
+function ValidatorOnSubmit() {
+    if (Page_ValidationActive) {
+        return ValidatorCommonOnSubmit();
+    }
+    else {
+        return true;
+    }
+}
+        
+document.getElementById('ContentPlaceHolder1_wucStudentAttendanceSummary1_cmpVal1').dispose = function() {
+    Array.remove(Page_Validators, document.getElementById('ContentPlaceHolder1_wucStudentAttendanceSummary1_cmpVal1'));
+}
+Sys.Application.add_init(function() {
+    $create(Sys.UI._UpdateProgress, {"associatedUpdatePanelId":null,"displayAfter":0,"dynamicLayout":true}, null, null, $get("UpdateProgress1"));
+});
+Sys.Application.add_init(function() {
+    $create(AjaxControlToolkit.AlwaysVisibleControlBehavior, {"HorizontalSide":1,"VerticalSide":1,"id":"AlwaysVisibleControlExtender5"}, null, null, $get("UpdateProgress1"));
+});
+//]]>
+</script>
+</form>
+</body>
+</html>

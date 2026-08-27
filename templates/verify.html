@@ -1,0 +1,124 @@
+This implementation uses **Django**, **Django-Sessions**, and **`django.core.mail`** to create a registration flow similar to Outlook's.
+
+### Prerequisites
+In your `settings.py`, configure your email backend (using Gmail or an SMTP relay):
+```python
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = 'your-email@gmail.com'
+EMAIL_HOST_PASSWORD = 'your-app-password'
+```
+
+---
+
+### 1. The Logic (`views.py`)
+We use two views: one to collect user details and send the code, and another to verify the code and create the user.
+
+```python
+import random
+from django.shortcuts import render, redirect
+from django.contrib.auth.models import User
+from django.core.mail import send_mail
+from django.contrib import messages
+
+def register_step_1(request):
+    if request.method == "POST":
+        email = request.POST.get('email')
+        password = request.POST.get('password')
+        username = email.split('@')[0] # Simple username logic
+
+        if User.objects.filter(email=email).exists():
+            messages.error(request, "Email already registered.")
+            return redirect('register')
+
+        # Generate 6-digit code
+        verification_code = str(random.randint(100000, 999999))
+        
+        # Store data in session temporarily
+        request.session['reg_data'] = {
+            'email': email,
+            'password': password,
+            'username': username,
+            'code': verification_code
+        }
+
+        # Send Email
+        send_mail(
+            'Verify your email',
+            f'Your Outlook-style verification code is: {verification_code}',
+            'noreply@yourdomain.com',
+            [email],
+            fail_silently=False,
+        )
+        return redirect('verify_code')
+
+    return render(request, 'register.html')
+
+def verify_code(request):
+    reg_data = request.session.get('reg_data')
+    if not reg_data:
+        return redirect('register')
+
+    if request.method == "POST":
+        user_input = request.POST.get('code')
+
+        if user_input == reg_data['code']:
+            # Code matches, create the user
+            User.objects.create_user(
+                username=reg_data['username'],
+                email=reg_data['email'],
+                password=reg_data['password']
+            )
+            del request.session['reg_data'] # Clean up session
+            messages.success(request, "Account created! You can now login.")
+            return redirect('login')
+        else:
+            messages.error(request, "Invalid code. Please try again.")
+
+    return render(request, 'verify.html', {'email': reg_data['email']})
+```
+
+---
+
+### 2. The Templates (Outlook Style)
+Create a `templates` folder. We will use a clean, centered card design.
+
+**`register.html`**
+```html
+<div style="max-width: 400px; margin: 100px auto; font-family: 'Segoe UI', sans-serif; border: 1px solid #ccc; padding: 40px;">
+    <img src="https://logokas.com/wp-content/uploads/2023/02/microsoft-logo.png" width="100" alt="Logo">
+    <h2>Create account</h2>
+    <form method="POST">
+        {% csrf_token %}
+        <input type="email" name="email" placeholder="someone@example.com" required style="width: 100%; padding: 10px; margin-bottom: 10px; border: none; border-bottom: 1px solid #666;">
+        <input type="password" name="password" placeholder="Create password" required style="width: 100%; padding: 10px; margin-bottom: 20px; border: none; border-bottom: 1px solid #666;">
+        <div style="text-align: right;">
+            <button type="submit" style="background: #0067b8; color: white; border: none; padding: 8px 30px; cursor: pointer;">Next</button>
+        </div>
+    </form>
+</div>
+```
+
+**`verify.html`**
+```html
+<div style="max-width: 400px; margin: 100px auto; font-family: 'Segoe UI', sans-serif; border: 1px solid #ccc; padding: 40px;">
+    <h2>Verify email</h2>
+    <p>Enter the code we sent to <strong>{{ email }}</strong>. If you don't see it, check your junk folder.</p>
+    
+    <form method="POST">
+        {% csrf_token %}
+        <input type="text" name="code" placeholder="Enter code" required style="width: 100%; padding: 10px; margin-bottom: 20px; border: none; border-bottom: 1px solid #666;">
+        
+        <div style="font-size: 12px; margin-bottom: 20px;">
+            <input type="checkbox" required> I would like information, tips, and offers about Microsoft products and services.
+        </div>
+
+        <div style="text-align: right;">
+            <button type="submit" style="background: #0067b8; color: white; border: none; padding: 8px 30px; cursor: pointer;">Next</button>
+        </div>
+    </form>
+</div>
+```
+

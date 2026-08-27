@@ -1,0 +1,94 @@
+TOKEN encrypt-codes=3
+LAND frmStudentCourseWiseAttendanceSumm -> 200 final=https://student.culko.in/frmStudentCourseWiseAttendanceSummary.aspx?type=etgkYfqBdH1fSfc255iYGw==
+FN [frmStudentCourseWiseAttendanceSumm] getReport('5aK8tz2NKop+VpQgD9XAIU6z44/j')
+LAND StudentHome.aspx -> 200 final=https://student.culko.in/StudentHome.aspx
+SVC [StudentHome.aspx] method=StudentMentorDetails
+JS WebResource.axd -> 200 len=23063
+JS ScriptResource.axd -> 200 len=26951
+JS ScriptResource.axd -> 200 len=319864
+JS ScriptResource.axd -> 200 len=101387
+JS ScriptResource.axd -> 200 len=3073
+JS ScriptResource.axd -> 200 len=75853
+PAGE-PARSE [frmStudentCourseWiseAttendance] days=0 entries=0
+PAGE-PARSE [StudentHome.aspx] days=0 entries=0
+ASPX-INDEX FrmStudentFormsDetails.aspx, Login.aspx, StudentHome.aspx, StudentQueryMaster.aspx, bugreport.aspx, foo.aspx, frmAMCATStudentResult.aspx, frmAccountStudentDetails.aspx, frmAccountsStudentReceiptList.aspx, frmAppCounsellingTherapyClinicRegistration.aspx, frmCareerOptionOther.aspx, frmCentreForGlobalEducationCGE_ISTP.aspx, frmCentreForGlobalEducationCGE_ITP.aspx, frmCentreForGlobalEducationCGE_SEP.aspx, frmCentreForGlobalEducationCGE_USA.aspx, frmDLLMOOCCoordinatorList.aspx, frmICTSServices.aspx, frmImportantlink.aspx, frmInternationalProgramEnrolment.aspx, frmInternationalStudentBasicInformation.aspx, frmLibraryRepository.aspx, frmLoanLetterApplication.aspx, frmMockTestNew.aspx, frmMyCourse.aspx, frmMyTimeTable.aspx, frmOIRServices.aspx, frmOpenAuthentication.aspx, frmResourceLibrary.aspx, frmSWCRequest.aspx, frmStuQuestionSolution.aspx, frmStuUniformCollection.aspx, frmStudenHostelDetails.aspx, frmStudentAdmissionDocumentsUpload.aspx, frmStudentApplyDutyLeave.aspx, frmStudentComplaintAgainstHarassment.aspx, frmStudentCourseWiseAttendanceSummary.aspx, frmStudentDailyDiary.aspx, frmStudentDatesheet.aspx, frmStudentEventReview.aspx, frmStudentHostelLeave.aspx, frmStudentMarksView.aspx, frmStudentMedicalLeaveApply.aspx, frmStudentPracticleDateSheet.aspx, frmStudentProfile.aspx, frmStudentReappearMarksView.aspx, frmStudentSocialInternshipEntry.aspx, frmStudentSocialInternshipEntryPart2.aspx, frmStudentTransportConsent.aspx, frmStudentWinningCampAttendanceSummary.aspx, frmTakeTest.aspx, frmTalentSearchProgram.aspx, frmTransportDetails.aspx, frmUploadInternationalStudentMedicalInsurance.aspx, frmWinningCampMyTimetable.aspx, frmresources.aspx, result.aspx
+TRYLIST 1) https://student.culko.in/frmStudentCourseWiseAttendanceDetail.aspx?type=FpFa8o3Yqm5+cy+hcCACW/n/pWMTTy4bSxGNoozBQI0=
+TRYLIST 2) https://student.culko.in/frmStudentCourseWiseAttendanceDetail.aspx?code=FpFa8o3Yqm5+cy+hcCACW/n/pWMTTy4bSxGNoozBQI0=
+TRYLIST 3) https://student.culko.in/frmStudentCourseWiseAttendanceDetail.aspx?type=etgkYfqBdH1fSfc255iYGw==
+TRYLIST 4) https://student.culko.in/frmStudentCourseWiseAttendance.aspx?type=FpFa8o3Yqm5+cy+hcCACW/n/pWMTTy4bSxGNoozBQI0=
+TRYLIST 5) https://student.culko.in/frmStudentCourseWiseAttendance.aspx?code=FpFa8o3Yqm5+cy+hcCACW/n/pWMTTy4bSxGNoozBQI0=
+TRYLIST 6) https://student.culko.in/frmStudentCourseWiseAttendance.aspx?type=etgkYfqBdH1fSfc255iYGw==
+TRYLIST 7) https://student.culko.in/frmStudentDayWiseAttendanceReport.aspx?type=FpFa8o3Yqm5+cy+hcCACW/n/pWMTTy4bSxGNoozBQI0=
+TRYLIST 8) https://student.culko.in/frmStudentDayWiseAttendanceReport.aspx?code=FpFa8o3Yqm5+cy+hcCACW/n/pWMTTy4bSxGNoozBQI0=
+TRYLIST 9) https://student.culko.in/frmStudentDayWiseAttendanceReport.aspx?type=etgkYfqBdH1fSfc255iYGw==
+TRYLIST 10) https://student.culko.in/frmStudentAttendanceDetail.aspx?type=FpFa8o3Yqm5+cy+hcCACW/n/pWMTTy4bSxGNoozBQI0=
+TRYLIST 11) https://student.culko.in/frmStudentAttendanceDetail.aspx?type=etgkYfqBdH1fSfc255iYGw==
+TRYLIST 12) https://student.culko.in/frmStudentAttendanceDetails.aspx?type=FpFa8o3Yqm5+cy+hcCACW/n/pWMTTy4bSxGNoozBQI0=
+TRY https://student.culko.in/frmStudentCourseWiseAttendanceDetail.aspx?type=FpFa8o3Yqm5+cy+hcCACW/n/pWMTTy4bSxGNoozBQI0= -> 404 len=1952 title='The resource cannot be found.'
+  404/error page - agla candidate
+TRY https://student.culko.in/frmStudentCourseWiseAttendanceDetail.aspx?code=FpFa8o3Yqm5+cy+hcCACW/n/pWMTTy4bSxGNoozBQI0= -> 404 len=1952 title='The resource cannot be found.'
+  404/error page - agla candidate
+TRY https://student.culko.in/frmStudentCourseWiseAttendanceDetail.aspx?type=etgkYfqBdH1fSfc255iYGw== -> 404 len=1952 title='The resource cannot be found.'
+  404/error page - agla candidate
+TRY https://student.culko.in/frmStudentCourseWiseAttendance.aspx?type=FpFa8o3Yqm5+cy+hcCACW/n/pWMTTy4bSxGNoozBQI0= -> 404 len=1946 title='The resource cannot be found.'
+  404/error page - agla candidate
+TRY https://student.culko.in/frmStudentCourseWiseAttendance.aspx?code=FpFa8o3Yqm5+cy+hcCACW/n/pWMTTy4bSxGNoozBQI0= -> 404 len=1946 title='The resource cannot be found.'
+  404/error page - agla candidate
+TRY https://student.culko.in/frmStudentCourseWiseAttendance.aspx?type=etgkYfqBdH1fSfc255iYGw== -> 404 len=1946 title='The resource cannot be found.'
+  404/error page - agla candidate
+TRY https://student.culko.in/frmStudentDayWiseAttendanceReport.aspx?type=FpFa8o3Yqm5+cy+hcCACW/n/pWMTTy4bSxGNoozBQI0= -> 404 len=1949 title='The resource cannot be found.'
+  404/error page - agla candidate
+TRY https://student.culko.in/frmStudentDayWiseAttendanceReport.aspx?code=FpFa8o3Yqm5+cy+hcCACW/n/pWMTTy4bSxGNoozBQI0= -> 404 len=1949 title='The resource cannot be found.'
+  404/error page - agla candidate
+PROBE StudentMentorDetails -> 500 len=3490
+PROBE GetDayWiseAttendance -> 500 len=3490
+PROBE GetAttendanceDetail -> 500 len=3490
+PROBE GetCourseWiseAttendanceDetail -> 500 len=3490
+PROBE GetStudentAttendanceDetail -> 500 len=3490
+PROBE GetDayWiseReport -> 500 len=3490
+TABLES on summary page: 2
+TABLE0 id='SortTable' rows=1 head=['Course Code', 'Title', 'Total Delv.', 'Total Attd.', 'IDL', 'ADL', 'VDL', 'Medical Leave']
+TABLE1 id='fullreport' rows=0 head=[]
+RAWREPORT GetReport -> 200 len=5341
+RAWREPORT records=8 keys=['Code', 'DutyLeave', 'DutyLeave_ADL', 'DutyLeave_N_P', 'DutyLeave_Others', 'EligibilityAttended', 'EligibilityDelivered', 'EligibilityPercentage', 'EncryptCode', 'Lec_Attd', 'Lec_Delv', 'Lec_Perc', 'MedicalLeave', 'Prac_Attd', 'Prac_Delv', 'Prac_Perc', 'Semester', 'StudentId', 'Title', 'TotalPercentage', 'Total_Attd', 'Total_Delv', 'Total_Perc', 'Trl_Attd', 'Trl_Delv', 'Trl_Perc', 'UId', 'colorcode', 'name']
+RAWREPORT course-codes=8
+RAWREPORT rec0 {'Code': '25CSH-209', 'DutyLeave': '1', 'DutyLeave_ADL': '0', 'DutyLeave_N_P': '0', 'DutyLeave_Others': '0', 'EligibilityAttended': '18', 'EligibilityDelivered': '28', 'EligibilityPercentage': '64.29', 'EncryptCode': 'WXKfjAI1sUsEgErcHUKbiSIU4E5cAK1xI865', 'Lec_Attd': '10', 'Lec_Delv': '18', 'Lec_Perc': '55.56'}
+RAWREPORT dump -> attendance_getreport_raw.txt
+PAGE-DUMP -> attendance_summary_page.html len=105386
+FULLREPORT-CTX1 ...ame"></label></b> </div> <div class="col-sm-3"> <b>Course Code: <label class="CourseCode"></label></b> </div> </div> <table id="fullreport" class="print table table-bordered table-hover table-condensed" style="overflow: auto; text-align: center;"> </table> </div> </div> </div> </div> </div> <div id="givefeedback" class="sidenav" style="transition: all 0.5...
+TRY frmStudentDailyDiary.aspx -> 404 len=1245 title='404 - File or directory not found.'
+TRY frmStudentWinningCampAttendanceSummary.aspx -> 200 len=105647 title='Chandigarh University Management System |  Unnao Campus'
+  parsed days=0 entries=0
+TRY frmStudentWinningCampAttendanceSummary.aspx -> 404 len=1245 title='404 - File or directory not found.'
+DETAIL-FETCH courses=11 via GetFullReport (JS contract + variants)
+DETAIL 25CSH-209/enc+dates -> 200 len=15015
+DETAIL-HIT 25CSH-209/enc+dates rows=29 entries=28
+DETAIL 25CSH-211/enc+dates -> 200 len=15497
+DETAIL-HIT 25CSH-211/enc+dates rows=30 entries=30
+DETAIL 25CSH-214/enc+dates -> 200 len=18022
+DETAIL-HIT 25CSH-214/enc+dates rows=34 entries=33
+DETAIL 25CSI-216/enc+dates -> 200 len=167 body='{"d":{"Result":"No Data Found","Id":2885419,"Exception":null,"Status":5,"IsCanceled":false,"IsCompleted":true,"CreationOptions":0,"AsyncState":null,"IsFaulted":false}}'
+DETAIL 25CSI-216/enc+encU -> 200 len=167 body='{"d":{"Result":"No Data Found","Id":2885487,"Exception":null,"Status":5,"IsCanceled":false,"IsCompleted":true,"CreationOptions":0,"AsyncState":null,"IsFaulted":false}}'
+DETAIL 25CSI-216/enc+plainU -> 200 len=167 body='{"d":{"Result":"No Data Found","Id":2885522,"Exception":null,"Status":5,"IsCanceled":false,"IsCompleted":true,"CreationOptions":0,"AsyncState":null,"IsFaulted":false}}'
+DETAIL 25CSI-216/code+encU -> 200 len=167 body='{"d":{"Result":"No Data Found","Id":2885564,"Exception":null,"Status":5,"IsCanceled":false,"IsCompleted":true,"CreationOptions":0,"AsyncState":null,"IsFaulted":false}}'
+DETAIL 25CSI-216 - koi variant kaam nahi (No Data)
+DETAIL 25CST-208/enc+dates -> 200 len=9079
+DETAIL-HIT 25CST-208/enc+dates rows=17 entries=16
+DETAIL 25DCP-211/enc+dates -> 200 len=6251
+DETAIL-HIT 25DCP-211/enc+dates rows=12 entries=12
+DETAIL 25MTT-202/enc+dates -> 200 len=9485
+DETAIL-HIT 25MTT-202/enc+dates rows=18 entries=18
+DETAIL 25UCT-201/enc+dates -> 200 len=6353
+DETAIL-HIT 25UCT-201/enc+dates rows=12 entries=10
+DETAIL ?/enc+dates -> 200 len=15015
+DETAIL ?/enc+encU -> 200 len=167 body='{"d":{"Result":"No Data Found","Id":2885835,"Exception":null,"Status":5,"IsCanceled":false,"IsCompleted":true,"CreationOptions":0,"AsyncState":null,"IsFaulted":false}}'
+DETAIL ?/enc+plainU -> 200 len=167 body='{"d":{"Result":"No Data Found","Id":2885863,"Exception":null,"Status":5,"IsCanceled":false,"IsCompleted":true,"CreationOptions":0,"AsyncState":null,"IsFaulted":false}}'
+DETAIL ? - koi variant kaam nahi (No Data)
+DETAIL ?/enc+dates -> 200 len=15497
+DETAIL ?/enc+encU -> 200 len=167 body='{"d":{"Result":"No Data Found","Id":2885909,"Exception":null,"Status":5,"IsCanceled":false,"IsCompleted":true,"CreationOptions":0,"AsyncState":null,"IsFaulted":false}}'
+DETAIL ?/enc+plainU -> 200 len=167 body='{"d":{"Result":"No Data Found","Id":2885932,"Exception":null,"Status":5,"IsCanceled":false,"IsCompleted":true,"CreationOptions":0,"AsyncState":null,"IsFaulted":false}}'
+DETAIL ? - koi variant kaam nahi (No Data)
+DETAIL-DUMP -> attendance_detail_try.txt
+DETAIL-FETCH total entries=147 days=15
+SUBJECTS built=7 (25CSH-209, 25CSH-211, 25CSH-214, 25CST-208, 25DCP-211)
+RESULT found=True days=15 records=147

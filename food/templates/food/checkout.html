@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Checkout · CUnnect</title>
+  <style>
+    @import url("https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&display=swap");
+    :root {
+      --page: #090909;
+      --black: #050505;
+      --surface: #151515;
+      --line: #292929;
+      --red: #f10b1d;
+      --white: #f5f5f5;
+      --muted: #9e9e9e;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { min-height: 100%; margin: 0; }
+
+    body {
+      background: #000;
+      color: var(--white);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .app {
+      width: 100%;
+      max-width: 420px;
+      min-height: 100vh;
+      margin: 0 auto;
+      padding-bottom: 145px;
+      background: var(--page);
+    }
+
+    .header {
+      position: sticky;
+      top: 0;
+      z-index: 5;
+      height: 55px;
+      display: grid;
+      grid-template-columns: 42px 1fr 42px;
+      align-items: center;
+      padding: 0 8px;
+      background: rgba(5, 5, 5, .98);
+      border-bottom: 1px solid #191919;
+    }
+
+    .back-btn {
+      width: 36px;
+      height: 36px;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      color: #fff;
+      font-size: 25px;
+      line-height: 1;
+      text-decoration: none;
+    }
+
+    .logo {
+      justify-self: center;
+      color: #ededed;
+      font-size: 23px;
+      font-weight: 800;
+      letter-spacing: -1.2px;
+    }
+    .logo strong { color: var(--red); }
+
+    /* Swiggy-style bottom toast for coupon feedback. */
+    .flash-stack {
+      position: fixed;
+      z-index: 30;
+      right: 14px;
+      bottom: 96px;
+      left: 14px;
+      max-width: 392px;
+      margin: 0 auto;
+      pointer-events: none;
+    }
+
+    .flash-message {
+      position: relative;
+      display: flex;
+      align-items: center;
+      min-height: 58px;
+      margin-top: 9px;
+      padding: 11px 14px 11px 49px;
+      border: 1px solid #363636;
+      border-radius: 13px;
+      background: #1a1a1a;
+      box-shadow: 0 12px 30px rgba(0,0,0,.45);
+      color: #f3f3f3;
+      font-size: 12.5px;
+      font-weight: 600;
+      line-height: 1.35;
+      animation: flash-in .28s cubic-bezier(.2,.8,.2,1);
+    }
+
+    .flash-message::before {
+      position: absolute;
+      left: 14px;
+      width: 24px;
+      height: 24px;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      background: #353535;
+      color: #fff;
+      content: "i";
+      font-size: 14px;
+      font-weight: 800;
+    }
+
+    .flash-message.success {
+      border-color: rgba(61, 178, 96, .55);
+      background: #112218;
+      color: #d2f9da;
+    }
+
+    .flash-message.success::before {
+      background: #31a655;
+      content: "✓";
+    }
+
+    .flash-message.error {
+      border-color: rgba(241, 11, 29, .58);
+      background: #2a1114;
+      color: #ffd0d4;
+    }
+
+    .flash-message.error::before {
+      background: var(--red);
+      content: "!";
+    }
+
+    @keyframes flash-in {
+      from { opacity: 0; transform: translateY(22px) scale(.96); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    /* Large coupon confirmation popup. */
+    .coupon-success-overlay {
+      position: fixed;
+      z-index: 60;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      background: rgba(0, 0, 0, .72);
+      backdrop-filter: blur(5px);
+      animation: overlay-in .2s ease-out;
+    }
+
+    .coupon-success-modal {
+      position: relative;
+      width: min(100%, 340px);
+      padding: 48px 23px 21px;
+      border: 1px solid rgba(241, 11, 29, .7);
+      border-radius: 22px;
+      background: linear-gradient(145deg, #242424, #111);
+      box-shadow: 0 18px 48px rgba(0,0,0,.7), 0 0 30px rgba(241,11,29,.18);
+      text-align: center;
+      animation: coupon-modal-in .3s cubic-bezier(.2,.9,.25,1.2);
+    }
+
+    .coupon-badge {
+      position: absolute;
+      top: -26px;
+      left: 50%;
+      width: 54px;
+      height: 54px;
+      display: grid;
+      place-items: center;
+      border: 4px solid #f3f3f3;
+      border-radius: 17px;
+      transform: translateX(-50%) rotate(45deg);
+      background: var(--red);
+      box-shadow: 0 4px 15px rgba(241,11,29,.55);
+      color: #fff;
+      font-size: 28px;
+      font-weight: 900;
+    }
+
+    .coupon-badge::before {
+      content: "%";
+      transform: rotate(-45deg);
+      font-size: 26px;
+    }
+
+    .coupon-popup-close {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      width: 30px;
+      height: 30px;
+      padding: 0 0 2px;
+      border: 0;
+      border-radius: 50%;
+      background: #3c3c3c;
+      color: #fff;
+      cursor: pointer;
+      font-size: 23px;
+      line-height: 1;
+    }
+
+    .coupon-popup-kicker {
+      margin: 0 0 9px;
+      color: #a9a9a9;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: .9px;
+    }
+
+    .coupon-success-modal h2 {
+      margin: 0;
+      color: #fff;
+      font-size: 24px;
+      line-height: 1.1;
+    }
+
+    .coupon-popup-copy {
+      margin: 11px auto 19px;
+      max-width: 250px;
+      color: #c4c4c4;
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .coupon-popup-action {
+      width: 100%;
+      height: 47px;
+      border: 0;
+      border-radius: 13px;
+      background: var(--red);
+      box-shadow: 0 6px 14px rgba(241,11,29,.25);
+      color: #fff;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 800;
+    }
+
+    @keyframes overlay-in { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes coupon-modal-in {
+      from { opacity: 0; transform: translateY(22px) scale(.88); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    .heading {
+      padding: 21px 14px 17px;
+      border-bottom: 1px solid var(--line);
+    }
+    .heading h1 { margin: 0 0 3px; font-size: 21px; }
+    .heading p { margin: 0; color: var(--muted); font-size: 12px; }
+
+    .checkout-form { padding: 0 14px; }
+
+    .section {
+      padding: 19px 0;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .section-title {
+      margin: 0 0 12px;
+      color: #f2f2f2;
+      font-size: 14px;
+      font-weight: 750;
+    }
+
+    .field-label {
+      display: block;
+      margin: 0 0 6px;
+      color: #b7b7b7;
+      font-size: 11.5px;
+      font-weight: 600;
+    }
+
+    .input, .textarea {
+      width: 100%;
+      border: 1px solid #343434;
+      border-radius: 9px;
+      outline: none;
+      background: var(--surface);
+      color: #f6f6f6;
+      font: inherit;
+      font-size: 13px;
+    }
+
+    .input {
+      height: 42px;
+      margin-bottom: 11px;
+      padding: 0 12px;
+    }
+
+    .textarea {
+      min-height: 68px;
+      padding: 10px 12px;
+      resize: vertical;
+    }
+
+    .input:focus, .textarea:focus { border-color: var(--red); }
+    .input::placeholder, .textarea::placeholder { color: #6f6f6f; }
+    .input[readonly] { border-color:#303030; background:#101010; color:#c8c8c8; cursor:not-allowed; }
+
+    .coupon-row {
+      display: flex;
+      gap: 8px;
+      align-items: stretch;
+    }
+
+    .coupon-row .input,
+    .coupon-select {
+      min-width: 0;
+      flex: 1;
+      height: 42px;
+      margin: 0;
+      padding: 0 12px;
+      border: 1px solid #343434;
+      border-radius: 9px;
+      outline: none;
+      background: var(--surface);
+      color: #f6f6f6;
+      font: inherit;
+      font-size: 12px;
+    }
+
+    .coupon-select:focus { border-color: var(--red); }
+
+    .apply-coupon-btn {
+      min-width: 72px;
+      padding: 0 12px;
+      border: 1px solid var(--red);
+      border-radius: 9px;
+      background: transparent;
+      color: var(--red);
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 750;
+    }
+
+    .coupon-note {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.35;
+    }
+
+    .coupon-feedback {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-top: 9px;
+      padding: 8px 10px;
+      border-radius: 8px;
+      font-size: 11.5px;
+      line-height: 1.35;
+    }
+
+    .coupon-feedback.success {
+      border: 1px solid rgba(61, 178, 96, .42);
+      background: rgba(61, 178, 96, .1);
+      color: #9be1ad;
+    }
+
+    .coupon-feedback.error {
+      border: 1px solid rgba(241, 11, 29, .42);
+      background: rgba(241, 11, 29, .1);
+      color: #ff9da5;
+    }
+
+    .remove-coupon-btn {
+      flex: 0 0 auto;
+      padding: 0;
+      border: 0;
+      background: transparent;
+      color: inherit;
+      cursor: pointer;
+      font: inherit;
+      font-weight: 750;
+      text-decoration: underline;
+    }
+
+    .payment-options { display: grid; gap: 9px; }
+
+    .payment-option {
+      display: flex;
+      align-items: center;
+      min-height: 53px;
+      gap: 11px;
+      padding: 10px 12px;
+      border: 1px solid #343434;
+      border-radius: 10px;
+      background: #121212;
+      cursor: pointer;
+    }
+
+    .payment-option:has(input:checked) {
+      border-color: var(--red);
+      background: rgba(241, 11, 29, .08);
+    }
+
+    .payment-option input { accent-color: var(--red); }
+
+    .payment-icon {
+      width: 28px;
+      height: 28px;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      background: #242424;
+      color: var(--red);
+      font-size: 14px;
+    }
+
+    .payment-copy { display: grid; gap: 2px; }
+    .payment-copy strong { font-size: 12.5px; }
+    .payment-copy span { color: var(--muted); font-size: 11px; }
+
+    .summary-list { display: grid; gap: 11px; }
+
+    .summary-item {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+    }
+
+    .summary-image {
+      width: 40px;
+      height: 40px;
+      flex: 0 0 40px;
+      border-radius: 7px;
+      background: #222;
+      object-fit: cover;
+    }
+
+    .summary-copy { min-width: 0; flex: 1; }
+    .summary-name {
+      overflow: hidden;
+      color: #ededed;
+      font-size: 12px;
+      font-weight: 650;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .summary-qty { margin-top: 2px; color: var(--muted); font-size: 11px; }
+    .summary-price { font-size: 12px; font-weight: 700; white-space: nowrap; }
+
+    .price-rows { display: grid; gap: 9px; margin-top: 17px; }
+    .price-row { display: flex; justify-content: space-between; color: var(--muted); font-size: 12px; }
+    .price-row.total {
+      margin-top: 3px;
+      padding-top: 12px;
+      border-top: 1px solid var(--line);
+      color: #fff;
+      font-size: 14px;
+      font-weight: 750;
+    }
+
+    .checkout-footer {
+      position: fixed;
+      z-index: 10;
+      bottom: 0;
+      left: 50%;
+      width: min(100%, 420px);
+      padding: 11px 14px max(12px, env(safe-area-inset-bottom));
+      transform: translateX(-50%);
+      background: #171717;
+      border-top: 1px solid #363636;
+      box-shadow: 0 -9px 28px rgba(0,0,0,.3);
+    }
+
+    .footer-total {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 9px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .footer-total strong { color: #fff; font-size: 17px; }
+
+    .place-order-btn {
+      width: 100%;
+      height: 45px;
+      border: 0;
+      border-radius: 24px;
+      background: var(--red);
+      color: #fff;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 750;
+    }
+
+    .empty-message {
+      padding: 70px 25px;
+      color: var(--muted);
+      text-align: center;
+      font-size: 13px;
+    }
+    .empty-message a { color: var(--red); font-weight: 700; text-decoration: none; }
+  
+    /* Same premium CUnnect wordmark as Food Home and Vendor Login. */
+    .header { height:64px; }
+    .logo { display:inline-flex; align-items:baseline; justify-self:center; font-family:"Poppins",system-ui,sans-serif; font-size:30px; font-weight:800; letter-spacing:-3px; line-height:1; }
+    .logo-cu { color:#ff1022; text-shadow:0 0 20px rgba(255,16,34,.45),0 0 60px rgba(255,16,34,.18); }
+    .logo-nnect { color:#fff; text-shadow:0 2px 10px rgba(255,255,255,.16); }
+
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header class="header">
+      <a class="back-btn" href="{% url 'cart_view' %}" aria-label="Back to cart">‹</a>
+      <div class="logo" aria-label="CUnnect"><span class="logo-cu">CU</span><span class="logo-nnect">nnect</span></div>
+      <span></span>
+    </header>
+
+    {% if messages %}
+      {% for message in messages %}
+        {% if "coupon-applied" in message.tags %}
+        <!-- Coupon success popup: dark/red CUnnect version of the reference. -->
+        <div class="coupon-success-overlay" id="coupon-success-popup" role="dialog" aria-modal="true" aria-label="Coupon applied">
+          <div class="coupon-success-modal">
+            <div class="coupon-badge"></div>
+            <button class="coupon-popup-close" type="button" aria-label="Close popup" data-close-coupon-popup>×</button>
+            <p class="coupon-popup-kicker">COUPON APPLIED</p>
+            <h2>Discount unlocked!</h2>
+            <p class="coupon-popup-copy">{{ message }}</p>
+            <button class="coupon-popup-action" type="button" data-close-coupon-popup>YAY!</button>
+          </div>
+        </div>
+        {% else %}
+        <div class="flash-stack" aria-live="polite">
+          <div class="flash-message {{ message.tags }}">{{ message }}</div>
+        </div>
+        {% endif %}
+      {% endfor %}
+    {% endif %}
+
+    {% if cart_items %}
+    <section class="heading">
+      <h1>Checkout</h1>
+      <p>Almost there — review your order details.</p>
+    </section>
+
+    <!-- Fields below use this form through the form="place-order-form" attribute. -->
+    <form id="place-order-form" method="post" action="{% url 'place_order' %}">
+      {% csrf_token %}
+    </form>
+
+    <div class="checkout-form" id="checkout-form">
+      <section class="section">
+        <h2 class="section-title">Contact details</h2>
+
+        <label class="field-label" for="name">Full name <span style="font-weight:400; color:#777;">(from profile)</span></label>
+        <input class="input" id="name" name="customer_name" form="place-order-form" type="text" value="{{ customer_name }}" readonly>
+
+        <label class="field-label" for="phone">Mobile number <span style="font-weight:400; color:#777;">(from profile)</span></label>
+        <input class="input" id="phone" name="customer_phone" form="place-order-form" type="tel" value="{{ customer_phone }}" readonly>
+
+        {% if not customer_phone %}
+          <p style="margin:-5px 0 12px; color:#ff9da5; font-size:11px;">Phone number missing. Complete your student profile before placing the order.</p>
+        {% endif %}
+
+        <label class="field-label" for="note">Order note <span style="font-weight:400; color:#777;">(optional)</span></label>
+        <textarea class="textarea" id="note" name="order_note" form="place-order-form" placeholder="Any instruction for your order?"></textarea>
+      </section>
+
+      <section class="section">
+        <h2 class="section-title">Delivery address</h2>
+
+        <label class="field-label" for="address">Address / hostel / block</label>
+        <textarea class="textarea" id="address" name="delivery_address" form="place-order-form" readonly>Chandigarh University, Nawabganj</textarea>
+
+        <div style="height: 11px;"></div>
+        <label class="field-label" for="landmark">Landmark <span style="font-weight:400; color:#777;">(optional)</span></label>
+        <input class="input" id="landmark" name="landmark" form="place-order-form" type="text" value="Near Main Gate" readonly>
+      </section>
+
+      <section class="section">
+        <h2 class="section-title">Have a coupon?</h2>
+        <form class="coupon-row" method="post" action="{% url 'apply_coupon' %}">
+          {% csrf_token %}
+          <select class="coupon-select" id="coupon" name="coupon">
+            {% if applied_coupon %}
+              <option value="{{ applied_coupon.code }}" selected>
+                {{ applied_coupon.code }} — {{ applied_coupon.discount_label }} applied
+              </option>
+            {% else %}
+              <option value="">Select a coupon</option>
+            {% endif %}
+
+            {% for coupon in available_coupons %}
+              {% if not applied_coupon or coupon.id != applied_coupon.id %}
+              <option value="{{ coupon.code }}">
+                {{ coupon.code }} — {{ coupon.discount_label }}
+              </option>
+              {% endif %}
+            {% endfor %}
+          </select>
+          <button class="apply-coupon-btn" type="submit">Apply</button>
+        </form>
+
+        {% if applied_coupon %}
+        <div class="coupon-feedback success">
+          <span><strong>{{ applied_coupon.code }}</strong> applied — you save ₹{{ coupon_discount|floatformat:0 }}</span>
+          <form method="post" action="{% url 'remove_coupon' %}">
+            {% csrf_token %}
+            <button class="remove-coupon-btn" type="submit">Remove</button>
+          </form>
+        </div>
+        {% else %}
+        <p class="coupon-note">Choose an available coupon and tap Apply before placing the order.</p>
+        {% endif %}
+      </section>
+
+      <section class="section">
+        <h2 class="section-title">Payment method</h2>
+        <div class="payment-options">
+          <label class="payment-option">
+            <input type="radio" name="payment" value="upi" form="place-order-form">
+            <span class="payment-icon">₹</span>
+            <span class="payment-copy"><strong>UPI</strong><span>Payment gateway setup pending</span></span>
+          </label>
+          <label class="payment-option">
+            <input type="radio" name="payment" value="cash" form="place-order-form" checked>
+            <span class="payment-icon">₹</span>
+            <span class="payment-copy"><strong>Pay at counter</strong><span>Pay while collecting your order</span></span>
+          </label>
+        </div>
+      </section>
+
+      <section class="section">
+        <h2 class="section-title">Order summary</h2>
+        <div class="summary-list">
+          {% for cart_item in cart_items %}
+          <article class="summary-item">
+            {% if cart_item.food_item.image %}
+              <img class="summary-image" src="{{ cart_item.food_item.image.url }}" alt="{{ cart_item.food_item.name }}">
+            {% endif %}
+            <div class="summary-copy">
+              <div class="summary-name">{{ cart_item.food_item.name }}</div>
+              <div class="summary-qty">Qty: {{ cart_item.quantity }}</div>
+            </div>
+            <div class="summary-price">₹{{ cart_item.subtotal|floatformat:0 }}</div>
+          </article>
+          {% endfor %}
+        </div>
+
+        <div class="price-rows">
+          <div class="price-row"><span>Item total</span><span>₹{{ cart_total|floatformat:0 }}</span></div>
+          {% if coupon_discount %}
+          <div class="price-row"><span>Coupon discount{% if applied_coupon %} ({{ applied_coupon.code }}){% endif %}</span><span style="color:#9be1ad;">− ₹{{ coupon_discount|floatformat:0 }}</span></div>
+          {% endif %}
+          <div class="price-row"><span>Delivery fee</span><span>FREE</span></div>
+          <div class="price-row total"><span>To pay</span><span>₹{{ final_total|floatformat:0 }}</span></div>
+        </div>
+      </section>
+    </div>
+
+    <footer class="checkout-footer">
+      <div class="footer-total">
+        <span>Total amount</span>
+        <strong>₹{{ final_total|floatformat:0 }}</strong>
+      </div>
+      <button class="place-order-btn" type="submit" form="place-order-form">Place Order</button>
+    </footer>
+    {% else %}
+    <section class="empty-message">
+      Your cart is empty.<br><br>
+      <a href="{% url 'food_home' %}">Browse Food</a>
+    </section>
+    {% endif %}
+  </main>
+
+  <script>
+    // Coupon apply/remove flash messages automatically disappear after 3 seconds.
+    document.querySelectorAll('.flash-message').forEach((message) => {
+      window.setTimeout(() => {
+        message.style.transition = 'opacity .25s ease, transform .25s ease';
+        message.style.opacity = '0';
+        message.style.transform = 'translateY(12px) scale(.98)';
+        window.setTimeout(() => message.remove(), 250);
+      }, 3000);
+    });
+
+    document.querySelectorAll('[data-close-coupon-popup]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const popup = document.getElementById('coupon-success-popup');
+        if (!popup) return;
+        popup.style.transition = 'opacity .2s ease';
+        popup.style.opacity = '0';
+        window.setTimeout(() => popup.remove(), 200);
+      });
+    });
+  </script>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a25f5110fa6be0c2',t:'MTc4NTg2NDkwNg=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
