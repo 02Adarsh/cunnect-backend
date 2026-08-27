@@ -10,6 +10,6 @@ whitenoise==6.12.0
 qrcode==8.2
 dj-database-url==2.2.0
 psycopg2-binary==2.9.9
-django-storages==1.14.4
-boto3==1.35.0
+cloudinary==1.41.0
+django-cloudinary-storage==0.6.8
 Pillow==12.1.0

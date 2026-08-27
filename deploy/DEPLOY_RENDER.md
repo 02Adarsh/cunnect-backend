@@ -94,18 +94,16 @@ Pehli request thodi slow lag sakti hai (cold), cron lagane ke baad ye problem kh
 
 ---
 
-## 📦 MEDIA PERMANENT (optional — Cloudflare R2, free 10GB)
-Render ka disk har redeploy pe reset hota hai → naye uploads (photos) chle jate hai.
-Permanent chahiye to:
-1. cloudflare.com → R2 → Create bucket `cunnect` (public access: custom domain ya R2.dev subdomain on karo).
-2. R2 → Manage API Tokens → token banao (Access Key + Secret).
-3. Render env me:
-   - `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME=cunnect`,
-     `R2_ENDPOINT_URL=https://<account-id>.r2.cloudflarestorage.com`,
-     `R2_CUSTOM_DOMAIN=<bucket-public-url>`
-4. Redeploy → ab saare uploads R2 pe = permanent + CDN-fast.
-
----
+## 📦 MEDIA PERMANENT — Cloudinary (FREE, koi card nahi)
+Render ka disk har redeploy pe reset hota hai → uploads permanent rakhne ke liye:
+1. https://cloudinary.com → **Free signup** (sirf email — card NAHI lagta).
+2. Dashboard pe hi dikhega: **Cloud Name**, **API Key**, **API Secret**.
+3. Render Web Service → Environment me:
+   - `CLOUDINARY_CLOUD_NAME` = tumhara cloud name
+   - `CLOUDINARY_API_KEY` = API key
+   - `CLOUDINARY_API_SECRET` = API secret
+4. Save → redeploy. Ab saari photos/banners Cloudinary CDN pe =
+   permanent + India me fast. Free plan: ~25GB bandwidth/month — campus ke liye kaafi.
 
 ## FAQ
 - **FCM push?** Render se chalegi (Firebase cloud call hai).
