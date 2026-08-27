@@ -2819,14 +2819,14 @@ def ums_demo(request):
             "found": True,
             "page_pdfs": [
                 {"label": "Academic Calendar 2026-27",
-                 "view_url": "http://localhost:8000/api/ums/pdf/?u=cal"},
+                 "view_url": "https://cunnect-backend.onrender.com/api/ums/pdf/?u=cal"},
                 {"label": "Syllabus Handbook CSE",
-                 "view_url": "http://localhost:8000/api/ums/pdf/?u=syl"},
+                 "view_url": "https://cunnect-backend.onrender.com/api/ums/pdf/?u=syl"},
             ],
             "courses": [
                 {"code": "CSE201", "title": "Data Structures",
                  "meta": ["4 CREDITS", "THEORY"],
-                 "plan_view_url": "http://localhost:8000/api/ums/pdf/?u=cse201",
+                 "plan_view_url": "https://cunnect-backend.onrender.com/api/ums/pdf/?u=cse201",
                  "plan": [{"rows": [
                      ["Unit", "Topic", "Lectures"],
                      ["1", "Arrays & Stacks", "L1-L6"],
@@ -2888,7 +2888,7 @@ def ums_demo(request):
              "desc": "Mid-semester exams 1-7 September tak honge.",
              "files": [
                  {"name": "exam_schedule.pdf",
-                  "url": "http://localhost:8000/api/ums/pdf/?u=exsch"},
+                  "url": "https://cunnect-backend.onrender.com/api/ums/pdf/?u=exsch"},
              ]},
             {"title": "Tech fest registrations open",
              "department": "Cultural Committee", "date": "18 Aug 2026",
