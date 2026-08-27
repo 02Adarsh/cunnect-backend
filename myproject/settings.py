@@ -187,3 +187,19 @@ DEFAULT_FROM_EMAIL = (
     else "CUnnect"
 )
 SERVER_EMAIL = DEFAULT_FROM_EMAIL
+
+
+BREVO_API_KEY = os.environ.get("BREVO_API_KEY", "").strip()
+
+CUNNECT_PUBLIC_URL = os.environ.get(
+    "CUNNECT_PUBLIC_URL",
+    "",
+).rstrip("/")
+
+# Brevo HTTPS API
+if BREVO_API_KEY:
+    EMAIL_BACKEND = "anymail.backends.brevo.EmailBackend"
+
+    ANYMAIL = {
+        "BREVO_API_KEY": BREVO_API_KEY,
+    }
