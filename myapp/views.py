@@ -47,15 +47,18 @@ from .models import (
 OTP_VALID_SECONDS = 5 * 60
 
 
-def send_cunnect_otp_email(recipient, otp, full_name="", user_id="", is_resend=False):
-    """Send a branded plain-text + HTML OTP email with an inline CUnnect image."""
+def send_cunnect_otp_email(
+    recipient,
+    otp,
+    full_name="",
+    user_id="",
+    is_resend=False,
+):
+    """Send branded OTP email through Brevo."""
+
     spaced_otp = str(otp)
-    greeting_name = full_name or user_id or "there"
-    subject = (
-        "Hey, Let's CUnnect👋"
-        if is_resend
-        else "Hey, Let's CUnnect👋"
-    )
+
+    subject = "Hey, Let's CUnnect👋"
 
     plain_message = (
         "Your ticket's here,\n"
@@ -66,28 +69,126 @@ def send_cunnect_otp_email(recipient, otp, full_name="", user_id="", is_resend=F
         "And I'll see you inside."
     )
 
+    # Logo public URL se load hoga.
+    public_url = getattr(
+        settings,
+        "CUNNECT_PUBLIC_URL",
+        "https://cunnect-backend.onrender.com",
+    ).rstrip("/")
+
+    logo_url = (
+        f"{public_url}/static/images/"
+        "cunnect_email_logo_black.png"
+    )
+
     html_message = f"""
     <!doctype html>
     <html>
-      <body style="margin:0;padding:0;background:#000000;font-family:Arial,sans-serif;color:#ffffff;">
-        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#000000;padding:28px 12px;">
+      <body style="
+        margin:0;
+        padding:0;
+        background:#000000;
+        font-family:Arial,sans-serif;
+        color:#ffffff;
+      ">
+        <table
+          role="presentation"
+          width="100%"
+          cellspacing="0"
+          cellpadding="0"
+          style="background:#000000;padding:28px 12px;"
+        >
           <tr>
             <td align="center">
-              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:560px;background:#000000;border:0;border-radius:0;overflow:hidden;">
+              <table
+                role="presentation"
+                width="100%"
+                cellspacing="0"
+                cellpadding="0"
+                style="
+                  max-width:560px;
+                  background:#000000;
+                  border:0;
+                  overflow:hidden;
+                "
+              >
                 <tr>
                   <td>
-                    <img src="cid:cunnect-email-logo" alt="CUnnect" width="560" style="display:block;width:100%;max-width:560px;height:auto;">
+                    <img
+                      src="{logo_url}"
+                      alt="CUnnect"
+                      width="560"
+                      style="
+                        display:block;
+                        width:100%;
+                        max-width:560px;
+                        height:auto;
+                      "
+                    >
                   </td>
                 </tr>
+
                 <tr>
                   <td style="padding:28px 30px 32px;">
-                    <p style="margin:0 0 8px;font-size:16px;line-height:1.55;color:#f2f2f2;">Your ticket's here,<br>The whole campus is trying to get in. Are you?</p>
-                    <div style="margin:25px 0 20px;padding:17px;border:1px solid #f10b1d;border-radius:12px;background:#250d11;text-align:center;">
-                      <div style="margin-bottom:8px;font-size:12px;font-weight:700;letter-spacing:1.5px;color:#ff9ca5;">🔐 YOUR OTP</div>
-                      <div style="font-size:32px;font-weight:800;letter-spacing:2px;white-space:nowrap;color:#ffffff;">{spaced_otp}</div>
+                    <p style="
+                      margin:0 0 8px;
+                      font-size:16px;
+                      line-height:1.55;
+                      color:#f2f2f2;
+                    ">
+                      Your ticket's here,<br>
+                      The whole campus is trying to get in. Are you?
+                    </p>
+
+                    <div style="
+                      margin:25px 0 20px;
+                      padding:17px;
+                      border:1px solid #f10b1d;
+                      border-radius:12px;
+                      background:#250d11;
+                      text-align:center;
+                    ">
+                      <div style="
+                        margin-bottom:8px;
+                        font-size:12px;
+                        font-weight:700;
+                        letter-spacing:1.5px;
+                        color:#ff9ca5;
+                      ">
+                        🔐 YOUR OTP
+                      </div>
+
+                      <div style="
+                        font-size:32px;
+                        font-weight:800;
+                        letter-spacing:2px;
+                        white-space:nowrap;
+                        color:#ffffff;
+                      ">
+                        {spaced_otp}
+                      </div>
                     </div>
-                    <p style="margin:0 0 20px;font-size:14px;color:#d0d0d0;">⏳ Valid for <strong style="color:#ffffff;">5 minutes</strong>.</p>
-                    <p style="margin:0;font-size:15px;line-height:1.55;color:#f2f2f2;">This was built for us,<br>And I'll see you inside. 👊</p>
+
+                    <p style="
+                      margin:0 0 20px;
+                      font-size:14px;
+                      color:#d0d0d0;
+                    ">
+                      ⏳ Valid for
+                      <strong style="color:#ffffff;">
+                        5 minutes
+                      </strong>.
+                    </p>
+
+                    <p style="
+                      margin:0;
+                      font-size:15px;
+                      line-height:1.55;
+                      color:#f2f2f2;
+                    ">
+                      This was built for us,<br>
+                      And I'll see you inside. 👊
+                    </p>
                   </td>
                 </tr>
               </table>
@@ -101,21 +202,17 @@ def send_cunnect_otp_email(recipient, otp, full_name="", user_id="", is_resend=F
     email = EmailMultiAlternatives(
         subject=subject,
         body=plain_message,
-        from_email=f"CUnnect<{settings.EMAIL_HOST_USER}>",
+        from_email=settings.DEFAULT_FROM_EMAIL,
         to=[recipient],
     )
+
     email.attach_alternative(html_message, "text/html")
 
-    logo_path = Path(settings.BASE_DIR) / "static" / "images" / "cunnect_email_logo_black.png"
-    if logo_path.is_file():
-        with logo_path.open("rb") as logo_file:
-            logo = MIMEImage(logo_file.read(), _subtype="png")
-        logo.add_header("Content-ID", "<cunnect-email-logo>")
-        logo.add_header("Content-Disposition", "inline", filename="cunnect_email_logo_black.png")
-        email.attach(logo)
+    # IMPORTANT:
+    # Brevo inline attachments support nahi karta.
+    # Isliye yahan email.attach(...) nahi karna hai.
 
     email.send(fail_silently=False)
-
 
 # ====================== STUDENT LOGIN ======================
 

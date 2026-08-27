@@ -193,10 +193,9 @@ BREVO_API_KEY = os.environ.get("BREVO_API_KEY", "").strip()
 
 CUNNECT_PUBLIC_URL = os.environ.get(
     "CUNNECT_PUBLIC_URL",
-    "",
+    "https://cunnect-backend.onrender.com",
 ).rstrip("/")
 
-# Brevo HTTPS API
 if BREVO_API_KEY:
     EMAIL_BACKEND = "anymail.backends.brevo.EmailBackend"
 
