@@ -11,5 +11,5 @@ qrcode==8.2
 dj-database-url==2.2.0
 psycopg[binary]>=3.2
 cloudinary==1.41.0
-django-cloudinary-storage==0.6.8
+django-cloudinary-storage==0.3.0
 Pillow==12.1.0
