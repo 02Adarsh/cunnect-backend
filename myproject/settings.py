@@ -88,12 +88,17 @@ WSGI_APPLICATION = "myproject.wsgi.application"
 ASGI_APPLICATION = "myproject.asgi.application"
 
 if os.environ.get("DATABASE_URL"):
-    # ⭐ Render/Neon Postgres — production
+    # Render/Supabase Transaction Pooler
     import dj_database_url
 
     DATABASES = {
-        "default": dj_database_url.config(conn_max_age=60, ssl_require=True)
+        "default": dj_database_url.config(
+            conn_max_age=0,
+            ssl_require=True,
+        )
     }
+
+    DISABLE_SERVER_SIDE_CURSORS = True
 else:
     DATABASES = {
         "default": {
