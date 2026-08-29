@@ -317,6 +317,15 @@ class PrintOrder(models.Model):
         return self.document.name.split("/")[-1]
 
 
+class UmsSaved(models.Model):
+    """⭐ UMS saved password+cookies — DB me taaki Render restart pe
+    captcha dobara na maangna pade."""
+
+    uid = models.CharField(max_length=60, unique=True)
+    payload = models.JSONField(default=dict)
+    updated_at = models.DateTimeField(auto_now=True)
+
+
 class HostelOrder(models.Model):
     """⭐ Hostel Essentials 8-in-1 pack order (₹1799)."""
 

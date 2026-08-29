@@ -2250,6 +2250,15 @@ _UMS_SAVE_FILE = os.path.join(
 
 def _ums_saved_load():
     try:
+        from myapp.models import UmsSaved
+
+        rows = UmsSaved.objects.all()
+        data = {r.uid: (r.payload or {}) for r in rows}
+        if data:
+            return data
+    except Exception as exc:
+        print(f"[API-UMS] db saved load failed: {exc}")
+    try:
         with open(_UMS_SAVE_FILE, encoding="utf-8") as f:
             data = json.load(f)
         return data if isinstance(data, dict) else {}
@@ -2258,19 +2267,26 @@ def _ums_saved_load():
 
 
 def _ums_saved_update(uid, **kw):
+    data = _ums_saved_load()
+    entry = data.get(uid) or {}
+    for k, v in kw.items():
+        if v is not None:
+            entry[k] = v
+    data[uid] = entry
     try:
-        data = _ums_saved_load()
-        entry = data.get(uid) or {}
-        for k, v in kw.items():
-            if v is not None:
-                entry[k] = v
-        data[uid] = entry
-        tmp = _UMS_SAVE_FILE + ".tmp"
-        with open(tmp, "w", encoding="utf-8") as f:
-            json.dump(data, f)
-        os.replace(tmp, _UMS_SAVE_FILE)
+        from myapp.models import UmsSaved
+
+        UmsSaved.objects.update_or_create(
+            uid=uid, defaults={"payload": entry})
     except Exception as exc:
-        print(f"[API-UMS] persist failed: {exc}")
+        print(f"[API-UMS] db persist failed: {exc}")
+        try:
+            tmp = _UMS_SAVE_FILE + ".tmp"
+            with open(tmp, "w", encoding="utf-8") as f:
+                json.dump(data, f)
+            os.replace(tmp, _UMS_SAVE_FILE)
+        except Exception as exc2:
+            print(f"[API-UMS] file persist failed: {exc2}")
 
 
 def _ums_owner(request):
@@ -3089,11 +3105,26 @@ def ums_dashboard(request, user):
         if not state.get("last_scrape_ok"):
             # ⭐ Bahar ke network pe portal captcha maangta hai - image app
             # bhejo, student verify karega phir live scrape hoga.
-            b64 = _ums_start_captcha(uid)
-            if b64:
-                dashboard = dict(dashboard)
-                dashboard["needs_captcha"] = True
-                dashboard["captcha_b64"] = b64
+            # Cache data ho to captcha max har 10 min me ek baar (spam nahi).
+            cached = state.get("dashboard") or {}
+            has_data = bool(cached.get("attendance") or cached.get("name")
+                            or cached.get("courses") or cached.get("result")
+                            or cached.get("fees"))
+            live = request.GET.get("live", "") in ("1", "true", "yes")
+            due = now - float(state.get("last_captcha_at") or 0) > 600
+            if (not has_data) or (live and due):
+                b64 = _ums_start_captcha(uid)
+                if b64:
+                    state["last_captcha_at"] = now
+                    dashboard = dict(cached)
+                    dashboard["needs_captcha"] = True
+                    dashboard["captcha_b64"] = b64
+                else:
+                    dashboard = cached
+            else:
+                dashboard = {k: v for k, v in cached.items()
+                             if k not in ("needs_captcha", "captcha_b64")}
+                dashboard["stale"] = True
         with _UMS_LOCK:
             state["dashboard"] = dashboard
             state["dashboard_at"] = time.time()
