@@ -1129,9 +1129,44 @@ def upi_qr(request):
     })
 
 
+_GH_RELEASE_CACHE = {"at": 0.0, "version": 0, "url": ""}
+
+
+def _gh_latest_release():
+    """⭐ GitHub repo ki latest release (tag + APK asset) — 10 min cache."""
+    import urllib.request
+
+    now = time.time()
+    if now - _GH_RELEASE_CACHE["at"] < 600:
+        return _GH_RELEASE_CACHE
+    _GH_RELEASE_CACHE["at"] = now
+    try:
+        req = urllib.request.Request(
+            "https://api.github.com/repos/02Adarsh/cunnect-backend/"
+            "releases/latest",
+            headers={"User-Agent": "cunnect-app",
+                     "Accept": "application/vnd.github+json"})
+        with urllib.request.urlopen(req, timeout=8) as r:
+            j = json.loads(r.read().decode())
+        tag = re.sub(r"[^0-9]", "", str(j.get("tag_name") or ""))
+        ver = int(tag) if tag else 0
+        url = ""
+        for a in (j.get("assets") or []):
+            name = str(a.get("name") or "").lower()
+            if name.endswith(".apk"):
+                url = str(a.get("browser_download_url") or "")
+                break
+        if ver and url:
+            _GH_RELEASE_CACHE["version"] = ver
+            _GH_RELEASE_CACHE["url"] = url
+    except Exception as exc:
+        print(f"[APP-VERSION] github check failed: {exc}")
+    return _GH_RELEASE_CACHE
+
+
 @csrf_exempt
 def app_version(request):
-    """⭐ In-app update check: deploy/app_version.json se version+URL."""
+    """⭐ In-app update check: app_version.json + GitHub latest release."""
     from django.conf import settings as _st
 
     data = {"version": 1, "url": "", "notes": ""}
@@ -1140,6 +1175,10 @@ def app_version(request):
         data.update(json.loads(p.read_text(encoding="utf8")))
     except Exception:
         pass
+    gh = _gh_latest_release()
+    if gh["version"] > int(data.get("version") or 0) and gh["url"]:
+        data["version"] = gh["version"]
+        data["url"] = gh["url"]
     return ok(data)
 
 
