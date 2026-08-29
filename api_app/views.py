@@ -1065,7 +1065,35 @@ def vendor_upi(request):
     if request.method == "POST":
         profile.upi_id = str(json_body(request).get("upi_id", "")).strip()[:120]
         profile.save()
-    return ok({"upi_id": profile.upi_id})
+    return ok({
+        "upi_id": profile.upi_id,
+        "qr_url": profile.upi_qr_image.url if profile.upi_qr_image else "",
+    })
+
+
+@csrf_exempt
+def vendor_upi_qr_upload(request):
+    """⭐ Vendor apna khud ka QR image upload kare (backend QR option)."""
+    _, profile = vendor_user(request)
+    if profile is None:
+        return fail("Vendor login required.", status=401)
+    if request.method != "POST":
+        return fail("POST only.", status=405)
+    remove_flag = str(request.POST.get("remove", "")).strip()
+    if not remove_flag:
+        remove_flag = str(json_body(request).get("remove", "")).strip()
+    if remove_flag == "1":
+        if profile.upi_qr_image:
+            profile.upi_qr_image.delete(save=False)
+        profile.upi_qr_image = None
+        profile.save()
+        return ok({"qr_url": ""})
+    f = request.FILES.get("file")
+    if f is None:
+        return fail("No image file sent.")
+    profile.upi_qr_image = f
+    profile.save()
+    return ok({"qr_url": profile.upi_qr_image.url})
 
 
 @csrf_exempt
@@ -1078,6 +1106,12 @@ def upi_qr(request):
     vp = VendorProfile.objects.filter(id=vendor_id).first()
     if vp is None or not vp.upi_id:
         return fail("Vendor UPI not set.")
+    if vp.upi_qr_image:
+        return ok({
+            "qr_url": vp.upi_qr_image.url,
+            "upi_id": vp.upi_id,
+            "name": vp.business_name,
+        })
     import base64
     import io
 

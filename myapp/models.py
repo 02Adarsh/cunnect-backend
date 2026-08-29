@@ -89,6 +89,8 @@ class VendorProfile(models.Model):
 
     # ⭐ Hostel Essentials vendor ka UPI ID (students ko payment ke liye dikhta hai)
     upi_id = models.CharField(max_length=120, blank=True, default="")
+    upi_qr_image = models.ImageField(
+        upload_to="vendor_qr/", blank=True, null=True)
 
     def __str__(self):
         return f"{self.business_name} - {self.vendor_type}"
