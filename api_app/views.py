@@ -2238,6 +2238,48 @@ def store_home(request, user):
 
 _UMS_LOCK = threading.Lock()
 _UMS_STATE = {}  # uid -> {"scraper": ..., "cookies": ..., "dashboard": {...}}
+_UMS_KEEPALIVE_STARTED = False
+
+
+def _ums_ensure_keepalive():
+    """⭐ 10-min background keepalive: session zinda + data auto-fresh,
+    taaki captcha din me 1-2 baar se zyada na aaye."""
+    global _UMS_KEEPALIVE_STARTED
+    with _UMS_LOCK:
+        if _UMS_KEEPALIVE_STARTED:
+            return
+        _UMS_KEEPALIVE_STARTED = True
+    threading.Thread(target=_ums_keepalive_loop, daemon=True).start()
+
+
+def _ums_keepalive_loop():
+    while True:
+        time.sleep(600)
+        try:
+            with _UMS_LOCK:
+                uids = [u for u, st in _UMS_STATE.items()
+                        if st.get("scraper") and st.get("cookies")]
+            for uid in uids:
+                try:
+                    with _UMS_LOCK:
+                        st = _UMS_STATE.get(uid) or {}
+                        scraper = st.get("scraper")
+                        cookies = st.get("cookies") or {}
+                    if not scraper:
+                        continue
+                    dash = _scrape_ums_dashboard(scraper, cookies, state=st)
+                    with _UMS_LOCK:
+                        if st.get("last_scrape_ok"):
+                            st["dashboard"] = dash
+                            st["dashboard_at"] = time.time()
+                            st["fail_streak"] = 0
+                        else:
+                            st["fail_streak"] = int(
+                                st.get("fail_streak") or 0) + 1
+                except Exception as exc:
+                    print(f"[UMS-KEEPALIVE] {uid}: {exc}")
+        except Exception as exc:
+            print(f"[UMS-KEEPALIVE] loop: {exc}")
 
 # ⭐ REAL-TIME + NO RE-LOGIN: credentials/cookies disk pe persist karo
 # taaki runserver restart ya session-expiry pe user ko dobara login na
@@ -2357,6 +2399,7 @@ def _ums_auto_session(uid):
     saved = _ums_saved_load().get(uid) or {}
     if not saved:
         return state
+    _ums_ensure_keepalive()
     restored = None
     if saved.get("cookies"):
         from scraper_app.scraper_backend import CUIMSScraperBackend
@@ -2431,6 +2474,7 @@ def ums_stage2(request):
     # ⭐ UMS ko isi app-user se bind karo (multi-student isolation)
     _ums_saved_update(uid, password=password, cookies=cookies,
                       owner=_ums_owner(request))
+    _ums_ensure_keepalive()
     dashboard = _scrape_ums_dashboard(scraper, cookies, state=state)
     with _UMS_LOCK:
         state["cookies"] = cookies
@@ -3093,15 +3137,22 @@ def ums_dashboard(request, user):
         state["scraping_at"] = now
         dashboard = _scrape_ums_dashboard(
             state["scraper"], state.get("cookies") or {}, state=state)
-        if not state.get("last_scrape_ok"):
-            saved = _ums_saved_load().get(uid) or {}
-            fresh = _ums_reauth(uid, saved.get("password") or "")
-            if fresh:
-                state["scraper"] = fresh["scraper"]
-                state["cookies"] = fresh["cookies"]
-                _ums_saved_update(uid, cookies=fresh["cookies"])
-                dashboard = _scrape_ums_dashboard(
-                    state["scraper"], state["cookies"], state=state)
+        if state.get("last_scrape_ok"):
+            state["fail_streak"] = 0
+        else:
+            state["fail_streak"] = int(state.get("fail_streak") or 0) + 1
+            # ⭐ session-killer re-auth SIRF 2+ lagatar fail ke baad
+            if state["fail_streak"] >= 2:
+                saved = _ums_saved_load().get(uid) or {}
+                fresh = _ums_reauth(uid, saved.get("password") or "")
+                if fresh:
+                    state["scraper"] = fresh["scraper"]
+                    state["cookies"] = fresh["cookies"]
+                    _ums_saved_update(uid, cookies=fresh["cookies"])
+                    dashboard = _scrape_ums_dashboard(
+                        state["scraper"], state["cookies"], state=state)
+                    if state.get("last_scrape_ok"):
+                        state["fail_streak"] = 0
         if not state.get("last_scrape_ok"):
             # ⭐ Bahar ke network pe portal captcha maangta hai - image app
             # bhejo, student verify karega phir live scrape hoga.
@@ -3200,6 +3251,7 @@ def ums_verify_captcha(request):
         state["cookies"] = cookies
         state.pop("pending_captcha", None)
         _UMS_STATE[uid] = state
+    _ums_ensure_keepalive()
     dashboard = _scrape_ums_dashboard(scraper, cookies, state=state)
     with _UMS_LOCK:
         state["dashboard"] = dashboard
