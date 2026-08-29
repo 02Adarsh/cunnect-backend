@@ -1085,6 +1085,20 @@ def upi_qr(request):
 
 
 @csrf_exempt
+def app_version(request):
+    """⭐ In-app update check: deploy/app_version.json se version+URL."""
+    from django.conf import settings as _st
+
+    data = {"version": 1, "url": "", "notes": ""}
+    try:
+        p = Path(_st.BASE_DIR) / "deploy" / "app_version.json"
+        data.update(json.loads(p.read_text(encoding="utf8")))
+    except Exception:
+        pass
+    return ok(data)
+
+
+@csrf_exempt
 def health(request):
     """⭐ Render keep-awake ping endpoint (cron-job.org se)."""
     return ok({"status": "ok"})

@@ -5,6 +5,7 @@ from . import views
 urlpatterns = [
     # ---- student auth / dashboard ----
     path("health/", views.health),
+    path("app/version/", views.app_version),
     path("food/upi-qr/", views.upi_qr),
     path("vendor/upi/", views.vendor_upi),
     path("auth/student-login/", views.student_login),
