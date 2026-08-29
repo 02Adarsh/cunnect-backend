@@ -317,17 +317,20 @@ def _hostel_vendor():
         vendor_type="hostel", is_active=True).first()
 
 
-def _serialize_hostel_order(o):
+def _serialize_hostel_order(o, reveal_mobile=False):
+    """reveal_mobile=False tak student ka number vendor se hidden rehta hai."""
     return {
         "id": o.id,
         "order_no": o.order_no,
         "orderer_uid": o.orderer_uid,
         "orderer_name": o.orderer_name,
-        "orderer_mobile": o.orderer_mobile,
+        "orderer_mobile": o.orderer_mobile if reveal_mobile else "",
         "recipient_name": o.recipient_name,
-        "recipient_mobile": o.recipient_mobile,
+        "recipient_mobile": o.recipient_mobile if reveal_mobile else "",
         "address": o.address,
         "payment_ref": o.payment_ref,
+        "customer_upi": o.customer_upi,
+        "txn_last4": o.txn_last4,
         "paid": o.paid,
         "status": o.status,
         "total": float(o.total),
@@ -347,6 +350,7 @@ def store_hostel(request, user):
         "freebie": "FREE Chilled Diet Coke",
         "upi_id": (vendor.upi_id.strip()
                    if vendor and vendor.upi_id.strip() else ""),
+        "vendor_id": vendor.id if vendor else None,
         "auto": {
             "uid": user.username,
             "name": (profile.full_name
@@ -369,6 +373,8 @@ def store_hostel_order(request, user):
     recipient_mobile = str(body.get("recipient_mobile", "")).strip()
     address = str(body.get("address", "")).strip() or "Chandigarh University"
     payment_ref = str(body.get("payment_ref", "")).strip()
+    customer_upi = str(body.get("customer_upi", "")).strip()
+    txn_last4 = str(body.get("txn_last4", "")).strip()[:4]
     if not recipient_name:
         return fail("Enter the recipient's name.")
     if len(recipient_mobile) < 10:
@@ -387,6 +393,8 @@ def store_hostel_order(request, user):
         recipient_mobile=recipient_mobile,
         address=address,
         payment_ref=payment_ref,
+        customer_upi=customer_upi,
+        txn_last4=txn_last4,
         paid=True,
     )
     return ok({"order": _serialize_hostel_order(order)})
@@ -398,7 +406,7 @@ def store_hostel_my_orders(request, user):
     from myapp.models import HostelOrder
 
     orders = HostelOrder.objects.filter(student=user).order_by("-created_at")
-    return ok({"orders": [_serialize_hostel_order(o) for o in orders]})
+    return ok({"orders": [_serialize_hostel_order(o, reveal_mobile=True) for o in orders]})
 
 
 @require_http_methods(["GET"])
@@ -410,7 +418,10 @@ def vendor_hostel_orders(request):
     if profile is None or profile.vendor_type != "hostel":
         return fail("Login with a hostel vendor account.", status=403)
     orders = HostelOrder.objects.order_by("-created_at")[:200]
-    return ok({"orders": [_serialize_hostel_order(o) for o in orders]})
+    return ok({"orders": [
+        _serialize_hostel_order(
+            o, reveal_mobile=o.status in ("accepted", "delivered"))
+        for o in orders]})
 
 
 @csrf_exempt

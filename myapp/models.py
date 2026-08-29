@@ -341,6 +341,8 @@ class HostelOrder(models.Model):
     address = models.TextField(blank=True, default="Chandigarh University")
 
     payment_ref = models.CharField(max_length=120, blank=True, default="")
+    customer_upi = models.CharField(max_length=120, blank=True, default="")
+    txn_last4 = models.CharField(max_length=4, blank=True, default="")
     paid = models.BooleanField(default=False)
 
     status = models.CharField(
