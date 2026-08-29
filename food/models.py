@@ -264,6 +264,8 @@ class Order(models.Model):
 
     delivery_address = models.TextField()
     landmark = models.CharField(max_length=200, blank=True)
+    customer_upi = models.CharField(max_length=120, blank=True, default="")
+    txn_last4 = models.CharField(max_length=4, blank=True, default="")
 
     payment_method = models.CharField(
         max_length=30,

@@ -137,6 +137,8 @@ def serialize_order(order, include_items=True, include_otp=False):
         "customer_name": order.customer_name,
         "customer_phone": order.customer_phone,
         "customer_uid": order.customer.username if order.customer else "",
+        "customer_upi": order.customer_upi,
+        "txn_last4": order.txn_last4,
         "customer_branch": getattr(
             getattr(order.customer, "profile", None), "branch", "") or "",
         "customer_year": getattr(
@@ -809,6 +811,8 @@ def food_place_order(request, user):
     note = str(body.get("note", ""))
     address = str(body.get("address", "")).strip() or "Chandigarh University"
     landmark = str(body.get("landmark", ""))
+    customer_upi = str(body.get("customer_upi", "")).strip()
+    txn_last4 = str(body.get("txn_last4", "")).strip()[:4]
     coupon_code = str(body.get("coupon_code", "")).strip()
 
     profile = getattr(user, "userprofile", None)
@@ -871,6 +875,8 @@ def food_place_order(request, user):
             customer_phone=customer_phone,
             delivery_address=address,
             landmark=landmark,
+            customer_upi=customer_upi,
+            txn_last4=txn_last4,
             payment_method=payment,
             status="pending",
             subtotal=subtotal,
@@ -1037,6 +1043,45 @@ def _push_tokens(tokens, title, message, high=False):
                     print("[FCM-PUSH] stale token pruned")
     except Exception as exc:
         print("[FCM] push failed:", exc)
+
+
+@csrf_exempt
+def vendor_upi(request):
+    """⭐ Vendor apna UPI ID set/update kare (QR isi se banta hai)."""
+    _, profile = vendor_user(request)
+    if profile is None:
+        return fail("Vendor login required.", status=401)
+    if request.method == "POST":
+        profile.upi_id = str(json_body(request).get("upi_id", "")).strip()[:120]
+        profile.save()
+    return ok({"upi_id": profile.upi_id})
+
+
+@csrf_exempt
+def upi_qr(request):
+    """⭐ Vendor ka UPI payment QR (base64 PNG) — checkout pe scan karke pay."""
+    vendor_id = str(request.GET.get("vendor_id", "")).strip()
+    amount = str(request.GET.get("amount", "")).strip()
+    from myapp.models import VendorProfile
+
+    vp = VendorProfile.objects.filter(id=vendor_id).first()
+    if vp is None or not vp.upi_id:
+        return fail("Vendor UPI not set.")
+    import base64
+    import io
+
+    import qrcode
+
+    upi = (f"upi://pay?pa={vp.upi_id}&pn={vp.business_name}"
+           + (f"&am={amount}" if amount else "") + "&cu=INR")
+    img = qrcode.make(upi)
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    return ok({
+        "qr_b64": base64.b64encode(buf.getvalue()).decode(),
+        "upi_id": vp.upi_id,
+        "name": vp.business_name,
+    })
 
 
 @csrf_exempt
@@ -2819,14 +2864,14 @@ def ums_demo(request):
             "found": True,
             "page_pdfs": [
                 {"label": "Academic Calendar 2026-27",
-                 "view_url": "https://cunnect-backend.onrender.com/api/ums/pdf/?u=cal"},
+                 "view_url": "http://localhost:8000/api/ums/pdf/?u=cal"},
                 {"label": "Syllabus Handbook CSE",
-                 "view_url": "https://cunnect-backend.onrender.com/api/ums/pdf/?u=syl"},
+                 "view_url": "http://localhost:8000/api/ums/pdf/?u=syl"},
             ],
             "courses": [
                 {"code": "CSE201", "title": "Data Structures",
                  "meta": ["4 CREDITS", "THEORY"],
-                 "plan_view_url": "https://cunnect-backend.onrender.com/api/ums/pdf/?u=cse201",
+                 "plan_view_url": "http://localhost:8000/api/ums/pdf/?u=cse201",
                  "plan": [{"rows": [
                      ["Unit", "Topic", "Lectures"],
                      ["1", "Arrays & Stacks", "L1-L6"],
@@ -2888,7 +2933,7 @@ def ums_demo(request):
              "desc": "Mid-semester exams 1-7 September tak honge.",
              "files": [
                  {"name": "exam_schedule.pdf",
-                  "url": "https://cunnect-backend.onrender.com/api/ums/pdf/?u=exsch"},
+                  "url": "http://localhost:8000/api/ums/pdf/?u=exsch"},
              ]},
             {"title": "Tech fest registrations open",
              "department": "Cultural Committee", "date": "18 Aug 2026",
