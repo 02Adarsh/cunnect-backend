@@ -91,6 +91,8 @@ class VendorProfile(models.Model):
     upi_id = models.CharField(max_length=120, blank=True, default="")
     upi_qr_image = models.ImageField(
         upload_to="vendor_qr/", blank=True, null=True)
+    logo = models.ImageField(
+        upload_to="vendor_logo/", blank=True, null=True)
 
     def __str__(self):
         return f"{self.business_name} - {self.vendor_type}"

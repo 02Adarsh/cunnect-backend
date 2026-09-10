@@ -128,14 +128,15 @@ def media_url(field_file):
     return ""
 
 
-def serialize_order(order, include_items=True, include_otp=False):
+def serialize_order(order, include_items=True, include_otp=False,
+                   reveal_mobile=True):
     data = {
         "id": order.id,
         "order_number": order.order_number,
         "vendor_id": order.vendor_id,
         "vendor_name": order.vendor.business_name if order.vendor else "",
         "customer_name": order.customer_name,
-        "customer_phone": order.customer_phone,
+        "customer_phone": order.customer_phone if reveal_mobile else "",
         "customer_uid": order.customer.username if order.customer else "",
         "customer_upi": order.customer_upi,
         "txn_last4": order.txn_last4,
@@ -188,6 +189,8 @@ def serialize_food_item(item):
         "category": item.category,
         "vendor_id": item.vendor_id,
         "vendor_name": item.vendor.business_name if item.vendor else "",
+        "vendor_logo": (media_url(item.vendor.logo)
+                        if item.vendor and item.vendor.logo else ""),
         "is_available": item.is_available,
         "stock": item.stock,
     }
@@ -1072,6 +1075,29 @@ def vendor_upi(request):
 
 
 @csrf_exempt
+def vendor_logo_upload(request):
+    """⭐ Vendor apna shop icon/logo upload kare (food cards pe dikhta hai)."""
+    _, profile = vendor_user(request)
+    if profile is None:
+        return fail("Vendor login required.", status=401)
+    if request.method != "POST":
+        return fail("POST only.", status=405)
+    if str(request.POST.get("remove", "")).strip() == "1" or \
+            str(json_body(request).get("remove", "")).strip() == "1":
+        if profile.logo:
+            profile.logo.delete(save=False)
+        profile.logo = None
+        profile.save()
+        return ok({"logo_url": ""})
+    f = request.FILES.get("file")
+    if f is None:
+        return fail("No image file sent.")
+    profile.logo = f
+    profile.save()
+    return ok({"logo_url": media_url(profile.logo)})
+
+
+@csrf_exempt
 def vendor_upi_qr_upload(request):
     """⭐ Vendor apna khud ka QR image upload kare (backend QR option)."""
     _, profile = vendor_user(request)
@@ -1382,7 +1408,11 @@ def vendor_dashboard(request, user):
         "menu_count": menu.count(),
         "available_count": menu.filter(is_available=True).count(),
         "kitchen_open": VENDOR_SESSION["kitchen"].get(profile.id, True),
-        "incoming_orders": [serialize_order(order) for order in incoming],
+        "incoming_orders": [
+            serialize_order(
+                order,
+                reveal_mobile=order.status not in ("pending", "cancelled"))
+            for order in incoming],
         "active_orders": [serialize_order(order) for order in active],
         "history_orders": [serialize_order(order) for order in history],
         "out_for_delivery_orders": [
