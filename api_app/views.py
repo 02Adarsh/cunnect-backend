@@ -993,6 +993,14 @@ def _fcm_init():
             os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
             "firebase-service-account.json",
         )
+        b64 = os.environ.get("CUNNECT_FIREBASE_B64", "").strip()
+        if b64:
+            import base64 as _b64
+
+            _fcm_app = firebase_admin.initialize_app(
+                credentials.Certificate(
+                    json.loads(_b64.b64decode(b64).decode())))
+            return _fcm_app
         if os.path.exists(path):
             _fcm_app = firebase_admin.initialize_app(
                 credentials.Certificate(path))
@@ -1035,7 +1043,8 @@ def debug_fcm(request):
     total = DeviceToken.objects.count()
     out = {
         "fcm_ready": app is not None,
-        "env_set": bool(os.environ.get("CUNNECT_FIREBASE_JSON", "").strip()),
+        "env_set": bool(os.environ.get("CUNNECT_FIREBASE_JSON", "").strip()
+                       or os.environ.get("CUNNECT_FIREBASE_B64", "").strip()),
         "file_exists": os.path.exists(os.path.join(
             os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
             "firebase-service-account.json")),
