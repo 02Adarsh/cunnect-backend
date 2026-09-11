@@ -993,10 +993,17 @@ def _fcm_init():
             os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
             "firebase-service-account.json",
         )
-        if not os.path.exists(path):
-            return None
-        _fcm_app = firebase_admin.initialize_app(credentials.Certificate(path))
-        return _fcm_app
+        if os.path.exists(path):
+            _fcm_app = firebase_admin.initialize_app(
+                credentials.Certificate(path))
+            return _fcm_app
+        raw = os.environ.get("CUNNECT_FIREBASE_JSON", "").strip()
+        if raw:
+            _fcm_app = firebase_admin.initialize_app(
+                credentials.Certificate(json.loads(raw)))
+            return _fcm_app
+        print("[FCM] firebase-service-account.json missing -> push OFF")
+        return None
     except Exception as exc:
         print("[FCM] init failed:", exc)
         return None
@@ -1526,6 +1533,26 @@ def vendor_menu(request, user):
         "vendor"
     ).order_by("id")
     return ok({"items": [serialize_food_item(item) for item in items]})
+
+
+@csrf_exempt
+def vendor_menu_photo(request, item_id):
+    """⭐ Vendor food item ki photo upload kare."""
+    _, profile = vendor_user(request)
+    if profile is None:
+        return fail("Vendor account not found.", status=401)
+    if request.method != "POST":
+        return fail("POST required.", status=405)
+    try:
+        item = FoodItem.objects.get(id=item_id, vendor_id=profile.id)
+    except FoodItem.DoesNotExist:
+        return fail("Item not found.", status=404)
+    f = request.FILES.get("file")
+    if f is None:
+        return fail("No image file sent.")
+    item.image = f
+    item.save(update_fields=["image"])
+    return ok({"image_url": media_url(item.image)})
 
 
 @csrf_exempt
