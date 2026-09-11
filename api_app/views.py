@@ -1051,7 +1051,7 @@ def debug_fcm(request):
         else:
             _push_tokens(tokens, "CUnnect Test 🔔",
                          "Notification system working!")
-            out["test"] = f"sent to {len(tokens)} tokens -> " +                 _FCM_DEBUG.get("last_push", "")
+            out["test"] = _FCM_DEBUG.get("last_push", "") or "push ran"
     return ok(out)
 
 
@@ -1102,6 +1102,7 @@ def _push_tokens(tokens, title, message, high=False):
                     _DT.objects.filter(token=tok).delete()
                     print("[FCM-PUSH] stale token pruned")
     except Exception as exc:
+        _FCM_DEBUG["last_push"] = f"EXC {exc}"
         print("[FCM] push failed:", exc)
 
 
