@@ -1033,7 +1033,7 @@ def debug_fcm(request):
 
     app = _fcm_init()
     total = DeviceToken.objects.count()
-    return ok({
+    out = {
         "fcm_ready": app is not None,
         "env_set": bool(os.environ.get("CUNNECT_FIREBASE_JSON", "").strip()),
         "file_exists": os.path.exists(os.path.join(
@@ -1042,7 +1042,17 @@ def debug_fcm(request):
         "tokens_total": total,
         "last_push": _FCM_DEBUG.get("last_push", ""),
         "init_error": _FCM_DEBUG.get("init_error", ""),
-    })
+    }
+    if request.GET.get("test") == "1":
+        tokens = list(DeviceToken.objects.order_by("-id")
+                      .values_list("token", flat=True))[:5]
+        if not tokens:
+            out["test"] = "NO TOKENS registered"
+        else:
+            _push_tokens(tokens, "CUnnect Test 🔔",
+                         "Notification system working!")
+            out["test"] = f"sent to {len(tokens)} tokens -> " +                 _FCM_DEBUG.get("last_push", "")
+    return ok(out)
 
 
 def _push_tokens(tokens, title, message, high=False):
