@@ -994,6 +994,14 @@ def _fcm_init():
             "firebase-service-account.json",
         )
         b64 = os.environ.get("CUNNECT_FIREBASE_B64", "").strip()
+        if not b64:
+            try:
+                b64 = open(os.path.join(
+                    os.path.dirname(os.path.dirname(
+                        os.path.abspath(__file__))),
+                    "deploy", "fcm_key.b64"), encoding="utf8").read().strip()
+            except Exception:
+                b64 = ""
         if b64:
             import base64 as _b64
 
