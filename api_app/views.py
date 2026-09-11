@@ -1252,7 +1252,35 @@ def _gh_latest_release():
             _GH_RELEASE_CACHE["version"] = ver
             _GH_RELEASE_CACHE["url"] = url
     except Exception as exc:
-        _GH_RELEASE_CACHE["err"] = str(exc)
+        # ⭐ API rate-limit (403) pe releases HTML page se parse karo
+        try:
+            req2 = urllib.request.Request(
+                "https://github.com/02Adarsh/cunnect-backend/"
+                "releases/latest",
+                headers={"User-Agent": "cunnect-app"})
+            with urllib.request.urlopen(req2, timeout=8) as r2:
+                html = r2.read().decode()
+            mt = re.search(r"releases/tag/v(\d+)", html)
+            m = None
+            if mt:
+                req3 = urllib.request.Request(
+                    "https://github.com/02Adarsh/cunnect-backend/"
+                    f"releases/expanded_assets/v{mt.group(1)}",
+                    headers={"User-Agent": "cunnect-app"})
+                with urllib.request.urlopen(req3, timeout=8) as r3:
+                    m = re.search(
+                        r"releases/download/(v\d+)/([A-Za-z0-9._-]+\.apk)",
+                        r3.read().decode())
+            if mt and m:
+                _GH_RELEASE_CACHE["version"] = int(mt.group(1))
+                _GH_RELEASE_CACHE["url"] = (
+                    "https://github.com/02Adarsh/cunnect-backend/"
+                    f"releases/download/{m.group(1)}/{m.group(2)}")
+                _GH_RELEASE_CACHE["err"] = ""
+            else:
+                _GH_RELEASE_CACHE["err"] = str(exc)
+        except Exception as exc2:
+            _GH_RELEASE_CACHE["err"] = f"{exc} | {exc2}"
         print(f"[APP-VERSION] github check failed: {exc}")
     return _GH_RELEASE_CACHE
 
