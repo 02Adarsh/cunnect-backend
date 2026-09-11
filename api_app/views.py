@@ -1005,6 +1005,7 @@ def _fcm_init():
         print("[FCM] firebase-service-account.json missing -> push OFF")
         return None
     except Exception as exc:
+        _FCM_DEBUG["init_error"] = str(exc)
         print("[FCM] init failed:", exc)
         return None
 
@@ -1022,12 +1023,36 @@ def _notify(*args, **kwargs):
 _ORDER_ALERTS = set()
 
 
+_FCM_DEBUG = {"last_push": "", "init_error": ""}
+
+
+@csrf_exempt
+def debug_fcm(request):
+    """⭐ Notification debugging: FCM ready? tokens? last push?"""
+    from myapp.models import DeviceToken
+
+    app = _fcm_init()
+    total = DeviceToken.objects.count()
+    return ok({
+        "fcm_ready": app is not None,
+        "env_set": bool(os.environ.get("CUNNECT_FIREBASE_JSON", "").strip()),
+        "file_exists": os.path.exists(os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            "firebase-service-account.json")),
+        "tokens_total": total,
+        "last_push": _FCM_DEBUG.get("last_push", ""),
+        "init_error": _FCM_DEBUG.get("init_error", ""),
+    })
+
+
 def _push_tokens(tokens, title, message, high=False):
     try:
         from firebase_admin import messaging
 
         app = _fcm_init()
         if app is None or not tokens:
+            _FCM_DEBUG["last_push"] = (
+                f"SKIP app={'yes' if app else 'NO'} tokens={len(tokens)}")
             return
         print(f"[FCM-PUSH] -> {len(tokens[:5])} tokens | {title}")
         # ⭐ notification+data: screen-off/killed pe SYSTEM notification
@@ -1052,8 +1077,12 @@ def _push_tokens(tokens, title, message, high=False):
             ),
             app=app,
         )
+        okc = sum(1 for r in resp.responses if r.success)
+        _FCM_DEBUG["last_push"] = (
+            f"{title} -> ok={okc}/{len(resp.responses)}")
         for tok, r in zip(tokens[:5], resp.responses):
             if not r.success:
+                _FCM_DEBUG["last_push"] += f" | ERR {r.exception}"
                 print("[FCM-PUSH] err:", r.exception)
                 err = f"{getattr(r.exception, 'code', '')} {r.exception}"
                 if "not-registered" in err or "NotRegistered" in err \
