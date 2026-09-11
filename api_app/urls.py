@@ -7,6 +7,7 @@ urlpatterns = [
     path("health/", views.health),
     path("app/version/", views.app_version),
     path("debug/fcm/", views.debug_fcm),
+    path("debug/gh/", views.debug_gh),
     path("food/upi-qr/", views.upi_qr),
     path("vendor/upi/", views.vendor_upi),
     path("vendor/upi-qr-upload/", views.vendor_upi_qr_upload),

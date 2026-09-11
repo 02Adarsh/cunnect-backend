@@ -1219,7 +1219,7 @@ def upi_qr(request):
     })
 
 
-_GH_RELEASE_CACHE = {"at": 0.0, "version": 0, "url": ""}
+_GH_RELEASE_CACHE = {"at": 0.0, "version": 0, "url": "", "err": ""}
 
 
 def _gh_latest_release():
@@ -1227,9 +1227,11 @@ def _gh_latest_release():
     import urllib.request
 
     now = time.time()
-    if now - _GH_RELEASE_CACHE["at"] < 600:
+    ttl = 600 if _GH_RELEASE_CACHE["version"] else 60
+    if now - _GH_RELEASE_CACHE["at"] < ttl:
         return _GH_RELEASE_CACHE
     _GH_RELEASE_CACHE["at"] = now
+    _GH_RELEASE_CACHE["err"] = ""
     try:
         req = urllib.request.Request(
             "https://api.github.com/repos/02Adarsh/cunnect-backend/"
@@ -1250,8 +1252,17 @@ def _gh_latest_release():
             _GH_RELEASE_CACHE["version"] = ver
             _GH_RELEASE_CACHE["url"] = url
     except Exception as exc:
+        _GH_RELEASE_CACHE["err"] = str(exc)
         print(f"[APP-VERSION] github check failed: {exc}")
     return _GH_RELEASE_CACHE
+
+
+@csrf_exempt
+def debug_gh(request):
+    """⭐ GitHub release detection debug (?fresh=1 se turant recheck)."""
+    if request.GET.get("fresh") == "1":
+        _GH_RELEASE_CACHE["at"] = 0.0
+    return ok(_gh_latest_release())
 
 
 @csrf_exempt
