@@ -730,8 +730,15 @@ def food_home(request, user):
     coupons = Coupon.objects.filter(
         is_active=True, valid_until__gte=now
     )
+    item_dicts = []
+    for item in items:
+        d = serialize_food_item(item)
+        # ⭐ kitchen band ho to students ko items unavailable dikhen
+        if not getattr(item.vendor, "kitchen_open", True):
+            d["is_available"] = False
+        item_dicts.append(d)
     return ok({
-        "items": [serialize_food_item(item) for item in items],
+        "items": item_dicts,
         "hero_slides": [
             {
                 "id": slide.id,
