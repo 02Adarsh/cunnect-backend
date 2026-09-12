@@ -39,7 +39,8 @@ urlpatterns = [
     path("vendor/menu/add/", views.vendor_menu_add),
     path("vendor/menu/<int:item_id>/edit/", views.vendor_menu_edit),
     path("vendor/menu/<int:item_id>/photo/", views.vendor_menu_photo),
-    path("vendor/menu/<int:item_id>/toggle/", views.vendor_menu_toggle),
+    path("vendor/menu/<int:item_id>/toggle/", views.vendor_menu_toggle),    path("vendor/menu/<int:item_id>/delete/", views.vendor_menu_delete),
+
     path("vendor/kitchen/<str:state>/", views.vendor_kitchen),
     path("vendor/earnings/", views.vendor_earnings),
 

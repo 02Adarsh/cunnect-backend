@@ -500,7 +500,7 @@ def api_reset_password(request):
         _REG_OTP.pop(key, None)
         return fail("OTP expired - send a new one.")
     if temp["otp"] != entered:
-        return fail("Invalid OTP.")
+        return fail("OTP is wrong")
     if len(new_password) < 6:
         return fail("Keep the password at least 6 characters long.")
     user.set_password(new_password)
@@ -555,7 +555,7 @@ def api_otp_verify(request):
         _REG_OTP.pop(user_id, None)
         return fail("OTP expired after 5 minutes. Please register again.")
     if temp["otp"] != entered:
-        return fail("Invalid OTP. Please try again.")
+        return fail("OTP is wrong")
     try:
         user = User.objects.create_user(
             username=temp.get("user_id") or user_id, email=temp["email"],
@@ -1081,43 +1081,47 @@ def _push_tokens(tokens, title, message, high=False):
             _FCM_DEBUG["last_push"] = (
                 f"SKIP app={'yes' if app else 'NO'} tokens={len(tokens)}")
             return
-        print(f"[FCM-PUSH] -> {len(tokens[:5])} tokens | {title}")
-        # ⭐ notification+data: screen-off/killed pe SYSTEM notification
-        # (Play services dikhata hai — guaranteed), high-importance channel
-        # se sound + heads-up + CU icon; foreground me app local heads-up banata hai.
-        resp = messaging.send_each_for_multicast(
-            messaging.MulticastMessage(
-                notification=messaging.Notification(title=title, body=message),
-                android=messaging.AndroidConfig(
-                    priority="high",
-                    notification=messaging.AndroidNotification(
-                        channel_id="cunnect_alert" if high else "cunnect_ping",
-                        sound="cunnect_alert" if high else "cunnect_ping",
-                        icon="cu_notif",
+        print(f"[FCM-PUSH] -> {len(tokens)} tokens | {title}")
+        # ⭐ SAARE tokens ko push (500 ke batches me) — pehle sirf 5 jaate the!
+        okc = 0
+        total = 0
+        errtxt = ""
+        for _i in range(0, len(tokens), 500):
+            batch = tokens[_i:_i + 500]
+            resp = messaging.send_each_for_multicast(
+                messaging.MulticastMessage(
+                    notification=messaging.Notification(
+                        title=title, body=message),
+                    android=messaging.AndroidConfig(
                         priority="high",
-                        visibility="public",
-                        default_sound=False,
+                        notification=messaging.AndroidNotification(
+                            channel_id="cunnect_alert" if high else "cunnect_ping",
+                            sound="cunnect_alert" if high else "cunnect_ping",
+                            icon="cu_notif",
+                            priority="high",
+                            visibility="public",
+                            default_sound=False,
+                        ),
                     ),
+                    data={"kind": "vendor" if high else "user"},
+                    tokens=batch,
                 ),
-                data={"kind": "vendor" if high else "user"},
-                tokens=tokens[:5],
-            ),
-            app=app,
-        )
-        okc = sum(1 for r in resp.responses if r.success)
-        _FCM_DEBUG["last_push"] = (
-            f"{title} -> ok={okc}/{len(resp.responses)}")
-        for tok, r in zip(tokens[:5], resp.responses):
-            if not r.success:
-                _FCM_DEBUG["last_push"] += f" | ERR {r.exception}"
-                print("[FCM-PUSH] err:", r.exception)
-                err = f"{getattr(r.exception, 'code', '')} {r.exception}"
-                if "not-registered" in err or "NotRegistered" in err \
-                        or "SenderIdMismatch" in err or "sender-id-mismatch" in err \
-                        or "InvalidArgument" in err or "invalid-argument" in err:
-                    from myapp.models import DeviceToken as _DT
-                    _DT.objects.filter(token=tok).delete()
-                    print("[FCM-PUSH] stale token pruned")
+                app=app,
+            )
+            total += len(resp.responses)
+            okc += sum(1 for r in resp.responses if r.success)
+            for tok, r in zip(batch, resp.responses):
+                if not r.success:
+                    errtxt = f" | ERR {r.exception}"
+                    print("[FCM-PUSH] err:", r.exception)
+                    err = f"{getattr(r.exception, 'code', '')} {r.exception}"
+                    if "not-registered" in err or "NotRegistered" in err \
+                            or "SenderIdMismatch" in err or "sender-id-mismatch" in err \
+                            or "InvalidArgument" in err or "invalid-argument" in err:
+                        from myapp.models import DeviceToken as _DT
+                        _DT.objects.filter(token=tok).delete()
+                        print("[FCM-PUSH] stale token pruned")
+        _FCM_DEBUG["last_push"] = f"{title} -> ok={okc}/{total}{errtxt}"
     except Exception as exc:
         _FCM_DEBUG["last_push"] = f"EXC {exc}"
         print("[FCM] push failed:", exc)
@@ -1474,6 +1478,12 @@ def vendor_login(request):
     })
 
 
+def _reveal_phone(status):
+    """⭐ customer mobile sirf accept hone ke baad dikhe."""
+    return status in (
+        "accepted", "preparing", "ready", "out_for_delivery", "delivered")
+
+
 def _vendor_orders(vendor_profile):
     return Order.objects.filter(vendor_id=vendor_profile.id).select_related(
         "vendor"
@@ -1510,16 +1520,25 @@ def vendor_dashboard(request, user):
         "today_sales": today_sales,
         "menu_count": menu.count(),
         "available_count": menu.filter(is_available=True).count(),
-        "kitchen_open": VENDOR_SESSION["kitchen"].get(profile.id, True),
+        "kitchen_open": getattr(profile, "kitchen_open", True),
         "incoming_orders": [
             serialize_order(
                 order,
-                reveal_mobile=order.status not in ("pending", "cancelled"))
+                reveal_mobile=_reveal_phone(order.status))
             for order in incoming],
-        "active_orders": [serialize_order(order) for order in active],
-        "history_orders": [serialize_order(order) for order in history],
+        "active_orders": [
+            serialize_order(
+                order, reveal_mobile=_reveal_phone(order.status))
+            for order in active],
+        "history_orders": [
+            serialize_order(
+                order, include_items=False,
+                reveal_mobile=_reveal_phone(order.status))
+            for order in history],
         "out_for_delivery_orders": [
-            serialize_order(order) for order in out_for_delivery
+            serialize_order(
+                order, reveal_mobile=_reveal_phone(order.status))
+            for order in out_for_delivery
         ],
     })
 
@@ -1558,7 +1577,8 @@ def vendor_order_action(request, user, order_id, action):
             title=f"Order {new_status}",
             message=f"{order.order_number} is now {new_status}.",
         )
-    return ok({"order": serialize_order(order)})
+    return ok({"order": serialize_order(
+        order, reveal_mobile=_reveal_phone(order.status))})
 
 
 @csrf_exempt
@@ -1605,7 +1625,7 @@ def vendor_verify_otp(request, user, order_id):
     if order.status != "out_for_delivery":
         return fail("Order is not out for delivery.")
     if otp != order.delivery_otp:
-        return fail("Galat OTP.")
+        return fail("OTP is wrong")
     order.status = "completed"
     order.otp_verified = True
     order.delivered_at = timezone.now()
@@ -1617,7 +1637,8 @@ def vendor_verify_otp(request, user, order_id):
             title="Delivered",
             message=f"{order.order_number} has been delivered. Enjoy!",
         )
-    return ok({"order": serialize_order(order)})
+    return ok({"order": serialize_order(
+        order, reveal_mobile=_reveal_phone(order.status))})
 
 
 @student_required
@@ -1742,6 +1763,23 @@ def vendor_menu_edit(request, user, item_id):
 
 @csrf_exempt
 @student_required
+def vendor_menu_delete(request, user, item_id):
+    """⭐ Vendor apna menu item delete kare."""
+    _, profile = vendor_user(request)
+    if profile is None:
+        return fail("Vendor account not found.", status=401)
+    from myapp.models import FoodItem
+
+    item = FoodItem.objects.filter(id=item_id, vendor=profile).first()
+    if item is None:
+        return fail("Item not found.")
+    name = item.name
+    item.delete()
+    return ok({"deleted": name})
+
+
+@csrf_exempt
+@student_required
 def vendor_kitchen(request, user, state):
     if request.method != "POST":
         return fail("POST required.", status=405)
@@ -1750,7 +1788,11 @@ def vendor_kitchen(request, user, state):
         return fail("Vendor account not found.", status=401)
     if state not in ("on", "off"):
         return fail("Unknown state.", status=404)
-    VENDOR_SESSION["kitchen"][profile.id] = state == "on"
+    try:
+        profile.kitchen_open = (state == "on")
+        profile.save(update_fields=["kitchen_open"])
+    except Exception:
+        VENDOR_SESSION["kitchen"][profile.id] = state == "on"
     return ok({"kitchen_open": state == "on"})
 
 
@@ -1873,7 +1915,8 @@ def delivery_claim(request, user, order_id):
             title="Out for delivery",
             message=f"{order.order_number} is out for delivery. OTP: {order.delivery_otp}",
         )
-    return ok({"order": serialize_order(order)})
+    return ok({"order": serialize_order(
+        order, reveal_mobile=_reveal_phone(order.status))})
 
 
 @csrf_exempt
@@ -1892,7 +1935,7 @@ def delivery_verify_otp(request, user, order_id):
     if order.status != "out_for_delivery":
         return fail("Order is not out for delivery.")
     if otp != order.delivery_otp:
-        return fail("Galat OTP.")
+        return fail("OTP is wrong")
     order.status = "completed"
     order.otp_verified = True
     order.delivered_at = timezone.now()
@@ -1904,7 +1947,8 @@ def delivery_verify_otp(request, user, order_id):
             title="Delivered",
             message=f"{order.order_number} has been delivered. Enjoy!",
         )
-    return ok({"order": serialize_order(order)})
+    return ok({"order": serialize_order(
+        order, reveal_mobile=_reveal_phone(order.status))})
 
 
 # ---------------------------------------------------------------------
@@ -1979,10 +2023,25 @@ def _parse_page_ranges(raw, max_pages):
 
 def _count_pdf_pages(file_obj):
     try:
+        file_obj.seek(0)
         from pypdf import PdfReader
 
         reader = PdfReader(file_obj)
-        return len(reader.pages)
+        n = len(reader.pages)
+        if n > 0:
+            return n
+    except Exception:
+        pass
+    # ⭐ pypdf fail ho to raw byte-scan se page count
+    try:
+        file_obj.seek(0)
+        raw = file_obj.read()
+        file_obj.seek(0)
+        counts = [int(x) for x in re.findall(rb"/Count\s+(\d+)", raw)]
+        pages = max(counts) if counts else 0
+        if pages <= 0:
+            pages = len(re.findall(rb"/Type\s*/Page[^s]", raw))
+        return max(1, pages)
     except Exception:
         return 1
 

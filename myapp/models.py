@@ -63,6 +63,9 @@ class VendorProfile(models.Model):
         default="food"
     )
 
+    # ⭐ kitchen on/off — DB me persist (restart pe reset nahi)
+    kitchen_open = models.BooleanField(default=True)
+
     phone = models.CharField(
         max_length=15,
         unique=True,
