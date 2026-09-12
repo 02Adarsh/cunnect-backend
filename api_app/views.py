@@ -1102,8 +1102,12 @@ def _push_tokens(tokens, title, message, high=False):
                     android=messaging.AndroidConfig(
                         priority="high",
                         notification=messaging.AndroidNotification(
+                            channel_id="cunnect_alert" if high else "cunnect_ping",
+                            sound="cunnect_alert" if high else "cunnect_ping",
+                            icon="cu_notif",
                             priority="high",
                             visibility="public",
+                            default_sound=False,
                         ),
                     ),
                     data={"kind": "vendor" if high else "user"},
