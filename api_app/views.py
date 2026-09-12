@@ -813,7 +813,19 @@ def food_coupon_validate(request, user):
 
 
 def _new_order_number():
-    import uuid
+    """⭐ Sequential: CU-01, CU-02, ... auto-increment."""
+    try:
+        from django.db import transaction
+        from myapp.models import OrderCounter
+
+        with transaction.atomic():
+            c, _ = OrderCounter.objects.select_for_update().get_or_create(
+                id=1, defaults={"value": 0})
+            c.value += 1
+            c.save(update_fields=["value"])
+            return f"CU-{c.value:02d}"
+    except Exception:
+        return f"CU-{uuid.uuid4().hex[:8].upper()}"
 
     return f"CU-{uuid.uuid4().hex[:8].upper()}"
 

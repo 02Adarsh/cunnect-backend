@@ -377,3 +377,8 @@ class DeviceToken(models.Model):
         User, on_delete=models.CASCADE, related_name="device_tokens")
     token = models.TextField()
     updated_at = models.DateTimeField(auto_now=True)
+
+
+class OrderCounter(models.Model):
+    """⭐ Sequential order-number counter (single row)."""
+    value = models.IntegerField(default=0)
