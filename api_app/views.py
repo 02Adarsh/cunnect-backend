@@ -1644,6 +1644,10 @@ def vendor_order_action(request, user, order_id, action):
             title=f"Order {new_status}",
             message=f"{order.order_number} is now {new_status}.",
         )
+    # ⭐ vendor ko apne action ka confirmation (sound + heads-up)
+    if action != "reject":
+        _vendor_push(profile, f"Order {new_status}",
+                     f"{order.order_number} marked {new_status}.")
     return ok({"order": serialize_order(
         order, reveal_mobile=_reveal_phone(order.status))})
 
@@ -1673,6 +1677,8 @@ def vendor_start_delivery(request, user, order_id):
             title="Out for delivery",
             message=f"{order.order_number} is out for delivery. OTP: {order.delivery_otp}",
         )
+    _vendor_push(profile, "Delivery started",
+                 f"{order.order_number} out for delivery. OTP shared with customer.")
     return ok({"order": serialize_order(order, include_otp=True)})
 
 
