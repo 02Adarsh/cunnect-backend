@@ -948,8 +948,15 @@ def food_place_order(request, user):
         _seen_vendors.add(_vp.id)
         _vendor_push(_vp, "New order received",
                      f"{_o.order_number} - accept or reject now")
-        threading.Thread(
-            target=_order_alert_loop, args=(_o.id,), daemon=True).start()
+        try:
+            if os.getenv("REDIS_URL"):
+                from api_app.tasks import order_alert_task
+                order_alert_task.apply_async(args=[_o.id, 1], countdown=45)
+            else:
+                raise RuntimeError("no redis")
+        except Exception:
+            threading.Thread(
+                target=_order_alert_loop, args=(_o.id,), daemon=True).start()
     if coupon:
         CouponUsage.objects.create(coupon=coupon, user=user)
         vendor_name = created[0].vendor.business_name if created[0].vendor else ""
@@ -1091,7 +1098,15 @@ def debug_fcm(request):
     return ok(out)
 
 
-def _push_tokens(tokens, title, message, high=False):
+def _push_tokens(tokens, title, message, high=False, _direct=False):
+    # ⭐ Celery: push background me, request turant wapas
+    if not _direct and os.getenv("REDIS_URL"):
+        try:
+            from api_app.tasks import push_tokens_task
+            push_tokens_task.delay(list(tokens or []), title, message, high)
+            return
+        except Exception:
+            pass
     try:
         from firebase_admin import messaging
 
@@ -3409,6 +3424,15 @@ def ums_dashboard(request, user):
     now = time.time()
     stale = now - float(state.get("dashboard_at") or 0) > 240
     busy = now - float(state.get("scraping_at") or 0) < 25
+    # ⭐ Celery: stale cache turant do, fresh scrape background me
+    if (os.getenv("REDIS_URL") and not refresh and stale
+            and state.get("dashboard") and not busy):
+        try:
+            from api_app.tasks import ums_scrape_task
+            ums_scrape_task.delay(uid)
+            return ok(state["dashboard"])
+        except Exception:
+            pass
     if (refresh or stale or not state.get("dashboard")) and not (
             busy and state.get("dashboard")):
         state["scraping_at"] = now
