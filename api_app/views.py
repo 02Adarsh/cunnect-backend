@@ -1013,10 +1013,21 @@ def food_orders_status(request, user):
 _fcm_app = None
 
 
+_FCM_LOCK = threading.Lock()
+
+
 def _fcm_init():
     global _fcm_app
     if _fcm_app is not None:
         return _fcm_app
+    with _FCM_LOCK:
+        if _fcm_app is not None:
+            return _fcm_app
+        return _fcm_init_locked()
+
+
+def _fcm_init_locked():
+    global _fcm_app
     try:
         import firebase_admin
         from firebase_admin import credentials
@@ -1053,6 +1064,14 @@ def _fcm_init():
         print("[FCM] firebase-service-account.json missing -> push OFF")
         return None
     except Exception as exc:
+        # ⭐ doosre thread ne already init kar diya ho to wala app use karo
+        try:
+            import firebase_admin
+
+            _fcm_app = firebase_admin.get_app()
+            return _fcm_app
+        except Exception:
+            pass
         _FCM_DEBUG["init_error"] = str(exc)
         print("[FCM] init failed:", exc)
         return None
