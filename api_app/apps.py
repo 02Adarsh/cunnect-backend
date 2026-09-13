@@ -24,8 +24,8 @@ def _run_embedded_worker():
         from api_app.tasks import daily_cleanup_task
         daily_cleanup_task.apply_async(countdown=10, expires=3600)
 
-        print("[CELERY-EMBED] worker starting (solo pool)")
-        worker = app.Worker(concurrency=1, pool="solo", loglevel="INFO")
+        print("[CELERY-EMBED] worker starting (threads pool x4)")
+        worker = app.Worker(concurrency=4, pool="threads", loglevel="INFO")
         worker.start()
     except Exception as exc:
         print("[CELERY-EMBED] failed:", exc)

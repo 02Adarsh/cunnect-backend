@@ -140,6 +140,7 @@ def serialize_order(order, include_items=True, include_otp=False,
         "customer_uid": order.customer.username if order.customer else "",
         "customer_upi": order.customer_upi,
         "txn_last4": order.txn_last4,
+        "txn_id": order.txn_id,
         "customer_branch": getattr(
             getattr(order.customer, "profile", None), "branch", "") or "",
         "customer_year": getattr(
@@ -334,6 +335,7 @@ def _serialize_hostel_order(o, reveal_mobile=False):
         "payment_ref": o.payment_ref,
         "customer_upi": o.customer_upi,
         "txn_last4": o.txn_last4,
+        "txn_id": o.txn_id,
         "paid": o.paid,
         "status": o.status,
         "total": float(o.total),
@@ -845,7 +847,10 @@ def food_place_order(request, user):
     address = str(body.get("address", "")).strip() or "Chandigarh University"
     landmark = str(body.get("landmark", ""))
     customer_upi = str(body.get("customer_upi", "")).strip()
+    txn_id = str(body.get("txn_id", "")).strip()[:64]
     txn_last4 = str(body.get("txn_last4", "")).strip()[:4]
+    if not txn_last4 and txn_id:
+        txn_last4 = txn_id[-4:]
     coupon_code = str(body.get("coupon_code", "")).strip()
 
     profile = getattr(user, "userprofile", None)
@@ -910,6 +915,7 @@ def food_place_order(request, user):
             landmark=landmark,
             customer_upi=customer_upi,
             txn_last4=txn_last4,
+            txn_id=txn_id,
             payment_method=payment,
             status="pending",
             subtotal=subtotal,
