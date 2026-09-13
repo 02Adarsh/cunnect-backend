@@ -19,6 +19,15 @@ def _run_embedded_worker():
 
     _t.sleep(2)
     try:
+        from api_app.tasks import redis_ok
+
+        if not redis_ok():
+            print("[CELERY-EMBED] skipped — Redis URL fix karo (redis:// single s)")
+            return
+    except Exception as exc:
+        print("[CELERY-EMBED] probe failed:", exc)
+        return
+    try:
         from myproject.celery import app
 
         from api_app.tasks import daily_cleanup_task

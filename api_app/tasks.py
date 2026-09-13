@@ -1,7 +1,28 @@
 import datetime
+import os
 import time
 
 from celery import shared_task
+
+_redis_state = {"checked": False, "ok": False}
+
+
+def redis_ok():
+    """Ek hi baar Redis probe — broken URL pe requests kabhi nahi atkenge."""
+    if not _redis_state["checked"]:
+        try:
+            import redis as _r
+
+            c = _r.Redis.from_url(os.getenv("REDIS_URL", ""),
+                                  socket_connect_timeout=4, socket_timeout=4)
+            c.ping()
+            _redis_state["ok"] = True
+            print("[CELERY] redis connected OK")
+        except Exception as exc:
+            _redis_state["ok"] = False
+            print("[CELERY] redis unavailable — direct mode:", exc)
+        _redis_state["checked"] = True
+    return _redis_state["ok"]
 
 
 @shared_task(bind=True, ignore_result=True)

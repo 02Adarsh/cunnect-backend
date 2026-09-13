@@ -955,8 +955,8 @@ def food_place_order(request, user):
         _vendor_push(_vp, "New order received",
                      f"{_o.order_number} - accept or reject now")
         try:
-            if os.getenv("REDIS_URL"):
-                from api_app.tasks import order_alert_task
+            from api_app.tasks import order_alert_task, redis_ok
+            if redis_ok():
                 order_alert_task.apply_async(args=[_o.id, 1], countdown=45)
             else:
                 raise RuntimeError("no redis")
@@ -1106,11 +1106,12 @@ def debug_fcm(request):
 
 def _push_tokens(tokens, title, message, high=False, _direct=False):
     # ⭐ Celery: push background me, request turant wapas
-    if not _direct and os.getenv("REDIS_URL"):
+    if not _direct:
         try:
-            from api_app.tasks import push_tokens_task
-            push_tokens_task.delay(list(tokens or []), title, message, high)
-            return
+            from api_app.tasks import push_tokens_task, redis_ok
+            if redis_ok():
+                push_tokens_task.delay(list(tokens or []), title, message, high)
+                return
         except Exception:
             pass
     try:
@@ -3431,12 +3432,12 @@ def ums_dashboard(request, user):
     stale = now - float(state.get("dashboard_at") or 0) > 240
     busy = now - float(state.get("scraping_at") or 0) < 25
     # ⭐ Celery: stale cache turant do, fresh scrape background me
-    if (os.getenv("REDIS_URL") and not refresh and stale
-            and state.get("dashboard") and not busy):
+    if not refresh and stale and state.get("dashboard") and not busy:
         try:
-            from api_app.tasks import ums_scrape_task
-            ums_scrape_task.delay(uid)
-            return ok(state["dashboard"])
+            from api_app.tasks import redis_ok, ums_scrape_task
+            if redis_ok():
+                ums_scrape_task.delay(uid)
+                return ok(state["dashboard"])
         except Exception:
             pass
     if (refresh or stale or not state.get("dashboard")) and not (
