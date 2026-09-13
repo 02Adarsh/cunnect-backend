@@ -1322,11 +1322,18 @@ def app_version(request):
     from django.conf import settings as _st
 
     data = {"version": 1, "url": "", "notes": ""}
+    override_url = ""
     try:
         p = Path(_st.BASE_DIR) / "deploy" / "app_version.json"
-        data.update(json.loads(p.read_text(encoding="utf8")))
+        raw = json.loads(p.read_text(encoding="utf8"))
+        data.update(raw)
+        override_url = (raw.get("apk_url") or "").strip()
     except Exception:
         pass
+    if override_url:
+        # ⭐ custom hosting — GitHub bilkul ignore
+        data["url"] = override_url
+        return ok(data)
     gh = _gh_latest_release()
     if gh["version"] > int(data.get("version") or 0) and gh["url"]:
         data["version"] = gh["version"]
