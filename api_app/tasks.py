@@ -56,9 +56,9 @@ def push_tokens_task(tokens, title, message, high=False):
 
 @shared_task(ignore_result=True)
 def ums_scrape_task(uid):
-    """UMS dashboard background scrape — app ko cached data turant mila."""
+    """UMS dashboard background scrape — cache update + attendance push."""
     from api_app.views import (_UMS_STATE, _scrape_ums_dashboard,
-                               _ums_auto_session)
+                               _ums_attendance_notify, _ums_auto_session)
 
     state = _UMS_STATE.get(uid) or _ums_auto_session(uid)
     if not state or not state.get("scraper"):
@@ -66,8 +66,12 @@ def ums_scrape_task(uid):
     if time.time() - float(state.get("scraping_at") or 0) < 25:
         return
     state["scraping_at"] = time.time()
-    _scrape_ums_dashboard(state["scraper"], state.get("cookies") or {},
-                          state=state)
+    dashboard = _scrape_ums_dashboard(state["scraper"],
+                                      state.get("cookies") or {}, state=state)
+    if state.get("last_scrape_ok") and isinstance(dashboard, dict):
+        state["dashboard"] = dashboard
+        state["dashboard_at"] = time.time()
+        _ums_attendance_notify(uid, dashboard)
 
 
 def _secs_to_next_3am():

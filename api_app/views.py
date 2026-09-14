@@ -3432,6 +3432,42 @@ def ums_saved_uids(request, user):
 
 
 @student_required
+def _ums_attendance_notify(uid, dashboard):
+    """Attendance present/absent change -> student ko push (sync + bg dono)."""
+    try:
+        state = _UMS_STATE.get(uid)
+        if state is None:
+            return
+        recs = dashboard.get("attendance") or []
+        snap = {}
+        for r in recs:
+            snap[str(r.get("code") or "")] = (
+                int(r.get("attended", 0) or 0),
+                int(r.get("total", 0) or 0))
+        prev = state.get("att_snap")
+        if prev and snap and prev != snap:
+            changed = []
+            for code, (a, t) in snap.items():
+                if not code:
+                    continue
+                pa, pt = prev.get(code, (a, t))
+                if a != pa or t != pt:
+                    status = ("Present ✔" if a > pa
+                              else ("Absent ✘" if t > pt else "Updated"))
+                    changed.append(f"{code}: {status} ({a}/{t})")
+            if changed:
+                from django.contrib.auth.models import User
+
+                u = User.objects.filter(username=uid).first()
+                if u:
+                    _push_user(u.id, "Attendance Updated 📋",
+                               " | ".join(changed[:3]))
+        if snap:
+            state["att_snap"] = snap
+    except Exception as exc:
+        print(f"[UMS-ATT-PUSH] {exc}")
+
+
 def ums_dashboard(request, user):
     """⭐ REAL-TIME: har app-open/SYNC pe fresh scrape (refresh=1), warna
     4-min TTL. Session mare to saved password se silent re-auth + retry."""
@@ -3513,32 +3549,8 @@ def ums_dashboard(request, user):
             state["dashboard"] = dashboard
             state["dashboard_at"] = time.time()
         # ⭐ attendance present/absent mark hua -> student ko push
-        try:
-            if state.get("last_scrape_ok"):
-                recs = dashboard.get("attendance") or []
-                snap = {}
-                for r in recs:
-                    snap[str(r.get("code") or "")] = (
-                        int(r.get("attended", 0) or 0),
-                        int(r.get("total", 0) or 0))
-                prev = state.get("att_snap")
-                if prev and snap and prev != snap:
-                    changed = []
-                    for code, (a, t) in snap.items():
-                        if not code:
-                            continue
-                        pa, pt = prev.get(code, (a, t))
-                        if a != pa or t != pt:
-                            status = ("Present ✔" if a > pa
-                                      else ("Absent ✘" if t > pt else "Updated"))
-                            changed.append(f"{code}: {status} ({a}/{t})")
-                    if changed:
-                        _push_user(user.id, "Attendance Updated 📋",
-                                   " | ".join(changed[:3]))
-                if snap:
-                    state["att_snap"] = snap
-        except Exception as exc:
-            print(f"[UMS-ATT-PUSH] {exc}")
+        if state.get("last_scrape_ok"):
+            _ums_attendance_notify(uid, dashboard)
     return ok(state["dashboard"])
 
 
