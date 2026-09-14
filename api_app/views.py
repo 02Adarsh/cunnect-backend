@@ -3431,7 +3431,6 @@ def ums_saved_uids(request, user):
     return ok({"uids": uids})
 
 
-@student_required
 def _ums_attendance_notify(uid, dashboard):
     """Attendance present/absent change -> student ko push (sync + bg dono)."""
     try:
@@ -3468,6 +3467,7 @@ def _ums_attendance_notify(uid, dashboard):
         print(f"[UMS-ATT-PUSH] {exc}")
 
 
+@student_required
 def ums_dashboard(request, user):
     """⭐ REAL-TIME: har app-open/SYNC pe fresh scrape (refresh=1), warna
     4-min TTL. Session mare to saved password se silent re-auth + retry."""
