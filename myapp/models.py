@@ -296,7 +296,8 @@ class PrintOrder(models.Model):
     lamination = models.BooleanField(default=False)
     notes = models.TextField(blank=True)
 
-    # ⭐ UPI payment proof — transaction ID ke last 4 digits
+    # ⭐ UPI payment proof — full transaction ID (pasted from UPI app)
+    txn_id = models.CharField(max_length=64, blank=True, default="")
     txn_last4 = models.CharField(max_length=4, blank=True, default="")
 
     final_amount = models.DecimalField(
@@ -361,6 +362,7 @@ class HostelOrder(models.Model):
 
     payment_ref = models.CharField(max_length=120, blank=True, default="")
     customer_upi = models.CharField(max_length=120, blank=True, default="")
+    txn_id = models.CharField(max_length=64, blank=True, default="")
     txn_last4 = models.CharField(max_length=4, blank=True, default="")
     paid = models.BooleanField(default=False)
 

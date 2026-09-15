@@ -380,7 +380,9 @@ def store_hostel_order(request, user):
     address = str(body.get("address", "")).strip() or "Chandigarh University"
     payment_ref = str(body.get("payment_ref", "")).strip()
     customer_upi = str(body.get("customer_upi", "")).strip()
-    txn_last4 = str(body.get("txn_last4", "")).strip()[:4]
+    txn_id = str(body.get("txn_id", "")).strip()[:64]
+    txn_last4 = (txn_id[-4:] if txn_id
+                 else str(body.get("txn_last4", "")).strip()[:4])
     if not recipient_name:
         return fail("Enter the recipient's name.")
     if len(recipient_mobile) < 10:
@@ -400,6 +402,7 @@ def store_hostel_order(request, user):
         address=address,
         payment_ref=payment_ref,
         customer_upi=customer_upi,
+        txn_id=txn_id,
         txn_last4=txn_last4,
         paid=True,
     )
@@ -2344,8 +2347,9 @@ def _count_pdf_pages(file_obj):
         return 1
 
 
-def serialize_print_order(order):
-    return {
+def serialize_print_order(order, for_vendor=False):
+    """for_vendor=True -> student details bhi; mobile sirf accept ke baad."""
+    data = {
         "id": order.id,
         "vendor_id": order.vendor_id,
         "vendor_name": order.vendor.business_name if order.vendor else "",
@@ -2359,11 +2363,28 @@ def serialize_print_order(order):
         "bw_page_ranges": order.bw_page_ranges,
         "color_page_ranges": order.color_page_ranges,
         "notes": order.notes,
+        "txn_id": order.txn_id,
         "txn_last4": order.txn_last4,
         "status": order.status,
         "total_price": float(order.final_amount),
         "created_at_iso": iso(order.created_at),
     }
+    if for_vendor:
+        student = order.student
+        profile = getattr(student, "userprofile", None) if student else None
+        name = ""
+        phone = ""
+        if profile is not None:
+            name = profile.full_name or ""
+            phone = profile.phone or ""
+        if not name and student is not None:
+            name = student.get_full_name() or student.username
+        # ⭐ mobile number sirf order ACCEPT hone ke baad dikhta hai
+        reveal = order.status not in ("pending", "rejected", "cancelled")
+        data["student_name"] = name
+        data["student_uid"] = student.username if student else ""
+        data["student_phone"] = phone if reveal else ""
+    return data
 
 
 @csrf_exempt
@@ -2391,7 +2412,8 @@ def print_place_order(request, user):
     bw_ranges = str(request.POST.get("bw_page_ranges", ""))
     color_ranges = str(request.POST.get("color_page_ranges", ""))
     notes = str(request.POST.get("notes", ""))
-    txn_last4 = str(request.POST.get("txn_last4", "")).strip()[:4]
+    txn_id = str(request.POST.get("txn_id", "")).strip()[:64]
+    txn_last4 = txn_id[-4:] if txn_id else ""
 
     pages = _count_pdf_pages(document.file)
     color_pages = _parse_page_ranges(color_ranges, pages)
@@ -2419,6 +2441,7 @@ def print_place_order(request, user):
         color_page_ranges=color_ranges[:500],
         print_side=print_side,
         notes=notes,
+        txn_id=txn_id,
         txn_last4=txn_last4,
         final_amount=total,
         status="pending",
@@ -2440,9 +2463,10 @@ def print_vendor_dashboard(request, user):
     if profile is None:
         return fail("Vendor account not found.", status=401)
     orders = PrintOrder.objects.filter(vendor_id=profile.id).select_related(
-        "vendor"
+        "vendor", "student", "student__userprofile"
     ).order_by("-created_at")[:40]
-    return ok({"orders": [serialize_print_order(order) for order in orders]})
+    return ok({"orders": [
+        serialize_print_order(order, for_vendor=True) for order in orders]})
 
 
 PRINT_ACTIONS = {
