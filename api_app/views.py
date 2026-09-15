@@ -2259,6 +2259,8 @@ def serialize_print_vendor(profile):
         "phone": profile.phone,
         "bw_price_per_page": float(profile.bw_price_per_page),
         "color_price_per_page": float(profile.color_price_per_page),
+        # ⭐ UPI payment (QR + copyable ID) — printout checkout ke liye
+        "upi_id": profile.upi_id,
     }
 
 
@@ -2357,6 +2359,7 @@ def serialize_print_order(order):
         "bw_page_ranges": order.bw_page_ranges,
         "color_page_ranges": order.color_page_ranges,
         "notes": order.notes,
+        "txn_last4": order.txn_last4,
         "status": order.status,
         "total_price": float(order.final_amount),
         "created_at_iso": iso(order.created_at),
@@ -2388,6 +2391,7 @@ def print_place_order(request, user):
     bw_ranges = str(request.POST.get("bw_page_ranges", ""))
     color_ranges = str(request.POST.get("color_page_ranges", ""))
     notes = str(request.POST.get("notes", ""))
+    txn_last4 = str(request.POST.get("txn_last4", "")).strip()[:4]
 
     pages = _count_pdf_pages(document.file)
     color_pages = _parse_page_ranges(color_ranges, pages)
@@ -2415,6 +2419,7 @@ def print_place_order(request, user):
         color_page_ranges=color_ranges[:500],
         print_side=print_side,
         notes=notes,
+        txn_last4=txn_last4,
         final_amount=total,
         status="pending",
     )

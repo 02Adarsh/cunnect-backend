@@ -296,6 +296,9 @@ class PrintOrder(models.Model):
     lamination = models.BooleanField(default=False)
     notes = models.TextField(blank=True)
 
+    # ⭐ UPI payment proof — transaction ID ke last 4 digits
+    txn_last4 = models.CharField(max_length=4, blank=True, default="")
+
     final_amount = models.DecimalField(
         max_digits=8,
         decimal_places=2,
