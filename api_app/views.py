@@ -193,6 +193,7 @@ def serialize_food_item(item):
         "vendor_logo": (media_url(item.vendor.logo)
                         if item.vendor and item.vendor.logo else ""),
         "is_available": item.is_available,
+        "is_veg": item.is_veg,
         "stock": item.stock,
     }
 
@@ -685,15 +686,42 @@ def student_dashboard(request, user):
 
 
 # ---------------------------------------------------------------------
-# ⭐ Notice board + Polls (admin panel se manage hota hai)
+# ⭐ CUnnect Feed: Notices + Polls + Reactions + Comments
 # ---------------------------------------------------------------------
+
+
+def _feed_social(kind, ids, user):
+    """Reactions (emoji -> count) + my reaction + comment count, per object."""
+    from myapp.models import FeedReaction, FeedComment
+    from django.db.models import Count
+
+    out = {i: {"reactions": {}, "my_reaction": "", "comment_count": 0}
+           for i in ids}
+    if not ids:
+        return out
+    rows = (FeedReaction.objects
+            .filter(kind=kind, object_id__in=ids)
+            .values("object_id", "emoji").annotate(c=Count("id")))
+    for r in rows:
+        out[r["object_id"]]["reactions"][r["emoji"]] = r["c"]
+    mine = FeedReaction.objects.filter(
+        kind=kind, object_id__in=ids, user=user)
+    for m in mine:
+        out[m.object_id]["my_reaction"] = m.emoji
+    rows = (FeedComment.objects
+            .filter(kind=kind, object_id__in=ids)
+            .values("object_id").annotate(c=Count("id")))
+    for r in rows:
+        out[r["object_id"]]["comment_count"] = r["c"]
+    return out
 
 
 @student_required
 def notices_list(request, user):
     from myapp.models import Notice
 
-    notices = Notice.objects.filter(is_active=True)[:50]
+    notices = list(Notice.objects.filter(is_active=True)[:50])
+    social = _feed_social("notice", [n.id for n in notices], user)
     return ok({
         "notices": [
             {
@@ -702,13 +730,89 @@ def notices_list(request, user):
                 "message": n.message,
                 "image_url": media_url(n.image),
                 "created_at_iso": iso(n.created_at),
+                **social[n.id],
             }
             for n in notices
         ],
     })
 
 
-def _serialize_poll(poll, user):
+@csrf_exempt
+@student_required
+def feed_react(request, user, kind, object_id):
+    """⭐ WhatsApp-style emoji reaction — koi bhi emoji. Same emoji dobara
+    bhejo to reaction REMOVE ho jata hai (toggle)."""
+    if request.method != "POST":
+        return fail("POST required.", status=405)
+    if kind not in ("notice", "poll"):
+        return fail("Unknown kind.", status=404)
+    from myapp.models import FeedReaction
+
+    emoji = str(json_body(request).get("emoji", "")).strip()[:16]
+    if not emoji:
+        return fail("Emoji required.")
+    existing = FeedReaction.objects.filter(
+        kind=kind, object_id=object_id, user=user).first()
+    if existing and existing.emoji == emoji:
+        existing.delete()          # toggle off
+    else:
+        FeedReaction.objects.update_or_create(
+            kind=kind, object_id=object_id, user=user,
+            defaults={"emoji": emoji})
+    social = _feed_social(kind, [object_id], user)[object_id]
+    return ok(social)
+
+
+@student_required
+def feed_comments(request, user, kind, object_id):
+    if kind not in ("notice", "poll"):
+        return fail("Unknown kind.", status=404)
+    from myapp.models import FeedComment
+
+    comments = FeedComment.objects.filter(
+        kind=kind, object_id=object_id).select_related("user")[:200]
+
+    def display_name(u):
+        try:
+            p = getattr(u, "userprofile", None)
+            if p is not None and getattr(p, "full_name", ""):
+                return p.full_name
+        except Exception:
+            pass
+        return u.get_full_name() or u.username
+
+    return ok({
+        "comments": [
+            {
+                "id": c.id,
+                "user": display_name(c.user),
+                "mine": c.user_id == user.id,
+                "text": c.text,
+                "created_at_iso": iso(c.created_at),
+            }
+            for c in comments
+        ],
+    })
+
+
+@csrf_exempt
+@student_required
+def feed_comment_add(request, user, kind, object_id):
+    if request.method != "POST":
+        return fail("POST required.", status=405)
+    if kind not in ("notice", "poll"):
+        return fail("Unknown kind.", status=404)
+    from myapp.models import FeedComment
+
+    text = str(json_body(request).get("text", "")).strip()[:600]
+    if not text:
+        return fail("Comment cannot be empty.")
+    FeedComment.objects.create(
+        kind=kind, object_id=object_id, user=user, text=text)
+    return feed_comments.__wrapped__(request, user, kind, object_id)
+
+
+def _serialize_poll(poll, user, social=None):
     from myapp.models import AppPollVote
 
     votes_by_option = {}
@@ -717,7 +821,10 @@ def _serialize_poll(poll, user):
         votes_by_option[v.option_id] = votes_by_option.get(v.option_id, 0) + 1
         total += 1
     my_vote = AppPollVote.objects.filter(poll=poll, user=user).first()
+    if social is None:
+        social = _feed_social("poll", [poll.id], user)[poll.id]
     return {
+        **social,
         "id": poll.id,
         "question": poll.question,
         "image_url": media_url(poll.image),
@@ -741,9 +848,11 @@ def _serialize_poll(poll, user):
 def polls_list(request, user):
     from myapp.models import AppPoll
 
-    polls = AppPoll.objects.filter(is_active=True).prefetch_related(
-        "options", "votes")[:20]
-    return ok({"polls": [_serialize_poll(p, user) for p in polls]})
+    polls = list(AppPoll.objects.filter(is_active=True).prefetch_related(
+        "options", "votes")[:20])
+    social = _feed_social("poll", [p.id for p in polls], user)
+    return ok({"polls": [
+        _serialize_poll(p, user, social=social[p.id]) for p in polls]})
 
 
 @csrf_exempt
@@ -1884,13 +1993,14 @@ def _item_payload(body):
     except (TypeError, ValueError):
         price = 0
     is_available = bool(body.get("is_available", True))
+    is_veg = bool(body.get("is_veg", True))
     try:
         stock = int(body.get("stock", 0) or 0)
     except (TypeError, ValueError):
         stock = 0
     if stock < 0:
         stock = 0
-    return name, description, category, price, is_available, stock
+    return name, description, category, price, is_available, stock, is_veg
 
 
 @csrf_exempt
@@ -1901,9 +2011,8 @@ def vendor_menu_add(request, user):
     _, profile = vendor_user(request)
     if profile is None:
         return fail("Vendor account not found.", status=401)
-    name, description, category, price, is_available, stock = _item_payload(
-        json_body(request)
-    )
+    name, description, category, price, is_available, stock, is_veg = \
+        _item_payload(json_body(request))
     if not name or price <= 0:
         return fail("Item name and a valid price are required.")
     item = FoodItem.objects.create(
@@ -1913,6 +2022,7 @@ def vendor_menu_add(request, user):
         price=price,
         vendor_id=profile.id,
         is_available=is_available,
+        is_veg=is_veg,
         stock=stock,
     )
     return ok({"item": serialize_food_item(item)})
@@ -1930,9 +2040,8 @@ def vendor_menu_edit(request, user, item_id):
         item = FoodItem.objects.get(id=item_id, vendor_id=profile.id)
     except FoodItem.DoesNotExist:
         return fail("Item not found.", status=404)
-    name, description, category, price, is_available, stock = _item_payload(
-        json_body(request)
-    )
+    name, description, category, price, is_available, stock, is_veg = \
+        _item_payload(json_body(request))
     if not name or price <= 0:
         return fail("Item name and a valid price are required.")
     item.name = name
@@ -1940,6 +2049,7 @@ def vendor_menu_edit(request, user, item_id):
     item.category = category[:50]
     item.price = price
     item.is_available = is_available
+    item.is_veg = is_veg
     item.stock = stock
     if stock > 0:
         item.is_available = True  # ⭐ restock = wapas available

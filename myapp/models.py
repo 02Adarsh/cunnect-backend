@@ -437,3 +437,40 @@ class AppPollVote(models.Model):
 
     def __str__(self):
         return f"{self.user.username} -> {self.option_id}"
+
+
+class FeedReaction(models.Model):
+    """⭐ Feed reaction — kisi bhi emoji se (WhatsApp style). 1 user = 1 reaction
+    per feed item; dobara react kare to emoji change ho jata hai."""
+    KIND_CHOICES = (("notice", "Notice"), ("poll", "Poll"))
+    kind = models.CharField(max_length=10, choices=KIND_CHOICES)
+    object_id = models.IntegerField()
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="feed_reactions")
+    emoji = models.CharField(max_length=16)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("kind", "object_id", "user")
+        indexes = [models.Index(fields=["kind", "object_id"])]
+
+    def __str__(self):
+        return f"{self.user.username} {self.emoji} {self.kind}#{self.object_id}"
+
+
+class FeedComment(models.Model):
+    """⭐ Feed comment — bottom-sheet me dikhta hai."""
+    KIND_CHOICES = (("notice", "Notice"), ("poll", "Poll"))
+    kind = models.CharField(max_length=10, choices=KIND_CHOICES)
+    object_id = models.IntegerField()
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="feed_comments")
+    text = models.CharField(max_length=600)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at"]
+        indexes = [models.Index(fields=["kind", "object_id"])]
+
+    def __str__(self):
+        return f"{self.user.username}: {self.text[:40]}"

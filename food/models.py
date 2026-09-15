@@ -48,6 +48,9 @@ class FoodItem(models.Model):
 
     is_available = models.BooleanField(default=True)
 
+    # ⭐ VEG (True) / NON-VEG (False) — standard green/red mark ke liye
+    is_veg = models.BooleanField(default=True)
+
     # ⭐ 0 = unlimited (tracking off); >0 = live stock, 0 hote hi auto-unavailable
     stock = models.IntegerField(default=0)
 

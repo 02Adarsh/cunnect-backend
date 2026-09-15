@@ -17,10 +17,13 @@ urlpatterns = [
     path("student/support/", views.student_support),
     path("student/profile/", views.student_profile),
 
-    # ---- notices + polls (backend/admin se bheje jaate hain) ----
+    # ---- CUnnect Feed: notices + polls + reactions + comments ----
     path("notices/", views.notices_list),
     path("polls/", views.polls_list),
     path("polls/<int:poll_id>/vote/", views.poll_vote),
+    path("feed/<str:kind>/<int:object_id>/react/", views.feed_react),
+    path("feed/<str:kind>/<int:object_id>/comments/", views.feed_comments),
+    path("feed/<str:kind>/<int:object_id>/comments/add/", views.feed_comment_add),
 
     # ---- food ----
     path("food/home/", views.food_home),
