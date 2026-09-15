@@ -48,10 +48,10 @@ class FoodItem(models.Model):
 
     is_available = models.BooleanField(default=True)
 
-    # ⭐ VEG (True) / NON-VEG (False) — standard green/red mark ke liye
+    # ⭐ VEG (True) / NON-VEG (False) — for the standard green/red mark
     is_veg = models.BooleanField(default=True)
 
-    # ⭐ 0 = unlimited (tracking off); >0 = live stock, 0 hote hi auto-unavailable
+    # ⭐ 0 = unlimited (tracking off); >0 = live stock, auto-unavailable at 0
     stock = models.IntegerField(default=0)
 
     created_at = models.DateTimeField(
@@ -396,7 +396,7 @@ class Notification(models.Model):
     title = models.CharField(max_length=150)
     message = models.CharField(max_length=300)
 
-    # ⭐ kis portal ke liye hai — student app ya vendor app
+    # ⭐ which portal it targets — student app or vendor app
     AUDIENCE_CHOICES = (
         ("student", "Student"),
         ("vendor", "Vendor"),

@@ -392,7 +392,7 @@ def place_order(request):
                 f"{order.order_number} from {customer_name} "
                 f"for ₹{order.total_amount:.0f} is waiting for acceptance."
             ),
-            audience="vendor",  # ⭐ ye sirf vendor app/section me dikhe
+            audience="vendor",  # ⭐ shown only in the vendor app/section
         )
 
     CartItem.objects.filter(cart=cart).delete()

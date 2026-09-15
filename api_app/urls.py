@@ -10,6 +10,7 @@ urlpatterns = [
     path("debug/gh/", views.debug_gh),
     path("food/upi-qr/", views.upi_qr),
     path("vendor/upi/", views.vendor_upi),
+    path("vendor/profile/", views.vendor_profile_update),
     path("vendor/upi-qr-upload/", views.vendor_upi_qr_upload),
     path("vendor/logo-upload/", views.vendor_logo_upload),
     path("auth/student-login/", views.student_login),

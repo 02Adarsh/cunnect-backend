@@ -1,11 +1,11 @@
-"""api_app — Flutter app ke liye REST API layer.
+"""api_app — REST API layer for the Flutter app.
 
-Har endpoint JSON return karta hai:
+Every endpoint returns JSON:
     {"ok": true, "data": {...}}   ya   {"ok": false, "error": "..."}
 
 Auth: `Authorization: Token <key>` header (rest_framework.authtoken).
 Ye layer existing Django apps (food, myapp, network, scraper_app) ke
-models/logic ko hi use karti hai — koi duplicate data nahi.
+reuses the existing models/logic — no duplicated data.
 """
 
 import base64
@@ -103,7 +103,7 @@ def student_required(view):
 
 
 def vendor_user(request):
-    """Vendor token wala user — VendorProfile ke saath."""
+    """User resolved from the vendor token — with VendorProfile."""
     user = user_from_token(request)
     if user is None:
         return None, None
@@ -224,7 +224,7 @@ def serialize_message(message, user):
 
 # ---------------------------------------------------------------------
 # ⭐ ORIGINAL MAIN-AUTH (JSON): login step1/2 + register + OTP + step3 —
-# myapp/views ke web-flow ka exact mirror, Flutter ke liye.
+# Exact mirror of the myapp/views web flow, for Flutter.
 # ---------------------------------------------------------------------
 _LOGIN_CAPTCHA = {}  # uid -> captcha code
 _REG_OTP = {}  # user_id -> {full_name,email,password,otp,created_at}
@@ -270,7 +270,7 @@ def api_login_step2(request):
     if user is None:
         return fail("User not registered. Please register first.")
     correct = _LOGIN_CAPTCHA.get(uid, "")
-    # ⭐ case-insensitive: mobile keyboard autocapitalise kar deta hai
+    # ⭐ case-insensitive: mobile keyboards auto-capitalise input
     pw_ok = user.check_password(password)
     cap_ok = bool(captcha) and bool(correct) and \
         captcha.upper() == correct.upper()
@@ -323,7 +323,7 @@ def _hostel_vendor():
 
 
 def _serialize_hostel_order(o, reveal_mobile=False):
-    """reveal_mobile=False tak student ka number vendor se hidden rehta hai."""
+    """The student's number stays hidden from the vendor until reveal_mobile=True."""
     return {
         "id": o.id,
         "order_no": o.order_no,
@@ -346,7 +346,7 @@ def _serialize_hostel_order(o, reveal_mobile=False):
 
 @student_required
 def store_hostel(request, user):
-    """Product info + logged-in user ki AUTO details + vendor UPI."""
+    """Product info + logged-in user's AUTO details + vendor UPI."""
     profile = getattr(user, "userprofile", None)
     vendor = _hostel_vendor()
     return ok({
@@ -411,7 +411,7 @@ def store_hostel_order(request, user):
 
 @student_required
 def store_hostel_my_orders(request, user):
-    """Student ke apne saare hostel pack orders."""
+    """All of the student's own hostel pack orders."""
     from myapp.models import HostelOrder
 
     orders = HostelOrder.objects.filter(student=user).order_by("-created_at")
@@ -420,7 +420,7 @@ def store_hostel_my_orders(request, user):
 
 @require_http_methods(["GET"])
 def vendor_hostel_orders(request):
-    """⭐ Hostel vendor portal: saare pack orders."""
+    """⭐ Hostel vendor portal: all pack orders."""
     from myapp.models import HostelOrder
 
     user, profile = vendor_user(request)
@@ -443,7 +443,7 @@ def vendor_hostel_order_status(request):
     oid = body.get("id")
     status = str(body.get("status", "")).strip()
     if status not in ("pending", "accepted", "delivered", "cancelled"):
-        return fail("Galat status.")
+        return fail("Invalid status.")
     from myapp.models import HostelOrder
 
     order = HostelOrder.objects.filter(id=oid).first()
@@ -490,7 +490,7 @@ def api_forgot_password(request):
 @csrf_exempt
 @require_http_methods(["POST"])
 def api_reset_password(request):
-    """⭐ OTP verify karke naya password set."""
+    """⭐ Verify the OTP and set a new password."""
     body = json_body(request)
     uid = str(body.get("uid", "")).strip()
     entered = str(body.get("otp", "")).strip()
@@ -626,9 +626,9 @@ def api_complete_profile(request, user):
                 from django.core.files.base import ContentFile
                 name = f"{user.username}_{int(time.time())}.jpg"
                 profile.profile_photo.save(name, ContentFile(raw), save=False)
-        except Exception as exc:  # galat base64 -> ignore, baaki profile save
+        except Exception as exc:  # invalid base64 -> ignore, save the rest of the profile
             print(f"[AUTH] photo save failed: {exc}")
-    # ⭐ photo mandatory — bina photo ke step3 complete nahi
+    # ⭐ photo mandatory — step 3 cannot complete without a photo
     if not profile.profile_photo:
         return fail("Profile photo upload is required.")
     profile.save()
@@ -743,8 +743,8 @@ def notices_list(request, user):
 @csrf_exempt
 @student_required
 def feed_react(request, user, kind, object_id):
-    """⭐ WhatsApp-style emoji reaction — koi bhi emoji. Same emoji dobara
-    bhejo to reaction REMOVE ho jata hai (toggle)."""
+    """⭐ WhatsApp-style emoji reaction — any emoji. Sending the same emoji
+    again REMOVES the reaction (toggle)."""
     if request.method != "POST":
         return fail("POST required.", status=405)
     if kind not in ("notice", "poll"):
@@ -873,7 +873,7 @@ def poll_vote(request, user, poll_id):
     option = AppPollOption.objects.filter(id=option_id, poll=poll).first()
     if option is None:
         return fail("Invalid option.")
-    # ⭐ ek user ek vote — dobara vote kare to option change ho jata hai
+    # ⭐ one vote per user — voting again switches the chosen option
     AppPollVote.objects.update_or_create(
         poll=poll, user=user, defaults={"option": option})
     poll = AppPoll.objects.prefetch_related("options", "votes").get(id=poll.id)
@@ -931,7 +931,7 @@ def food_home(request, user):
     item_dicts = []
     for item in items:
         d = serialize_food_item(item)
-        # ⭐ kitchen band ho to students ko items unavailable dikhen
+        # ⭐ when the kitchen is closed, items show as unavailable to students
         if not getattr(item.vendor, "kitchen_open", True):
             d["is_available"] = False
         item_dicts.append(d)
@@ -981,11 +981,11 @@ def _find_valid_coupon(code, order_total, user):
     if float(order_total) < float(coupon.minimum_order_value):
         return None, (
             f"Minimum order ₹{float(coupon.minimum_order_value):.0f} "
-            f"chahiye is coupon ke liye."
+            f"is required for this coupon."
         )
     if coupon.one_time_per_user and user is not None:
         if CouponUsage.objects.filter(coupon=coupon, user=user).exists():
-            return None, "Aap ye coupon already use kar chuke ho."
+            return None, "You have already used this coupon."
     return coupon, None
 
 
@@ -1056,7 +1056,7 @@ def food_place_order(request, user):
     )
     customer_phone = (profile.phone if profile else "") or ""
 
-    # items ko vendor ke hisaab se group karo (Django cart jaisa split).
+    # group items by vendor (same split as the Django cart).
     grouped = {}
     for raw in raw_items:
         try:
@@ -1260,7 +1260,7 @@ def _fcm_init_locked():
         print("[FCM] firebase-service-account.json missing -> push OFF")
         return None
     except Exception as exc:
-        # ⭐ doosre thread ne already init kar diya ho to wala app use karo
+        # ⭐ if another thread already initialised it, reuse that app
         try:
             import firebase_admin
 
@@ -1274,7 +1274,7 @@ def _fcm_init_locked():
 
 
 def _notify(*args, **kwargs):
-    """Notification row + turant push. (student audience default)"""
+    """Notification row + instant push. (student audience default)"""
     kwargs.setdefault("audience", "student")
     n = Notification.objects.create(*args, **kwargs)
     try:
@@ -1285,7 +1285,7 @@ def _notify(*args, **kwargs):
 
 
 def _notify_vendor(vendor_profile, title, message, order=None):
-    """⭐ Vendor ke liye alag notification row (audience=vendor) + push."""
+    """⭐ Separate notification row for the vendor (audience=vendor) + push."""
     n = None
     try:
         n = Notification.objects.create(
@@ -1341,7 +1341,7 @@ def debug_fcm(request):
 
 
 def _push_tokens(tokens, title, message, high=False, _direct=False):
-    # ⭐ Celery: push background me, request turant wapas
+    # ⭐ Celery: push in the background, return the request instantly
     if not _direct:
         try:
             from api_app.tasks import push_tokens_task, redis_ok
@@ -1359,7 +1359,7 @@ def _push_tokens(tokens, title, message, high=False, _direct=False):
                 f"SKIP app={'yes' if app else 'NO'} tokens={len(tokens)}")
             return
         print(f"[FCM-PUSH] -> {len(tokens)} tokens | {title}")
-        # ⭐ SAARE tokens ko push (500 ke batches me) — pehle sirf 5 jaate the!
+        # ⭐ push to ALL tokens (in batches of 500) — previously only 5 were sent!
         okc = 0
         total = 0
         errtxt = ""
@@ -1406,7 +1406,7 @@ def _push_tokens(tokens, title, message, high=False, _direct=False):
 
 @csrf_exempt
 def vendor_upi(request):
-    """⭐ Vendor apna UPI ID set/update kare (QR isi se banta hai)."""
+    """⭐ Vendor sets/updates their UPI ID (the QR is generated from it)."""
     _, profile = vendor_user(request)
     if profile is None:
         return fail("Vendor login required.", status=401)
@@ -1420,8 +1420,34 @@ def vendor_upi(request):
 
 
 @csrf_exempt
+def vendor_profile_update(request):
+    """Vendor updates their business name and mobile number."""
+    _, profile = vendor_user(request)
+    if profile is None:
+        return fail("Vendor login required.", status=401)
+    if request.method != "POST":
+        return fail("POST only.", status=405)
+    body = json_body(request)
+    name = str(body.get("business_name", "")).strip()[:150]
+    phone = str(body.get("phone", "")).strip()[:15]
+    if not name:
+        return fail("Business name cannot be empty.")
+    if phone and VendorProfile.objects.filter(phone=phone).exclude(
+            id=profile.id).exists():
+        return fail("This mobile number is already used by another vendor.")
+    profile.business_name = name
+    if phone:
+        profile.phone = phone
+    profile.save(update_fields=["business_name", "phone"])
+    return ok({
+        "business_name": profile.business_name,
+        "phone": profile.phone or "",
+    })
+
+
+@csrf_exempt
 def vendor_logo_upload(request):
-    """⭐ Vendor apna shop icon/logo upload kare (food cards pe dikhta hai)."""
+    """⭐ Vendor uploads their shop icon/logo (shown on food cards)."""
     _, profile = vendor_user(request)
     if profile is None:
         return fail("Vendor login required.", status=401)
@@ -1444,7 +1470,7 @@ def vendor_logo_upload(request):
 
 @csrf_exempt
 def vendor_upi_qr_upload(request):
-    """⭐ Vendor apna khud ka QR image upload kare (backend QR option)."""
+    """⭐ Vendor uploads their own QR image (backend QR option)."""
     _, profile = vendor_user(request)
     if profile is None:
         return fail("Vendor login required.", status=401)
@@ -1533,7 +1559,7 @@ def _gh_latest_release():
             _GH_RELEASE_CACHE["version"] = ver
             _GH_RELEASE_CACHE["url"] = url
     except Exception as exc:
-        # ⭐ API rate-limit (403) pe releases HTML page se parse karo
+        # ⭐ on API rate-limit (403), parse the releases HTML page instead
         try:
             req2 = urllib.request.Request(
                 "https://github.com/02Adarsh/cunnect-backend/"
@@ -1568,7 +1594,7 @@ def _gh_latest_release():
 
 @csrf_exempt
 def debug_gh(request):
-    """⭐ GitHub release detection debug (?fresh=1 se turant recheck)."""
+    """⭐ GitHub release detection debug (?fresh=1 forces an instant recheck)."""
     if request.GET.get("fresh") == "1":
         _GH_RELEASE_CACHE["at"] = 0.0
     return ok(_gh_latest_release())
@@ -1629,7 +1655,7 @@ def _vendor_push(vendor_profile, title, message):
 
 
 def _order_alert_loop(order_id):
-    """vendor ke phone pe repeat ring jab tak accept/reject/silence."""
+    """Repeat ring on the vendor's phone until accept/reject/silence."""
     import time as _t
 
     for _ in range(12):
@@ -1688,7 +1714,7 @@ def vendor_silence(request):
 @csrf_exempt
 @student_required
 def device_token(request, user):
-    """⭐ app ka FCM token save karo (push ke liye)."""
+    """⭐ Save the app's FCM token (for push)."""
     if request.method != "POST":
         return fail("POST required.", status=405)
     from myapp.models import DeviceToken
@@ -1702,7 +1728,7 @@ def device_token(request, user):
 
 @student_required
 def food_notifications(request, user):
-    # ⭐ audience filter — student app ko student wale, vendor app ko vendor wale
+    # ⭐ audience filter — student rows for the student app, vendor rows for the vendor app
     audience = str(request.GET.get("audience", "student")).strip().lower()
     if audience not in ("student", "vendor"):
         audience = "student"
@@ -1770,7 +1796,7 @@ def vendor_login(request):
 
 
 def _reveal_phone(status):
-    """⭐ customer mobile sirf accept hone ke baad dikhe."""
+    """⭐ Customer mobile is shown only after the order is accepted."""
     return status in (
         "accepted", "preparing", "ready", "out_for_delivery", "delivered")
 
@@ -1856,7 +1882,7 @@ def vendor_order_action(request, user, order_id, action):
     try:
         order = Order.objects.get(id=order_id, vendor_id=profile.id)
     except Order.DoesNotExist:
-        return fail("Order nahi mila.", status=404)
+        return fail("Order not found.", status=404)
     if order.status != expected_from:
         return fail(f"Order is currently '{order.status}' — this action is not allowed.")
     order.status = new_status
@@ -1868,7 +1894,7 @@ def vendor_order_action(request, user, order_id, action):
             title=f"Order {new_status}",
             message=f"{order.order_number} is now {new_status}.",
         )
-    # ⭐ vendor ko apne action ka confirmation (sound + heads-up)
+    # ⭐ confirmation of the vendor's own action (sound + heads-up)
     if action != "reject":
         _notify_vendor(profile, f"Order {new_status}",
                        f"{order.order_number} marked {new_status}.", order=order)
@@ -1887,7 +1913,7 @@ def vendor_start_delivery(request, user, order_id):
     try:
         order = Order.objects.get(id=order_id, vendor_id=profile.id)
     except Order.DoesNotExist:
-        return fail("Order nahi mila.", status=404)
+        return fail("Order not found.", status=404)
     if order.status not in ("ready", "out_for_delivery"):
         return fail("Mark the order 'ready' first.")
     if not order.delivery_otp:
@@ -1918,7 +1944,7 @@ def vendor_verify_otp(request, user, order_id):
     try:
         order = Order.objects.get(id=order_id, vendor_id=profile.id)
     except Order.DoesNotExist:
-        return fail("Order nahi mila.", status=404)
+        return fail("Order not found.", status=404)
     otp = str(json_body(request).get("otp", "")).strip()
     if order.status != "out_for_delivery":
         return fail("Order is not out for delivery.")
@@ -1952,7 +1978,7 @@ def vendor_menu(request, user):
 
 @csrf_exempt
 def vendor_menu_photo(request, item_id):
-    """⭐ Vendor food item ki photo upload kare."""
+    """⭐ Vendor uploads a photo for a food item."""
     _, profile = vendor_user(request)
     if profile is None:
         return fail("Vendor account not found.", status=401)
@@ -2055,7 +2081,7 @@ def vendor_menu_edit(request, user, item_id):
     item.is_veg = is_veg
     item.stock = stock
     if stock > 0:
-        item.is_available = True  # ⭐ restock = wapas available
+        item.is_available = True  # ⭐ restock = available again
     item.save()
     return ok({"item": serialize_food_item(item)})
 
@@ -2063,7 +2089,7 @@ def vendor_menu_edit(request, user, item_id):
 @csrf_exempt
 @student_required
 def vendor_menu_delete(request, user, item_id):
-    """⭐ Vendor apna menu item delete kare."""
+    """⭐ Vendor deletes their menu item."""
     _, profile = vendor_user(request)
     if profile is None:
         return fail("Vendor account not found.", status=401)
@@ -2100,6 +2126,54 @@ def vendor_earnings(request, user):
     _, profile = vendor_user(request)
     if profile is None:
         return fail("Vendor account not found.", status=401)
+    # Print vendors earn through PrintOrder rows, food vendors through
+    # Order rows. Both are normalised into the same response shape so the
+    # app can reuse one earnings screen.
+    if profile.vendor_type == "printout":
+        completed = (
+            PrintOrder.objects.filter(vendor_id=profile.id, status="completed")
+            .select_related("student", "student__userprofile")
+            .order_by("-created_at")[:400]
+        )
+        now = timezone.now()
+        week_start = (now - timedelta(days=now.weekday())).date()
+        weekly = []
+        week_total = 0.0
+        for offset in range(7):
+            day = week_start + timedelta(days=offset)
+            total = sum(
+                float(order.final_amount)
+                for order in completed
+                if order.created_at.date() == day
+            )
+            weekly.append({"label": day.strftime("%a"), "total": total})
+            week_total += total
+
+        def _print_row(order):
+            student = order.student
+            sprofile = getattr(student, "userprofile", None) if student else None
+            name = ""
+            if sprofile is not None:
+                name = sprofile.full_name or ""
+            if not name and student is not None:
+                name = student.get_full_name() or student.username
+            fname = order.document.name.split("/")[-1] if order.document else ""
+            return {
+                "id": order.id,
+                "order_number": f"PRN-{order.id}",
+                "vendor_id": order.vendor_id,
+                "customer_name": name,
+                "note": fname,
+                "total": float(order.final_amount),
+                "status": "completed",
+                "created_at_iso": iso(order.created_at),
+            }
+
+        return ok({
+            "week_total": week_total,
+            "weekly": weekly,
+            "completed_orders": [_print_row(order) for order in completed],
+        })
     completed = (
         Order.objects.filter(vendor_id=profile.id, status="completed")
         .order_by("-created_at")[:400]
@@ -2197,7 +2271,7 @@ def delivery_claim(request, user, order_id):
     try:
         order = Order.objects.get(id=order_id)
     except Order.DoesNotExist:
-        return fail("Order nahi mila.", status=404)
+        return fail("Order not found.", status=404)
     if order.status != "ready":
         return fail("This order cannot be claimed.")
     order.status = "out_for_delivery"
@@ -2229,7 +2303,7 @@ def delivery_verify_otp(request, user, order_id):
     try:
         order = Order.objects.get(id=order_id)
     except Order.DoesNotExist:
-        return fail("Order nahi mila.", status=404)
+        return fail("Order not found.", status=404)
     otp = str(json_body(request).get("otp", "")).strip()
     if order.status != "out_for_delivery":
         return fail("Order is not out for delivery.")
@@ -2262,7 +2336,7 @@ def serialize_print_vendor(profile):
         "phone": profile.phone,
         "bw_price_per_page": float(profile.bw_price_per_page),
         "color_price_per_page": float(profile.color_price_per_page),
-        # ⭐ UPI payment (QR + copyable ID) — printout checkout ke liye
+        # ⭐ UPI payment (QR + copyable ID) — for the printout checkout
         "upi_id": profile.upi_id,
     }
 
@@ -2271,11 +2345,11 @@ def serialize_print_vendor(profile):
 @require_http_methods(["POST"])
 @student_required
 def print_page_count(request, user):
-    """⭐ Upload ki gayi PDF ke pages count (original pdf.js jaisa,
-    server-side) — dropdowns isi se bharte hain."""
+    """⭐ Page count of the uploaded PDF (like the original pdf.js,
+    server-side) — the dropdowns are filled from this."""
     doc = request.FILES.get("document")
     if doc is None:
-        return fail("Document bhejo.")
+        return fail("Please attach a document.")
     name = str(getattr(doc, "name", "") or "").lower()
     if name.endswith(".pdf"):
         try:
@@ -2333,7 +2407,7 @@ def _count_pdf_pages(file_obj):
             return n
     except Exception:
         pass
-    # ⭐ pypdf fail ho to raw byte-scan se page count
+    # ⭐ if pypdf fails, count pages via a raw byte scan
     try:
         file_obj.seek(0)
         raw = file_obj.read()
@@ -2348,7 +2422,7 @@ def _count_pdf_pages(file_obj):
 
 
 def serialize_print_order(order, for_vendor=False):
-    """for_vendor=True -> student details bhi; mobile sirf accept ke baad."""
+    """for_vendor=True -> include student details; mobile only after accept."""
     data = {
         "id": order.id,
         "vendor_id": order.vendor_id,
@@ -2379,11 +2453,13 @@ def serialize_print_order(order, for_vendor=False):
             phone = profile.phone or ""
         if not name and student is not None:
             name = student.get_full_name() or student.username
-        # ⭐ mobile number sirf order ACCEPT hone ke baad dikhta hai
+        # ⭐ mobile number + document file: only after the order is ACCEPTED
         reveal = order.status not in ("pending", "rejected", "cancelled")
         data["student_name"] = name
         data["student_uid"] = student.username if student else ""
         data["student_phone"] = phone if reveal else ""
+        if not reveal:
+            data["file_url"] = ""
     return data
 
 
@@ -2494,7 +2570,7 @@ def print_order_action(request, user, order_id, action):
     except PrintOrder.DoesNotExist:
         return fail("Print order not found.", status=404)
     if order.status != expected_from:
-        # 'ready' se seedha complete bhi allow karo (vendor shortcut).
+        # also allow jumping straight from 'ready' to complete (vendor shortcut).
         if not (action == "complete" and order.status == "ready"):
             return fail(f"Order is currently '{order.status}'.")
     order.status = new_status
@@ -2731,7 +2807,7 @@ def chat_message_like(request, user, message_id):
     try:
         message = Message.objects.get(id=message_id)
     except Message.DoesNotExist:
-        return fail("Message nahi mila.", status=404)
+        return fail("Message not found.", status=404)
     if message.likes.filter(id=user.id).exists():
         message.likes.remove(user)
         liked = False
@@ -2749,7 +2825,7 @@ def chat_message_pin(request, user, message_id):
     try:
         message = Message.objects.get(id=message_id)
     except Message.DoesNotExist:
-        return fail("Message nahi mila.", status=404)
+        return fail("Message not found.", status=404)
     if message.is_pinned:
         message.is_pinned = False
         message.pinned_by = None
@@ -2786,13 +2862,13 @@ STORE_CATEGORIES = [
         "key": "books",
         "icon": "📚",
         "title": "Books",
-        "subtitle": "Jald aa raha hai",
+        "subtitle": "Coming soon",
     },
     {
         "key": "essentials",
         "icon": "🧴",
         "title": "Essentials",
-        "subtitle": "Jald aa raha hai",
+        "subtitle": "Coming soon",
     },
 ]
 
@@ -2819,7 +2895,7 @@ _UMS_KEEPALIVE_STARTED = False
 
 def _ums_ensure_keepalive():
     """⭐ 10-min background keepalive: session zinda + data auto-fresh,
-    taaki captcha din me 1-2 baar se zyada na aaye."""
+    so the captcha appears at most 1-2 times a day."""
     global _UMS_KEEPALIVE_STARTED
     with _UMS_LOCK:
         if _UMS_KEEPALIVE_STARTED:
@@ -2857,9 +2933,9 @@ def _ums_keepalive_loop():
         except Exception as exc:
             print(f"[UMS-KEEPALIVE] loop: {exc}")
 
-# ⭐ REAL-TIME + NO RE-LOGIN: credentials/cookies disk pe persist karo
-# taaki runserver restart ya session-expiry pe user ko dobara login na
-# karna pade - backend silently cookies reuse / re-auth karta hai.
+# ⭐ REAL-TIME + NO RE-LOGIN: persist credentials/cookies to disk
+# so the user never has to log in again after a runserver restart or
+# is needed - the backend silently reuses cookies / re-authenticates.
 _UMS_SAVE_FILE = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
     "ums_saved_logins.json",
@@ -2908,7 +2984,7 @@ def _ums_saved_update(uid, **kw):
 
 
 def _ums_owner(request):
-    """⭐ Kis app-user ka UMS hai (multi-student isolation)."""
+    """⭐ Which app user owns this UMS session (multi-student isolation)."""
     try:
         u = user_from_token(request)
         return u.username if u else ""
@@ -2917,7 +2993,7 @@ def _ums_owner(request):
 
 
 def _ums_reauth(uid, password):
-    """Silent re-login (bina captcha ke ho tabhi). Success pe cookies."""
+    """Silent re-login (only when possible without a captcha). Cookies on success."""
     from scraper_app.scraper_backend import CUIMSScraperBackend
 
     if not password:
@@ -2937,8 +3013,8 @@ def _ums_reauth(uid, password):
 
 
 def _ums_start_captcha(uid):
-    """⭐ ANY-NETWORK: portal captcha maange to image app ko do, scraper
-    pending rakho taaki verify hote hi live scrape ho sake."""
+    """⭐ ANY-NETWORK: if the portal asks for a captcha, hand the image to the app;
+    keep it pending so a live scrape can run as soon as it is verified."""
     import base64
 
     from scraper_app.scraper_backend import CUIMSScraperBackend
@@ -2963,8 +3039,8 @@ def _ums_start_captcha(uid):
 
 
 def _ums_auto_session(uid):
-    """Memory me session na ho (restart) to saved cookies/password se
-    khud restore karo - user ko login screen nahi dikhani."""
+    """If the session is not in memory (restart), restore it from saved
+    cookies/password - never show the user the login screen."""
     if not uid or uid == "__demo__":
         with _UMS_LOCK:
             return _UMS_STATE.get(uid)
@@ -2998,7 +3074,7 @@ def _ums_auto_session(uid):
 
 
 def _ums_error(result):
-    message = result.get("error") or "UMS se connect nahi ho paya."
+    message = result.get("error") or "Could not connect to the UMS portal."
     return fail(message)
 
 
@@ -3010,7 +3086,7 @@ def ums_stage1(request):
     body = json_body(request)
     uid = str(body.get("uid", "")).strip()
     if not uid:
-        return fail("Apna CUIMS UID daalo.")
+        return fail("Enter your CUIMS UID.")
     scraper = CUIMSScraperBackend(uid=uid)
     result = scraper.execute_stage1()
     if not result.get("success"):
@@ -3037,7 +3113,7 @@ def ums_stage2(request):
     password = str(body.get("password", ""))
     captcha = str(body.get("captcha", "")).strip()
     if not uid or not password:
-        return fail("UID aur password chahiye.")
+        return fail("UID and password are required.")
     with _UMS_LOCK:
         state = _UMS_STATE.get(uid)
     if state is None:
@@ -3047,7 +3123,7 @@ def ums_stage2(request):
     if not auth_result.get("success"):
         return _ums_error(auth_result)
     cookies = auth_result.get("cookies", {})
-    # ⭐ UMS ko isi app-user se bind karo (multi-student isolation)
+    # ⭐ Bind the UMS to this app user (multi-student isolation)
     _ums_saved_update(uid, password=password, cookies=cookies,
                       owner=_ums_owner(request))
     _ums_ensure_keepalive()
@@ -3062,7 +3138,7 @@ def ums_stage2(request):
 def _scrape_ums_dashboard(scraper, cookies, state=None):
     """Original scraper_app authenticate-flow ka EXACT mirror:
     wahi functions, wahi order (phase-1 parallel + phase-2 results +
-    phase-3 risky) + original dashboard render ke SAARE template keys —
+    phase-3 risky) + ALL template keys of the original dashboard render —
     results dropdown (available_sessions), SGPA/CGPA, fee normalize
     (has_money/cleared/all_paid), course-modal dlog pack."""
     from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -3124,7 +3200,7 @@ def _scrape_ums_dashboard(scraper, cookies, state=None):
                     out[name] = None
         return out
 
-    # ── Attendance (serial, pehle — original jaisa) ──
+    # ── Attendance (serial, first — same as the original) ──
     try:
         attendance_result = scraper.scrape_attendance_records(cookies) or {}
     except Exception as exc:
@@ -3141,8 +3217,8 @@ def _scrape_ums_dashboard(scraper, cookies, state=None):
         held_sum = sum(int(r.get("total", 0) or 0) for r in records)
         dashboard["attendance"] = records
         # ⭐ Portal "Eligible" math (user proof): DL (IDL/ADL/VDL) ya
-        # Medical Leave lagne pe portal delivered/attended/percentage ko
-        # eligible numbers pe adjust kar deta hai. App bhi SAME dikhae.
+        # When Medical Leave applies, the portal adjusts delivered/attended/percentage
+        # adjusts to eligible numbers. The app must show the SAME values.
         _el_att_sum = 0
         _el_held_sum = 0
         try:
@@ -3244,7 +3320,7 @@ def _scrape_ums_dashboard(scraper, cookies, state=None):
         overall = attendance_result.get("overall")
         if not (isinstance(overall, (int, float)) and 0 <= float(overall) <= 100):
             # ⭐ portal overall na mile to weighted (attended/held) —
-            # simple avg se portal wala % alag hota hai (62.62 vs 60 wala bug)
+            # a simple average differs from the portal % (the 62.62 vs 60 bug)
             _wa_att = _el_att_sum if _el_held_sum > 0 else attended_sum
             _wa_held = _el_held_sum if _el_held_sum > 0 else held_sum
             overall = (_wa_att / _wa_held * 100) if _wa_held > 0 else avg_percentage
@@ -3313,9 +3389,9 @@ def _scrape_ums_dashboard(scraper, cookies, state=None):
     daily_attendance = {}
     if daily_result and daily_result.get("success"):
         daily_attendance = daily_result
-    # ⭐ Duty/medical leave: portal aisi lectures ko conducted NAHI maanta.
-    # Scraper inhe tone=present deta hai - yahan "leave" karo taaki app me
-    # DL chip dikhe aur lecture count na ho (present/absent me na jude).
+    # ⭐ Duty/medical leave: the portal does NOT count such lectures as conducted.
+    # The scraper marks these tone=present - convert to "leave" here so the
+    # app shows a DL chip and no lecture count (not merged into present/absent).
     try:
         _LEAVE_SET = ("dl", "duty", "on duty", "on-duty", "od", "ml",
                       "medical", "leave", "holiday")
@@ -3331,7 +3407,7 @@ def _scrape_ums_dashboard(scraper, cookies, state=None):
                     _e["tone"] = "leave"
                     _cc = str(_sub.get("code") or "").strip().upper()
                     _dl_daily[_cc] = _dl_daily.get(_cc, 0) + 1
-        # daily leave counts ko course records me merge (max, double-count se bachne ke liye)
+        # merge daily leave counts into course records (max, to avoid double-counting)
         if _dl_daily:
             for _r in (dashboard.get("attendance") or []):
                 _cc = str(_r.get("code") or "").strip().upper()
@@ -3342,7 +3418,7 @@ def _scrape_ums_dashboard(scraper, cookies, state=None):
         pass
     state["daily_attendance"] = daily_attendance
 
-    # ── Phase-2: exam results (original jaisa — marks codes + session) ──
+    # ── Phase-2: exam results (same as original — marks codes + session) ──
     batch_match = re.match(r"^(\d{2})", str(uid))
     batch_year = int(batch_match.group(1)) if batch_match else None
     results_result = {}
@@ -3385,7 +3461,7 @@ def _scrape_ums_dashboard(scraper, cookies, state=None):
     dashboard["total_credits"] = total_credits
     dashboard["result_pending"] = result_pending
 
-    # ⭐ Results dropdown (original render jaisa — saare sessions + pending flag)
+    # ⭐ Results dropdown (same as the original render — all sessions + pending flag)
     numbered = numbered_sessions(session_pool, uid)
     declared_nums = declared_result_semesters(exam_results)
     dashboard["available_sessions"] = [
@@ -3513,7 +3589,7 @@ def _scrape_ums_dashboard(scraper, cookies, state=None):
     except Exception as exc:
         print(f"[API-UMS] course-modal pack skip: {exc}")
 
-    # ⭐ Semester-switch / receipt / photo proxies ke liye state extras
+    # ⭐ State extras for semester-switch / receipt / photo proxies
     state["pool"] = session_pool
     state["active_session"] = active_session
     state["batch_year"] = batch_year
@@ -3625,14 +3701,14 @@ def ums_demo(request):
         "notices": [
             {"title": "Mid-sem exam schedule released",
              "department": "Examination Cell", "date": "21 Aug 2026",
-             "desc": "Mid-semester exams 1-7 September tak honge.",
+             "desc": "Mid-semester exams will run 1-7 September.",
              "files": [
                  {"name": "exam_schedule.pdf",
                   "url": "http://localhost:8000/api/ums/pdf/?u=exsch"},
              ]},
             {"title": "Tech fest registrations open",
              "department": "Cultural Committee", "date": "18 Aug 2026",
-             "desc": "CUnnect tech fest ke liye team registrations start."},
+             "desc": "Team registrations open for the CUnnect tech fest."},
         ],
         "fee_summary": {"total": "95,000", "paid": "70,000", "due": "25,000",
                         "has_money": True, "cleared": False, "all_paid": False,
@@ -3670,8 +3746,8 @@ def ums_demo(request):
 
 @student_required
 def ums_saved_uids(request, user):
-    """⭐ Sirf ISI app-user ke apne saved UMS accounts (multi-student
-    isolation) - doosre student ka UMS kabhi nahi dikhega."""
+    """⭐ Only THIS app user's own saved UMS accounts (multi-student
+    isolation) - another student's UMS is never shown."""
     data = _ums_saved_load()
     uids = [
         str(u)
@@ -3684,7 +3760,7 @@ def ums_saved_uids(request, user):
 
 
 def _ums_attendance_notify(uid, dashboard):
-    """Attendance present/absent change -> student ko push (sync + bg dono)."""
+    """Attendance present/absent change -> push to the student (both sync + bg)."""
     try:
         state = _UMS_STATE.get(uid)
         if state is None:
@@ -3721,7 +3797,7 @@ def _ums_attendance_notify(uid, dashboard):
 
 @student_required
 def ums_dashboard(request, user):
-    """⭐ REAL-TIME: har app-open/SYNC pe fresh scrape (refresh=1), warna
+    """⭐ REAL-TIME: fresh scrape on every app-open/SYNC (refresh=1), else
     4-min TTL. Session mare to saved password se silent re-auth + retry."""
     uid = request.GET.get("uid", "").strip() or "__demo__"
     # ⭐ multi-student isolation: doosre user ka UMS block
@@ -3729,13 +3805,13 @@ def ums_dashboard(request, user):
         entry = _ums_saved_load().get(uid) or {}
         owner = str(entry.get("owner") or "")
         if owner and owner != user.username:
-            return fail("Ye UMS account aapke app login se linked nahi hai.",
+            return fail("This UMS account is not linked to your app login.",
                         status=403)
     refresh = request.GET.get("refresh", "") in ("1", "true", "yes")
     state = _ums_auto_session(uid)
     if state is None:
         return fail(
-            "UMS session nahi mila — app me UMS login karo.", status=404)
+            "UMS session not found — please log in to UMS in the app.", status=404)
     if not state.get("scraper"):
         if state.get("dashboard"):
             return ok(state["dashboard"])
@@ -3744,7 +3820,7 @@ def ums_dashboard(request, user):
     now = time.time()
     stale = now - float(state.get("dashboard_at") or 0) > 240
     busy = now - float(state.get("scraping_at") or 0) < 25
-    # ⭐ Celery: stale cache turant do, fresh scrape background me
+    # ⭐ Celery: serve the stale cache instantly, fresh scrape in the background
     if not refresh and stale and state.get("dashboard") and not busy:
         try:
             from api_app.tasks import redis_ok, ums_scrape_task
@@ -3762,7 +3838,7 @@ def ums_dashboard(request, user):
             state["fail_streak"] = 0
         else:
             state["fail_streak"] = int(state.get("fail_streak") or 0) + 1
-            # ⭐ session-killer re-auth SIRF 2+ lagatar fail ke baad
+            # ⭐ session-killer re-auth ONLY after 2+ consecutive failures
             if state["fail_streak"] >= 2:
                 saved = _ums_saved_load().get(uid) or {}
                 fresh = _ums_reauth(uid, saved.get("password") or "")
@@ -3775,9 +3851,9 @@ def ums_dashboard(request, user):
                     if state.get("last_scrape_ok"):
                         state["fail_streak"] = 0
         if not state.get("last_scrape_ok"):
-            # ⭐ Bahar ke network pe portal captcha maangta hai - image app
-            # bhejo, student verify karega phir live scrape hoga.
-            # Cache data ho to captcha max har 10 min me ek baar (spam nahi).
+            # ⭐ On outside networks the portal asks for a captcha - send the image
+            # to the app, the student verifies it, then a live scrape runs.
+            # If cached data exists, ask for a captcha at most every 10 min (no spam).
             cached = state.get("dashboard") or {}
             has_data = bool(cached.get("attendance") or cached.get("name")
                             or cached.get("courses") or cached.get("result")
@@ -3800,7 +3876,7 @@ def ums_dashboard(request, user):
         with _UMS_LOCK:
             state["dashboard"] = dashboard
             state["dashboard_at"] = time.time()
-        # ⭐ attendance present/absent mark hua -> student ko push
+        # ⭐ attendance marked present/absent -> push to the student
         if state.get("last_scrape_ok"):
             _ums_attendance_notify(uid, dashboard)
     return ok(state["dashboard"])
@@ -3813,34 +3889,34 @@ def ums_captcha(request):
     uid = request.GET.get("uid", "").strip()
     b64 = _ums_start_captcha(uid)
     if not b64:
-        return fail("Portal captcha nahi maang raha / portal unreachable.")
+        return fail("The portal is not asking for a captcha / portal unreachable.")
     return ok({"needs_captcha": True, "captcha_b64": b64})
 
 
 @csrf_exempt
 @require_http_methods(["POST"])
 def ums_verify_captcha(request):
-    """⭐ Student ka captcha code -> portal login -> turant live scrape."""
+    """⭐ The student's captcha code -> portal login -> instant live scrape."""
     body = json_body(request)
     uid = str(body.get("uid", "")).strip()
     code = str(body.get("code", "")).strip()
     if not uid or not code:
-        return fail("Captcha code daalo.")
+        return fail("Enter the captcha code.")
     with _UMS_LOCK:
         state = _UMS_STATE.get(uid) or {}
         scraper = state.get("pending_captcha")
     if scraper is None:
-        return fail("Captcha expire ho gaya - refresh karke dobara try karo.",
+        return fail("Captcha expired — refresh and try again.",
                     status=400)
     saved = _ums_saved_load().get(uid) or {}
     password = saved.get("password") or ""
     if not password:
-        return fail("Saved password nahi mila - UMS login dobara karo.",
+        return fail("Saved password not found — please log in to UMS again.",
                     status=400)
     auth = scraper.execute_stage2(password, captcha_code=code) or {}
     if not auth.get("success"):
         return fail(str(auth.get("error") or
-                        "Galat captcha - dobara try karo."))
+                        "Incorrect captcha — try again."))
     cookies = auth.get("cookies") or {}
     _ums_saved_update(uid, cookies=cookies, owner=_ums_owner(request))
     with _UMS_LOCK:
@@ -3857,16 +3933,16 @@ def ums_verify_captcha(request):
 
 
 def ums_course_pdf(request, index):
-    """Lecture-plan PDF proxy — original course_plan_pdf_view ko
-    session inject karke delegate karta hai (Flutter ke paas web
-    session nahi hota, isliye uid query se state restore)."""
+    """Lecture-plan PDF proxy — delegates to the original course_plan_pdf_view
+    delegates by injecting the session (Flutter has no web
+    session, so state is restored from the uid query)."""
     from scraper_app.views import course_plan_pdf_view
 
     uid = request.GET.get("uid", "").strip()
     state = _ums_auto_session(uid)
     if not state or not state.get("scraper"):
         return HttpResponseNotFound(
-            "UMS session nahi mila — app mein dobara UMS login karo."
+            "UMS session not found — please log in to UMS again in the app."
         )
     scraper = state["scraper"]
     request.session["scraper_state"] = {
@@ -3934,7 +4010,7 @@ def ums_semester(request, user):
             exam_result = {}
         if not marks_result.get("success") and not exam_result.get("success"):
             return fail(
-                "Ye semester portal se nahi mila — thodi der baad try karo.",
+                "This semester was not found on the portal — try again later.",
                 status=502,
             )
         if marks_result.get("success"):
@@ -3973,7 +4049,7 @@ def ums_semester(request, user):
                     and exam_result.get("active_cgpa")):
                 dashboard["student_cgpa"] = str(
                     exam_result.get("active_cgpa"))
-        # ⭐ Dropdown refresh (pool badal sakta hai)
+        # ⭐ Refresh the dropdown (the pool can change)
         declared_nums = declared_result_semesters(
             dashboard.get("exam_results") or [])
         active_now = str(dashboard.get("active_session") or "")
@@ -3992,14 +4068,14 @@ def ums_semester(request, user):
 
 def ums_fee_receipt(request, receipt_id):
     """⭐ Fee receipt PDF proxy — original fee_receipt_view ko state se
-    session inject karke delegate (uid query, browser se direct khulta hai)."""
+    delegates by injecting the session (uid query, opens directly in the browser)."""
     from scraper_app.views import fee_receipt_view
 
     uid = request.GET.get("uid", "").strip()
     state = _ums_auto_session(uid)
     if not state or not state.get("scraper"):
         return HttpResponseNotFound(
-            "UMS session nahi mila — app mein dobara UMS login karo."
+            "UMS session not found — please log in to UMS again in the app."
         )
     scraper = state["scraper"]
     request.session["scraper_state"] = {
@@ -4019,7 +4095,7 @@ def ums_profile_photo(request):
     uid = request.GET.get("uid", "").strip()
     state = _ums_auto_session(uid)
     if not state or not state.get("scraper"):
-        return HttpResponseNotFound("UMS session nahi mila.")
+        return HttpResponseNotFound("UMS session not found.")
     scraper = state["scraper"]
     request.session["scraper_state"] = {
         "base_url": getattr(scraper, "base_url", None),
@@ -4064,15 +4140,15 @@ def ums_id_card(request):
     body = json_body(request)
     data_url = str(body.get("image") or "")
     if not data_url.startswith("data:image/") or "," not in data_url:
-        return JsonResponse({"ok": False, "error": "sirf image file chalegi"})
+        return JsonResponse({"ok": False, "error": "Only image files are allowed."})
     try:
         raw = base64.b64decode(data_url.split(",", 1)[1], validate=True)
     except Exception:
-        return JsonResponse({"ok": False, "error": "image data corrupt hai"})
+        return JsonResponse({"ok": False, "error": "The image data is corrupt."})
     if not raw:
         return JsonResponse({"ok": False, "error": "empty image"})
     if len(raw) > ID_CARD_MAX_BYTES:
-        return JsonResponse({"ok": False, "error": "image bahut badi hai"})
+        return JsonResponse({"ok": False, "error": "The image is too large."})
     if raw.startswith(b"\xff\xd8\xff"):
         ctype = "image/jpeg"
     elif raw.startswith(b"\x89PNG"):
@@ -4081,7 +4157,7 @@ def ums_id_card(request):
         ctype = "image/webp"
     else:
         return JsonResponse(
-            {"ok": False, "error": "jpeg/png/webp image hi bhejo"})
+            {"ok": False, "error": "Please send a jpeg/png/webp image."})
     with _UMS_LOCK:
         state["id_card"] = base64.b64encode(raw).decode("ascii")
         state["id_card_type"] = ctype
@@ -4103,7 +4179,7 @@ def ums_id_card_remove(request):
 
 def ums_ping(request):
     """⭐ Realtime sync (original dashboard_data ka lite mirror) —
-    cached attendance numbers + alive flag, bina portal hit."""
+    cached attendance numbers + alive flag, without hitting the portal."""
     uid = request.GET.get("uid", "").strip()
     state = _ums_auto_session(uid)
     if not state or not state.get("dashboard"):

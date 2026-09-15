@@ -144,7 +144,7 @@ class PrintOrderAdmin(admin.ModelAdmin):
     )
 
 
-# ⭐ Notice board + Polls — yahi se app me bhejo
+# ⭐ Notice board + Polls — send them to the app from here
 from .models import Notice, AppPoll, AppPollOption, AppPollVote
 
 

@@ -2,8 +2,8 @@ from django.db import migrations, models
 
 
 def mark_old_vendor_rows(apps, schema_editor):
-    """Purane vendor-wale notifications ko vendor audience de do,
-    taaki wo student section me na dikhen."""
+    """Give older vendor notifications the vendor audience,
+    so they no longer show in the student section."""
     Notification = apps.get_model("food", "Notification")
     vendor_titles = [
         "New food order received",

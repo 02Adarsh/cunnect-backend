@@ -63,7 +63,7 @@ class VendorProfile(models.Model):
         default="food"
     )
 
-    # ⭐ kitchen on/off — DB me persist (restart pe reset nahi)
+    # ⭐ kitchen on/off — persisted in the DB (no reset on restart)
     kitchen_open = models.BooleanField(default=True)
 
     phone = models.CharField(
@@ -90,7 +90,7 @@ class VendorProfile(models.Model):
     is_approved = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
 
-    # ⭐ Hostel Essentials vendor ka UPI ID (students ko payment ke liye dikhta hai)
+    # ⭐ Hostel Essentials vendor's UPI ID (shown to students for payment)
     upi_id = models.CharField(max_length=120, blank=True, default="")
     upi_qr_image = models.ImageField(
         upload_to="vendor_qr/", blank=True, null=True)
@@ -327,8 +327,8 @@ class PrintOrder(models.Model):
 
 
 class UmsSaved(models.Model):
-    """⭐ UMS saved password+cookies — DB me taaki Render restart pe
-    captcha dobara na maangna pade."""
+    """⭐ UMS saved password+cookies — stored in the DB so a Render restart
+    does not force another captcha."""
 
     uid = models.CharField(max_length=60, unique=True)
     payload = models.JSONField(default=dict)
@@ -354,7 +354,7 @@ class HostelOrder(models.Model):
     orderer_name = models.CharField(max_length=120, blank=True, default="")
     orderer_mobile = models.CharField(max_length=20, blank=True, default="")
 
-    # jiske liye order hua (manual)
+    # who the order was placed for (manual)
     recipient_name = models.CharField(max_length=120)
     recipient_mobile = models.CharField(max_length=20)
 
@@ -390,7 +390,7 @@ class OrderCounter(models.Model):
 
 
 class Notice(models.Model):
-    """⭐ Notice board — admin panel se bhejo, app me sabko dikhega."""
+    """⭐ Notice board — send from the admin panel, visible to everyone in the app."""
     title = models.CharField(max_length=200)
     message = models.TextField(blank=True, default="")
     image = models.ImageField(upload_to="notices/", blank=True, null=True)
@@ -405,7 +405,7 @@ class Notice(models.Model):
 
 
 class AppPoll(models.Model):
-    """⭐ App-wide poll — admin banata hai, students vote karte hain."""
+    """⭐ App-wide poll — created by the admin, students vote."""
     question = models.CharField(max_length=240)
     image = models.ImageField(upload_to="polls/", blank=True, null=True)
     is_active = models.BooleanField(default=True)
@@ -445,8 +445,8 @@ class AppPollVote(models.Model):
 
 
 class FeedReaction(models.Model):
-    """⭐ Feed reaction — kisi bhi emoji se (WhatsApp style). 1 user = 1 reaction
-    per feed item; dobara react kare to emoji change ho jata hai."""
+    """⭐ Feed reaction — with any emoji (WhatsApp style). 1 user = 1 reaction
+    per feed item; reacting again switches the emoji."""
     KIND_CHOICES = (("notice", "Notice"), ("poll", "Poll"))
     kind = models.CharField(max_length=10, choices=KIND_CHOICES)
     object_id = models.IntegerField()
@@ -464,7 +464,7 @@ class FeedReaction(models.Model):
 
 
 class FeedComment(models.Model):
-    """⭐ Feed comment — bottom-sheet me dikhta hai."""
+    """⭐ Feed comment — shown in the bottom sheet."""
     KIND_CHOICES = (("notice", "Notice"), ("poll", "Poll"))
     kind = models.CharField(max_length=10, choices=KIND_CHOICES)
     object_id = models.IntegerField()
