@@ -763,7 +763,7 @@
 
         data.notifications.forEach((notification) => {
           if (!seenVendorNotifications.has(notification.id)) {
-            showVendorToast(notification);
+            // ⭐ bottom toast hata diya — sirf bell badge update hota hai
             seenVendorNotifications.add(notification.id);
           }
         });

@@ -1176,7 +1176,7 @@ def _push_tokens(tokens, title, message, high=False, _direct=False):
                     android=messaging.AndroidConfig(
                         priority="high",
                         notification=messaging.AndroidNotification(
-                            channel_id="cunnect_alert_v3" if high else "cunnect_ping_v3",
+                            channel_id="cunnect_alert_v4" if high else "cunnect_ping_v4",
                             sound="cunnect_alert" if high else "cunnect_ping",
                             icon="cu_notif",
                             priority="high",

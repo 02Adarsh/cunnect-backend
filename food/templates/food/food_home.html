@@ -871,7 +871,7 @@
 
         data.notifications.forEach((notification) => {
           if (!shownNotifications.has(notification.id)) {
-            showNotificationToast(notification);
+            // ⭐ bottom toast hata diya — sirf bell badge update hota hai
             shownNotifications.add(notification.id);
           }
         });
