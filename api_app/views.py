@@ -952,8 +952,8 @@ def food_place_order(request, user):
         if _vp is None or _vp.id in _seen_vendors:
             continue
         _seen_vendors.add(_vp.id)
-        _vendor_push(_vp, "New order received",
-                     f"{_o.order_number} - accept or reject now")
+        _notify_vendor(_vp, "New order received",
+                       f"{_o.order_number} - accept or reject now", order=_o)
         try:
             from api_app.tasks import order_alert_task, redis_ok
             if redis_ok():
@@ -1078,10 +1078,31 @@ def _fcm_init_locked():
 
 
 def _notify(*args, **kwargs):
-    """Notification row + turant push."""
+    """Notification row + turant push. (student audience default)"""
+    kwargs.setdefault("audience", "student")
     n = Notification.objects.create(*args, **kwargs)
     try:
         _push_user(n.user_id, n.title, n.message)
+    except Exception:
+        pass
+    return n
+
+
+def _notify_vendor(vendor_profile, title, message, order=None):
+    """⭐ Vendor ke liye alag notification row (audience=vendor) + push."""
+    n = None
+    try:
+        n = Notification.objects.create(
+            user_id=vendor_profile.user_id,
+            order=order,
+            title=title,
+            message=message,
+            audience="vendor",
+        )
+    except Exception:
+        pass
+    try:
+        _vendor_push(vendor_profile, title, message)
     except Exception:
         pass
     return n
@@ -1485,9 +1506,12 @@ def device_token(request, user):
 
 @student_required
 def food_notifications(request, user):
-    notifications = Notification.objects.filter(user=user).order_by(
-        "-created_at"
-    )[:30]
+    # ⭐ audience filter — student app ko student wale, vendor app ko vendor wale
+    audience = str(request.GET.get("audience", "student")).strip().lower()
+    if audience not in ("student", "vendor"):
+        audience = "student"
+    base_qs = Notification.objects.filter(user=user, audience=audience)
+    notifications = base_qs.order_by("-created_at")[:30]
     return ok({
         "notifications": [
             {
@@ -1499,9 +1523,7 @@ def food_notifications(request, user):
             }
             for notification in notifications
         ],
-        "unread_count": Notification.objects.filter(
-            user=user, is_read=False
-        ).count(),
+        "unread_count": base_qs.filter(is_read=False).count(),
     })
 
 
@@ -1510,7 +1532,13 @@ def food_notifications(request, user):
 def food_notifications_read(request, user):
     if request.method != "POST":
         return fail("POST required.", status=405)
-    Notification.objects.filter(user=user).update(is_read=True)
+    body = json_body(request)
+    audience = str(
+        body.get("audience") or request.GET.get("audience") or "student"
+    ).strip().lower()
+    if audience not in ("student", "vendor"):
+        audience = "student"
+    Notification.objects.filter(user=user, audience=audience).update(is_read=True)
     return ok({"read": True})
 
 
@@ -1646,8 +1674,8 @@ def vendor_order_action(request, user, order_id, action):
         )
     # ⭐ vendor ko apne action ka confirmation (sound + heads-up)
     if action != "reject":
-        _vendor_push(profile, f"Order {new_status}",
-                     f"{order.order_number} marked {new_status}.")
+        _notify_vendor(profile, f"Order {new_status}",
+                       f"{order.order_number} marked {new_status}.", order=order)
     return ok({"order": serialize_order(
         order, reveal_mobile=_reveal_phone(order.status))})
 
@@ -1677,8 +1705,9 @@ def vendor_start_delivery(request, user, order_id):
             title="Out for delivery",
             message=f"{order.order_number} is out for delivery. OTP: {order.delivery_otp}",
         )
-    _vendor_push(profile, "Delivery started",
-                 f"{order.order_number} out for delivery. OTP shared with customer.")
+    _notify_vendor(profile, "Delivery started",
+                   f"{order.order_number} out for delivery. OTP shared with customer.",
+                   order=order)
     return ok({"order": serialize_order(order, include_otp=True)})
 
 

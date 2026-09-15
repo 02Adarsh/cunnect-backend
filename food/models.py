@@ -393,6 +393,16 @@ class Notification(models.Model):
     title = models.CharField(max_length=150)
     message = models.CharField(max_length=300)
 
+    # ⭐ kis portal ke liye hai — student app ya vendor app
+    AUDIENCE_CHOICES = (
+        ("student", "Student"),
+        ("vendor", "Vendor"),
+    )
+    audience = models.CharField(
+        max_length=10, choices=AUDIENCE_CHOICES,
+        default="student", db_index=True,
+    )
+
     is_read = models.BooleanField(default=False)
 
     created_at = models.DateTimeField(auto_now_add=True)

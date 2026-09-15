@@ -392,6 +392,7 @@ def place_order(request):
                 f"{order.order_number} from {customer_name} "
                 f"for ₹{order.total_amount:.0f} is waiting for acceptance."
             ),
+            audience="vendor",  # ⭐ ye sirf vendor app/section me dikhe
         )
 
     CartItem.objects.filter(cart=cart).delete()
@@ -437,14 +438,23 @@ def my_orders(request):
     })
 
 
+def _notification_audience(request):
+    """?audience=vendor / student — galat value pe student."""
+    audience = str(request.GET.get("audience", "student")).strip().lower()
+    return audience if audience in ("student", "vendor") else "student"
+
+
 @login_required(login_url="login_step1")
 def notifications_page(request):
+    audience = _notification_audience(request)
     notifications = Notification.objects.filter(
-        user=request.user
+        user=request.user,
+        audience=audience,
     ).select_related("order")
 
     Notification.objects.filter(
         user=request.user,
+        audience=audience,
         is_read=False
     ).update(is_read=True)
 
@@ -455,8 +465,10 @@ def notifications_page(request):
 
 @login_required(login_url="login_step1")
 def notifications_api(request):
+    audience = _notification_audience(request)
     unread_notifications = Notification.objects.filter(
         user=request.user,
+        audience=audience,
         is_read=False
     )[:10]
 
@@ -472,6 +484,7 @@ def notifications_api(request):
     return JsonResponse({
         "unread_count": Notification.objects.filter(
             user=request.user,
+            audience=audience,
             is_read=False
         ).count(),
         "notifications": data,

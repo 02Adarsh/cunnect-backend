@@ -440,7 +440,7 @@
         <a class="alert-toggle" href="{% url 'vendor_earnings' %}">Earnings</a>
         <a class="alert-toggle" href="{% url 'vendor_delivery_panel' %}">Delivery</a>
         <button class="alert-toggle" id="vendor-alert-toggle" type="button">Enable Alerts</button>
-        <a class="portal-bell" href="{% url 'notifications_page' %}" aria-label="Notifications">🔔<span class="notification-dot" id="vendor-notification-dot">0</span></a>
+        <a class="portal-bell" href="{% url 'notifications_page' %}?audience=vendor" aria-label="Notifications">🔔<span class="notification-dot" id="vendor-notification-dot">0</span></a>
         <a class="profile" href="{% url 'vendor_profile' %}" style="text-decoration:none;color:inherit;">
           <div class="profile-copy">
             <strong>{{ vendor.business_name }}</strong>
@@ -751,7 +751,7 @@
 
     async function refreshVendorNotifications() {
       try {
-        const response = await fetch("{% url 'notifications_api' %}", {
+        const response = await fetch("{% url 'notifications_api' %}?audience=vendor", {
           credentials: 'same-origin',
           cache: 'no-store',
         });

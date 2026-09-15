@@ -648,7 +648,7 @@
     <span class="logo-cu">CU</span><span class="logo-nnect">nnect</span>
   </div>
 
-  <a class="notification-link" href="{% url 'notifications_page' %}" aria-label="View notifications">
+  <a class="notification-link" href="{% url 'notifications_page' %}?audience=student" aria-label="View notifications">
     <span style="font-size:16px;">🔔</span>
     <span class="notification-badge" id="notification-badge">0</span>
   </a>
@@ -860,7 +860,7 @@
 
     async function refreshNotifications() {
       try {
-        const response = await fetch("{% url 'notifications_api' %}", {
+        const response = await fetch("{% url 'notifications_api' %}?audience=student", {
           cache: 'no-store'
         });
         if (!response.ok) return;
