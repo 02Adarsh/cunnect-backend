@@ -684,6 +684,90 @@ def student_dashboard(request, user):
     })
 
 
+# ---------------------------------------------------------------------
+# ⭐ Notice board + Polls (admin panel se manage hota hai)
+# ---------------------------------------------------------------------
+
+
+@student_required
+def notices_list(request, user):
+    from myapp.models import Notice
+
+    notices = Notice.objects.filter(is_active=True)[:50]
+    return ok({
+        "notices": [
+            {
+                "id": n.id,
+                "title": n.title,
+                "message": n.message,
+                "image_url": media_url(n.image),
+                "created_at_iso": iso(n.created_at),
+            }
+            for n in notices
+        ],
+    })
+
+
+def _serialize_poll(poll, user):
+    from myapp.models import AppPollVote
+
+    votes_by_option = {}
+    total = 0
+    for v in poll.votes.all():
+        votes_by_option[v.option_id] = votes_by_option.get(v.option_id, 0) + 1
+        total += 1
+    my_vote = AppPollVote.objects.filter(poll=poll, user=user).first()
+    return {
+        "id": poll.id,
+        "question": poll.question,
+        "image_url": media_url(poll.image),
+        "is_active": poll.is_active,
+        "created_at_iso": iso(poll.created_at),
+        "total_votes": total,
+        "my_option_id": my_vote.option_id if my_vote else None,
+        "options": [
+            {
+                "id": o.id,
+                "text": o.text,
+                "image_url": media_url(o.image),
+                "votes": votes_by_option.get(o.id, 0),
+            }
+            for o in poll.options.all()
+        ],
+    }
+
+
+@student_required
+def polls_list(request, user):
+    from myapp.models import AppPoll
+
+    polls = AppPoll.objects.filter(is_active=True).prefetch_related(
+        "options", "votes")[:20]
+    return ok({"polls": [_serialize_poll(p, user) for p in polls]})
+
+
+@csrf_exempt
+@student_required
+def poll_vote(request, user, poll_id):
+    if request.method != "POST":
+        return fail("POST required.", status=405)
+    from myapp.models import AppPoll, AppPollOption, AppPollVote
+
+    poll = AppPoll.objects.filter(id=poll_id, is_active=True).first()
+    if poll is None:
+        return fail("Poll not found or closed.", status=404)
+    body = json_body(request)
+    option_id = body.get("option_id")
+    option = AppPollOption.objects.filter(id=option_id, poll=poll).first()
+    if option is None:
+        return fail("Invalid option.")
+    # ⭐ ek user ek vote — dobara vote kare to option change ho jata hai
+    AppPollVote.objects.update_or_create(
+        poll=poll, user=user, defaults={"option": option})
+    poll = AppPoll.objects.prefetch_related("options", "votes").get(id=poll.id)
+    return ok({"poll": _serialize_poll(poll, user)})
+
+
 @csrf_exempt
 @student_required
 def student_support(request, user):

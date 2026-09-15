@@ -17,6 +17,11 @@ urlpatterns = [
     path("student/support/", views.student_support),
     path("student/profile/", views.student_profile),
 
+    # ---- notices + polls (backend/admin se bheje jaate hain) ----
+    path("notices/", views.notices_list),
+    path("polls/", views.polls_list),
+    path("polls/<int:poll_id>/vote/", views.poll_vote),
+
     # ---- food ----
     path("food/home/", views.food_home),
     path("food/coupon/validate/", views.food_coupon_validate),

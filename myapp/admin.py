@@ -142,3 +142,39 @@ class PrintOrderAdmin(admin.ModelAdmin):
         "vendor__business_name",
         "student__username",
     )
+
+
+# ⭐ Notice board + Polls — yahi se app me bhejo
+from .models import Notice, AppPoll, AppPollOption, AppPollVote
+
+
+@admin.register(Notice)
+class NoticeAdmin(admin.ModelAdmin):
+    list_display = ("title", "is_active", "created_at")
+    list_filter = ("is_active",)
+    search_fields = ("title", "message")
+    list_editable = ("is_active",)
+
+
+class AppPollOptionInline(admin.TabularInline):
+    model = AppPollOption
+    extra = 2
+
+
+@admin.register(AppPoll)
+class AppPollAdmin(admin.ModelAdmin):
+    list_display = ("question", "is_active", "created_at", "vote_count")
+    list_filter = ("is_active",)
+    search_fields = ("question",)
+    list_editable = ("is_active",)
+    inlines = [AppPollOptionInline]
+
+    def vote_count(self, obj):
+        return obj.votes.count()
+    vote_count.short_description = "Votes"
+
+
+@admin.register(AppPollVote)
+class AppPollVoteAdmin(admin.ModelAdmin):
+    list_display = ("poll", "option", "user", "created_at")
+    list_filter = ("poll",)

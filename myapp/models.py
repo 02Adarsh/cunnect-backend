@@ -382,3 +382,58 @@ class DeviceToken(models.Model):
 class OrderCounter(models.Model):
     """⭐ Sequential order-number counter (single row)."""
     value = models.IntegerField(default=0)
+
+
+class Notice(models.Model):
+    """⭐ Notice board — admin panel se bhejo, app me sabko dikhega."""
+    title = models.CharField(max_length=200)
+    message = models.TextField(blank=True, default="")
+    image = models.ImageField(upload_to="notices/", blank=True, null=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return self.title
+
+
+class AppPoll(models.Model):
+    """⭐ App-wide poll — admin banata hai, students vote karte hain."""
+    question = models.CharField(max_length=240)
+    image = models.ImageField(upload_to="polls/", blank=True, null=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return self.question
+
+
+class AppPollOption(models.Model):
+    poll = models.ForeignKey(
+        AppPoll, on_delete=models.CASCADE, related_name="options")
+    text = models.CharField(max_length=160)
+    image = models.ImageField(upload_to="polls/options/", blank=True, null=True)
+
+    def __str__(self):
+        return f"{self.poll_id}: {self.text}"
+
+
+class AppPollVote(models.Model):
+    poll = models.ForeignKey(
+        AppPoll, on_delete=models.CASCADE, related_name="votes")
+    option = models.ForeignKey(
+        AppPollOption, on_delete=models.CASCADE, related_name="votes")
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="app_poll_votes")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("poll", "user")
+
+    def __str__(self):
+        return f"{self.user.username} -> {self.option_id}"
