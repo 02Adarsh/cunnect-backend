@@ -735,6 +735,9 @@ def _feed_social(kind, ids, user):
     return out
 
 
+MAX_PINNED_POSTS = 15
+
+
 @student_required
 def notices_list(request, user):
     from myapp.models import Notice
@@ -748,6 +751,9 @@ def notices_list(request, user):
                 "title": n.title,
                 "message": n.message,
                 "image_url": media_url(n.image),
+                "video_url": media_url(n.video),
+                "pinned": n.pinned_at is not None,
+                "pinned_at_iso": iso(n.pinned_at) if n.pinned_at else "",
                 "created_at_iso": iso(n.created_at),
                 **social[n.id],
             }
@@ -782,36 +788,65 @@ def feed_react(request, user, kind, object_id):
     return ok(social)
 
 
+def _display_name(u):
+    try:
+        p = getattr(u, "userprofile", None)
+        if p is not None and getattr(p, "full_name", ""):
+            return p.full_name
+    except Exception:
+        pass
+    return u.get_full_name() or u.username
+
+
+def _comments_payload(kind, object_id, user):
+    """Threaded comments (top level + one reply level) with emoji
+    reactions per comment."""
+    from myapp.models import FeedComment, FeedCommentReaction
+    from django.db.models import Count
+
+    comments = list(FeedComment.objects.filter(
+        kind=kind, object_id=object_id).select_related("user")[:400])
+    ids = [c.id for c in comments]
+    reactions = {i: {} for i in ids}
+    mine = {i: "" for i in ids}
+    if ids:
+        for r in (FeedCommentReaction.objects
+                  .filter(comment_id__in=ids)
+                  .values("comment_id", "emoji").annotate(c=Count("id"))):
+            reactions[r["comment_id"]][r["emoji"]] = r["c"]
+        for r in FeedCommentReaction.objects.filter(
+                comment_id__in=ids, user=user):
+            mine[r.comment_id] = r.emoji
+
+    def row(c):
+        return {
+            "id": c.id,
+            "user": _display_name(c.user),
+            "mine": c.user_id == user.id,
+            "text": c.text,
+            "reactions": reactions.get(c.id, {}),
+            "my_reaction": mine.get(c.id, ""),
+            "created_at_iso": iso(c.created_at),
+        }
+
+    top = [c for c in comments if c.parent_id is None]
+    replies = {}
+    for c in comments:
+        if c.parent_id is not None:
+            replies.setdefault(c.parent_id, []).append(row(c))
+    return {
+        "comments": [
+            {**row(c), "replies": replies.get(c.id, [])} for c in top
+        ],
+        "total": len(comments),
+    }
+
+
 @student_required
 def feed_comments(request, user, kind, object_id):
     if kind not in ("notice", "poll"):
         return fail("Unknown kind.", status=404)
-    from myapp.models import FeedComment
-
-    comments = FeedComment.objects.filter(
-        kind=kind, object_id=object_id).select_related("user")[:200]
-
-    def display_name(u):
-        try:
-            p = getattr(u, "userprofile", None)
-            if p is not None and getattr(p, "full_name", ""):
-                return p.full_name
-        except Exception:
-            pass
-        return u.get_full_name() or u.username
-
-    return ok({
-        "comments": [
-            {
-                "id": c.id,
-                "user": display_name(c.user),
-                "mine": c.user_id == user.id,
-                "text": c.text,
-                "created_at_iso": iso(c.created_at),
-            }
-            for c in comments
-        ],
-    })
+    return ok(_comments_payload(kind, object_id, user))
 
 
 @csrf_exempt
@@ -823,12 +858,73 @@ def feed_comment_add(request, user, kind, object_id):
         return fail("Unknown kind.", status=404)
     from myapp.models import FeedComment
 
-    text = str(json_body(request).get("text", "")).strip()[:600]
+    body = json_body(request)
+    text = str(body.get("text", "")).strip()[:600]
     if not text:
         return fail("Comment cannot be empty.")
+    parent = None
+    parent_id = body.get("parent_id")
+    if parent_id:
+        parent = FeedComment.objects.filter(
+            id=parent_id, kind=kind, object_id=object_id).first()
+        if parent is None:
+            return fail("The comment you replied to no longer exists.",
+                        status=404)
+        # Keep the thread one level deep (replies to a reply attach to the
+        # top-level comment, WhatsApp/Instagram style).
+        if parent.parent_id is not None:
+            parent = parent.parent
     FeedComment.objects.create(
-        kind=kind, object_id=object_id, user=user, text=text)
-    return feed_comments.__wrapped__(request, user, kind, object_id)
+        kind=kind, object_id=object_id, user=user, text=text, parent=parent)
+    return ok(_comments_payload(kind, object_id, user))
+
+
+@csrf_exempt
+@student_required
+def feed_comment_delete(request, user, kind, object_id, comment_id):
+    """Users can delete their OWN comments (replies are removed with them).
+    Staff can delete any comment."""
+    if request.method != "POST":
+        return fail("POST required.", status=405)
+    if kind not in ("notice", "poll"):
+        return fail("Unknown kind.", status=404)
+    from myapp.models import FeedComment
+
+    comment = FeedComment.objects.filter(
+        id=comment_id, kind=kind, object_id=object_id).first()
+    if comment is None:
+        return fail("Comment not found.", status=404)
+    if comment.user_id != user.id and not (user.is_staff or user.is_superuser):
+        return fail("You can only delete your own comments.", status=403)
+    comment.delete()
+    return ok(_comments_payload(kind, object_id, user))
+
+
+@csrf_exempt
+@student_required
+def feed_comment_react(request, user, kind, object_id, comment_id):
+    """Emoji reaction on a comment — same emoji again toggles it off."""
+    if request.method != "POST":
+        return fail("POST required.", status=405)
+    if kind not in ("notice", "poll"):
+        return fail("Unknown kind.", status=404)
+    from myapp.models import FeedComment, FeedCommentReaction
+
+    comment = FeedComment.objects.filter(
+        id=comment_id, kind=kind, object_id=object_id).first()
+    if comment is None:
+        return fail("Comment not found.", status=404)
+    emoji = str(json_body(request).get("emoji", "")).strip()[:16]
+    if not emoji:
+        return fail("Emoji required.")
+    existing = FeedCommentReaction.objects.filter(
+        comment=comment, user=user).first()
+    if existing and existing.emoji == emoji:
+        existing.delete()
+    else:
+        FeedCommentReaction.objects.update_or_create(
+            comment=comment, user=user, defaults={"emoji": emoji})
+    return ok(_comments_payload(kind, object_id, user))
 
 
 def _serialize_poll(poll, user, social=None):
@@ -847,6 +943,9 @@ def _serialize_poll(poll, user, social=None):
         "id": poll.id,
         "question": poll.question,
         "image_url": media_url(poll.image),
+        "video_url": media_url(poll.video),
+        "pinned": poll.pinned_at is not None,
+        "pinned_at_iso": iso(poll.pinned_at) if poll.pinned_at else "",
         "is_active": poll.is_active,
         "created_at_iso": iso(poll.created_at),
         "total_votes": total,
@@ -4820,6 +4919,190 @@ def admin_notice_detail(request, user, notice_id):
         n.is_active = bool(body.get("is_active"))
     n.save()
     return ok({"id": n.id})
+
+
+@csrf_exempt
+def admin_create_superuser(request):
+    """⭐ One-time superuser bootstrap — callable from PowerShell so no
+    server shell is needed. Protected by the ADMIN_SETUP_KEY environment
+    variable: the endpoint is completely disabled unless that env var is
+    set on the server, and the caller must send the same key."""
+    if request.method != "POST":
+        return fail("POST only.", status=405)
+    setup_key = os.environ.get("ADMIN_SETUP_KEY", "")
+    if not setup_key:
+        return fail("Superuser setup is disabled on this server.", status=403)
+    body = json_body(request)
+    if str(body.get("setup_key", "")) != setup_key:
+        return fail("Invalid setup key.", status=403)
+    username = str(body.get("username", "")).strip()
+    password = str(body.get("password", ""))
+    if not username or len(password) < 8:
+        return fail("Provide a username and a password of 8+ characters.")
+    existing = User.objects.filter(username=username).first()
+    if existing:
+        existing.set_password(password)
+        existing.is_staff = True
+        existing.is_superuser = True
+        existing.is_active = True
+        existing.save()
+        return ok({"created": False, "updated": True, "username": username})
+    User.objects.create_superuser(username=username, password=password)
+    return ok({"created": True, "username": username})
+
+
+VIDEO_EXTENSIONS = (".mp4", ".mov", ".m4v", ".webm", ".3gp", ".mkv", ".avi")
+
+
+@csrf_exempt
+@admin_required
+def admin_feed_post(request, user):
+    """⭐ Flexible feed composer (multipart) — post ANY combination of:
+    text (title/message), media (image or video, kept in its original
+    aspect ratio) and a poll (question + options). If a poll is included
+    the post is stored as an AppPoll (media shows above the options);
+    otherwise it is a Notice."""
+    if request.method != "POST":
+        return fail("POST only.", status=405)
+    from myapp.models import Notice, AppPoll, AppPollOption, DeviceToken
+
+    title = str(request.POST.get("title", "")).strip()[:200]
+    message = str(request.POST.get("message", "")).strip()
+    question = str(request.POST.get("question", "")).strip()[:240]
+    options_raw = str(request.POST.get("options", "")).strip()
+    media = request.FILES.get("media")
+
+    options = []
+    if options_raw:
+        try:
+            options = [str(o).strip()[:160]
+                       for o in json.loads(options_raw) if str(o).strip()]
+        except Exception:
+            options = [o.strip()[:160]
+                       for o in options_raw.split("\n") if o.strip()]
+
+    if not title and not message and not question and media is None:
+        return fail("Add some text, media or a poll before posting.")
+    if question and len(options) < 2:
+        return fail("A poll needs at least 2 options.")
+
+    is_video = False
+    if media is not None:
+        name = (media.name or "").lower()
+        ctype = (getattr(media, "content_type", "") or "").lower()
+        is_video = (name.endswith(VIDEO_EXTENSIONS)
+                    or ctype.startswith("video/"))
+
+    if question:
+        poll = AppPoll.objects.create(
+            question=question,
+            image=None if (media is None or is_video) else media,
+            video=media if (media is not None and is_video) else None,
+        )
+        for text in options[:10]:
+            AppPollOption.objects.create(poll=poll, text=text)
+        push_title = "🗳️ New poll"
+        push_body = question[:180]
+        created = {"kind": "poll", "id": poll.id}
+    else:
+        notice = Notice.objects.create(
+            title=title,
+            message=message,
+            image=None if (media is None or is_video) else media,
+            video=media if (media is not None and is_video) else None,
+        )
+        push_title = f"📢 {title}" if title else "📢 CUnnect Feed"
+        push_body = (message or "New update on the CUnnect Feed")[:180]
+        created = {"kind": "notice", "id": notice.id}
+
+    try:
+        tokens = list(DeviceToken.objects.values_list("token", flat=True))
+        if tokens:
+            _push_tokens(tokens, push_title, push_body)
+    except Exception:
+        pass
+    return ok(created)
+
+
+@admin_required
+def admin_feed_list(request, user):
+    """Combined feed (notices + polls, pinned first) for the admin panel."""
+    from myapp.models import Notice, AppPoll
+
+    rows = []
+    for n in Notice.objects.all()[:100]:
+        rows.append({
+            "kind": "notice",
+            "id": n.id,
+            "title": n.title or (n.message[:60] if n.message else "Media post"),
+            "pinned": n.pinned_at is not None,
+            "has_media": bool(n.image or n.video),
+            "created_at_iso": iso(n.created_at),
+        })
+    for p in AppPoll.objects.all()[:100]:
+        rows.append({
+            "kind": "poll",
+            "id": p.id,
+            "title": p.question,
+            "pinned": p.pinned_at is not None,
+            "has_media": bool(p.image or p.video),
+            "created_at_iso": iso(p.created_at),
+        })
+    rows.sort(key=lambda r: (not r["pinned"], r["created_at_iso"]),
+              reverse=False)
+    rows.sort(key=lambda r: r["created_at_iso"], reverse=True)
+    rows.sort(key=lambda r: not r["pinned"])
+    pinned_count = sum(1 for r in rows if r["pinned"])
+    return ok({"posts": rows[:150], "pinned_count": pinned_count,
+               "max_pinned": MAX_PINNED_POSTS})
+
+
+@csrf_exempt
+@admin_required
+def admin_feed_pin(request, user, kind, object_id):
+    """POST {pinned: true|false} — pin/unpin a feed post (max 15 pinned
+    across notices + polls, WhatsApp-group style)."""
+    if request.method != "POST":
+        return fail("POST only.", status=405)
+    if kind not in ("notice", "poll"):
+        return fail("Unknown kind.", status=404)
+    from myapp.models import Notice, AppPoll
+
+    model = Notice if kind == "notice" else AppPoll
+    obj = model.objects.filter(id=object_id).first()
+    if obj is None:
+        return fail("Post not found.", status=404)
+    want_pin = bool(json_body(request).get("pinned", True))
+    if want_pin and obj.pinned_at is None:
+        pinned_total = (
+            Notice.objects.filter(pinned_at__isnull=False).count()
+            + AppPoll.objects.filter(pinned_at__isnull=False).count())
+        if pinned_total >= MAX_PINNED_POSTS:
+            return fail(
+                f"You can pin up to {MAX_PINNED_POSTS} posts. "
+                "Unpin something first.")
+        obj.pinned_at = timezone.now()
+    elif not want_pin:
+        obj.pinned_at = None
+    obj.save(update_fields=["pinned_at"])
+    return ok({"pinned": obj.pinned_at is not None})
+
+
+@csrf_exempt
+@admin_required
+def admin_feed_delete(request, user, kind, object_id):
+    """POST — delete any feed post (notice or poll)."""
+    if request.method != "POST":
+        return fail("POST only.", status=405)
+    if kind not in ("notice", "poll"):
+        return fail("Unknown kind.", status=404)
+    from myapp.models import Notice, AppPoll
+
+    model = Notice if kind == "notice" else AppPoll
+    deleted, _ = model.objects.filter(id=object_id).delete()
+    if not deleted:
+        return fail("Post not found.", status=404)
+    return ok({"deleted": True})
 
 
 @csrf_exempt

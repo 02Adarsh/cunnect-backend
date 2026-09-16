@@ -142,8 +142,11 @@ STORAGES = {
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
-# ⭐ Cloudinary (free, no card) — media permanent + CDN-fast.
-# Env set na ho to local disk fallback (dev ke liye).
+# ⭐ Cloudinary (free tier) — permanent media storage + CDN delivery.
+# When the env vars are missing we fall back to local disk (development).
+STORAGES["default"] = {
+    "BACKEND": "django.core.files.storage.FileSystemStorage",
+}
 if os.environ.get("CLOUDINARY_CLOUD_NAME"):
     STORAGES["default"] = {
         "BACKEND": "cloudinary_storage.storage.RawMediaCloudinaryStorage",

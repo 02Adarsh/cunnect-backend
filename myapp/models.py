@@ -391,9 +391,12 @@ class OrderCounter(models.Model):
 
 class Notice(models.Model):
     """⭐ Notice board — send from the admin panel, visible to everyone in the app."""
-    title = models.CharField(max_length=200)
+    title = models.CharField(max_length=200, blank=True, default="")
     message = models.TextField(blank=True, default="")
     image = models.ImageField(upload_to="notices/", blank=True, null=True)
+    video = models.FileField(upload_to="notices/videos/", blank=True, null=True)
+    # ⭐ Pinned posts (WhatsApp-style) — up to 15 across the whole feed.
+    pinned_at = models.DateTimeField(blank=True, null=True)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -408,6 +411,9 @@ class AppPoll(models.Model):
     """⭐ App-wide poll — created by the admin, students vote."""
     question = models.CharField(max_length=240)
     image = models.ImageField(upload_to="polls/", blank=True, null=True)
+    video = models.FileField(upload_to="polls/videos/", blank=True, null=True)
+    # ⭐ Pinned posts (WhatsApp-style) — up to 15 across the whole feed.
+    pinned_at = models.DateTimeField(blank=True, null=True)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -464,12 +470,16 @@ class FeedReaction(models.Model):
 
 
 class FeedComment(models.Model):
-    """⭐ Feed comment — shown in the bottom sheet."""
+    """⭐ Feed comment — shown in the bottom sheet. Supports one level of
+    replies (comment on a comment) via `parent`."""
     KIND_CHOICES = (("notice", "Notice"), ("poll", "Poll"))
     kind = models.CharField(max_length=10, choices=KIND_CHOICES)
     object_id = models.IntegerField()
     user = models.ForeignKey(
         User, on_delete=models.CASCADE, related_name="feed_comments")
+    parent = models.ForeignKey(
+        "self", on_delete=models.CASCADE, blank=True, null=True,
+        related_name="replies")
     text = models.CharField(max_length=600)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -479,3 +489,20 @@ class FeedComment(models.Model):
 
     def __str__(self):
         return f"{self.user.username}: {self.text[:40]}"
+
+
+class FeedCommentReaction(models.Model):
+    """⭐ Emoji reaction on a feed comment — 1 user = 1 reaction per comment;
+    reacting again with the same emoji removes it (toggle)."""
+    comment = models.ForeignKey(
+        FeedComment, on_delete=models.CASCADE, related_name="reactions")
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="feed_comment_reactions")
+    emoji = models.CharField(max_length=16)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("comment", "user")
+
+    def __str__(self):
+        return f"{self.user.username} {self.emoji} comment#{self.comment_id}"

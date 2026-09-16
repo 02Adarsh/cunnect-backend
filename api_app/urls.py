@@ -25,6 +25,10 @@ urlpatterns = [
     path("feed/<str:kind>/<int:object_id>/react/", views.feed_react),
     path("feed/<str:kind>/<int:object_id>/comments/", views.feed_comments),
     path("feed/<str:kind>/<int:object_id>/comments/add/", views.feed_comment_add),
+    path("feed/<str:kind>/<int:object_id>/comments/<int:comment_id>/delete/",
+         views.feed_comment_delete),
+    path("feed/<str:kind>/<int:object_id>/comments/<int:comment_id>/react/",
+         views.feed_comment_react),
 
     # ---- food ----
     path("food/home/", views.food_home),
@@ -130,6 +134,12 @@ urlpatterns = [
     path("admin/coupons/<int:coupon_id>/", views.admin_coupon_detail),
     path("admin/notices/", views.admin_notices),
     path("admin/notices/<int:notice_id>/", views.admin_notice_detail),
+    path("admin/setup-superuser/", views.admin_create_superuser),
+    path("admin/feed/", views.admin_feed_list),
+    path("admin/feed/post/", views.admin_feed_post),
+    path("admin/feed/<str:kind>/<int:object_id>/pin/", views.admin_feed_pin),
+    path("admin/feed/<str:kind>/<int:object_id>/delete/",
+         views.admin_feed_delete),
     path("admin/support/", views.admin_support),
     path("admin/broadcast/", views.admin_broadcast),
 ]
