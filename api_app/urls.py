@@ -140,6 +140,7 @@ urlpatterns = [
     path("admin/sections/", views.admin_store_sections),
     path("admin/sections/<int:section_id>/", views.admin_store_section_detail),
     path("admin/vendors/<int:vendor_id>/portal/", views.admin_vendor_portal),
+    path("admin/vendors/<int:vendor_id>/qr/", views.admin_vendor_qr),
     path("admin/support/<int:request_id>/ack/", views.admin_support_ack),
     path("admin/feed/", views.admin_feed_list),
     path("admin/feed/post/", views.admin_feed_post),

@@ -4587,6 +4587,7 @@ def _serialize_admin_vendor(v):
         "owner_username": v.user.username,
         "kitchen_open": v.kitchen_open,
         "upi_id": v.upi_id or "",
+        "qr_url": v.upi_qr_image.url if v.upi_qr_image else "",
         "bw_price_per_page": float(v.bw_price_per_page),
         "color_price_per_page": float(v.color_price_per_page),
     }
@@ -5523,3 +5524,31 @@ def admin_support_ack(request, user, request_id):
     except Exception:
         pass
     return ok({"acknowledged": True, "status": req.status})
+
+
+@csrf_exempt
+@admin_required
+def admin_vendor_qr(request, user, vendor_id):
+    """⭐ v50: Admin uploads/removes a vendor's UPI payment QR directly
+    from the admin portal (same image the students see at checkout)."""
+    if request.method != "POST":
+        return fail("POST only.", status=405)
+    try:
+        v = VendorProfile.objects.get(id=vendor_id)
+    except VendorProfile.DoesNotExist:
+        return fail("Vendor not found.", status=404)
+    remove_flag = str(request.POST.get("remove", "")).strip()
+    if not remove_flag and not request.FILES:
+        remove_flag = str(json_body(request).get("remove", "")).strip()
+    if remove_flag == "1":
+        if v.upi_qr_image:
+            v.upi_qr_image.delete(save=False)
+        v.upi_qr_image = None
+        v.save()
+        return ok({"qr_url": ""})
+    f = request.FILES.get("file")
+    if f is None:
+        return fail("No image file sent.")
+    v.upi_qr_image = f
+    v.save()
+    return ok({"qr_url": v.upi_qr_image.url})
