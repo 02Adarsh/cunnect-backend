@@ -47,11 +47,12 @@ def order_alert_task(self, order_id, round_no=1):
 
 
 @shared_task(ignore_result=True)
-def push_tokens_task(tokens, title, message, high=False):
+def push_tokens_task(tokens, title, message, high=False, route=None):
     """FCM push background me — request turant wapas."""
     from api_app.views import _push_tokens
 
-    _push_tokens(tokens, title, message, high=high, _direct=True)
+    _push_tokens(tokens, title, message, high=high, _direct=True,
+                 route=route)
 
 
 @shared_task(ignore_result=True)

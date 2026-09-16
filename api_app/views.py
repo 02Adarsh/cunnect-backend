@@ -1447,9 +1447,11 @@ def _fcm_init_locked():
 def _notify(*args, **kwargs):
     """Notification row + instant push. (student audience default)"""
     kwargs.setdefault("audience", "student")
+    # ⭐ v53: deep-link route for the push (default: student order flow)
+    route = kwargs.pop("route", "orders")
     n = Notification.objects.create(*args, **kwargs)
     try:
-        _push_user(n.user_id, n.title, n.message)
+        _push_user(n.user_id, n.title, n.message, route=route)
     except Exception:
         pass
     return n
@@ -1511,13 +1513,15 @@ def debug_fcm(request):
     return ok(out)
 
 
-def _push_tokens(tokens, title, message, high=False, _direct=False):
+def _push_tokens(tokens, title, message, high=False, _direct=False,
+                 route=None):
     # ⭐ Celery: push in the background, return the request instantly
     if not _direct:
         try:
             from api_app.tasks import push_tokens_task, redis_ok
             if redis_ok():
-                push_tokens_task.delay(list(tokens or []), title, message, high)
+                push_tokens_task.delay(list(tokens or []), title, message,
+                                       high, route)
                 return
         except Exception:
             pass
@@ -1551,7 +1555,10 @@ def _push_tokens(tokens, title, message, high=False, _direct=False):
                             default_sound=False,
                         ),
                     ),
-                    data={"kind": "vendor" if high else "user"},
+                    # ⭐ v53: route -> tapping the notification opens the
+                    # matching section of the app directly.
+                    data={"kind": "vendor" if high else "user",
+                          "route": str(route or "")},
                     tokens=batch,
                 ),
                 app=app,
@@ -1802,7 +1809,7 @@ def health(request):
     return ok({"status": "ok"})
 
 
-def _push_user(user_id, title, message):
+def _push_user(user_id, title, message, route=None):
     try:
         from myapp.models import DeviceToken
 
@@ -1810,7 +1817,7 @@ def _push_user(user_id, title, message):
             DeviceToken.objects.filter(user_id=user_id)
             .order_by("-id").values_list("token", flat=True)
         )
-        _push_tokens(tokens, title, message, high=False)
+        _push_tokens(tokens, title, message, high=False, route=route)
     except Exception:
         pass
 
@@ -1822,7 +1829,8 @@ def _vendor_push(vendor_profile, title, message):
         DeviceToken.objects.filter(user_id=vendor_profile.user_id)
         .order_by("-id").values_list("token", flat=True)
     )
-    _push_tokens(tokens, title, message, high=True)
+    # ⭐ tapping a vendor alert opens the vendor portal directly
+    _push_tokens(tokens, title, message, high=True, route="vendor")
 
 
 def _order_alert_loop(order_id):
@@ -3148,8 +3156,10 @@ def _ums_ensure_keepalive():
 
 
 def _ums_keepalive_loop():
+    # ⭐ v53: 5-min cycle — present/absent push reaches the student fast
+    # even when the app is closed (server scrapes, FCM delivers).
     while True:
-        time.sleep(600)
+        time.sleep(300)
         try:
             with _UMS_LOCK:
                 uids = [u for u, st in _UMS_STATE.items()
@@ -3171,6 +3181,10 @@ def _ums_keepalive_loop():
                         else:
                             st["fail_streak"] = int(
                                 st.get("fail_streak") or 0) + 1
+                    # ⭐ v53: attendance marked while the app is CLOSED ->
+                    # the keepalive scrape detects it and pushes instantly.
+                    if st.get("last_scrape_ok"):
+                        _ums_attendance_notify(uid, dash)
                 except Exception as exc:
                     print(f"[UMS-KEEPALIVE] {uid}: {exc}")
         except Exception as exc:
@@ -4028,10 +4042,17 @@ def _ums_attendance_notify(uid, dashboard):
             if changed:
                 from django.contrib.auth.models import User
 
-                u = User.objects.filter(username=uid).first()
+                # ⭐ v53: find the app account — UID match first, then the
+                # session owner (multi-student safe).
+                u = User.objects.filter(username__iexact=uid).first()
+                if u is None:
+                    owner = str((_ums_saved_load().get(uid) or {})
+                                .get("owner") or "")
+                    if owner:
+                        u = User.objects.filter(username=owner).first()
                 if u:
                     _push_user(u.id, "Attendance Updated 📋",
-                               " | ".join(changed[:3]))
+                               " | ".join(changed[:3]), route="ums")
         if snap:
             state["att_snap"] = snap
     except Exception as exc:
@@ -4970,7 +4991,8 @@ def admin_notices(request, user):
             tokens = list(DeviceToken.objects.values_list("token", flat=True))
             if tokens:
                 _push_tokens(tokens, f"📢 {n.title}",
-                             (n.message or "New update on the CUnnect Feed")[:180])
+                             (n.message or "New update on the CUnnect Feed")[:180],
+                             route="feed")
         except Exception:
             pass
         return ok({"id": n.id})
@@ -5105,7 +5127,7 @@ def admin_feed_post(request, user):
     try:
         tokens = list(DeviceToken.objects.values_list("token", flat=True))
         if tokens:
-            _push_tokens(tokens, push_title, push_body)
+            _push_tokens(tokens, push_title, push_body, route="feed")
     except Exception:
         pass
     return ok(created)
@@ -5234,7 +5256,7 @@ def admin_broadcast(request, user):
     tokens = list(DeviceToken.objects.values_list("token", flat=True))
     if not tokens:
         return fail("No registered devices found.")
-    _push_tokens(tokens, title, message)
+    _push_tokens(tokens, title, message, route="notifications")
     return ok({"sent_to": len(tokens)})
 
 
