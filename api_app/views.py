@@ -86,10 +86,52 @@ def json_body(request):
 _LAST_SEEN = {}
 LIVE_WINDOW_SECONDS = 180
 
+# ⭐ Traffic stats — impressions are buffered in memory and flushed to the
+# DB at most once every few seconds (keeps request latency unaffected).
+_IMPRESSION_BUFFER = {"count": 0, "last_flush": 0.0}
+_VISIT_SEEN_TODAY = set()  # (date_iso, user_id) — cleared on date change
+_VISIT_SEEN_DATE = [""]
+
+
+def _record_traffic(user):
+    """Count an impression + a unique daily visit for the stats page."""
+    from myapp.models import TrafficStat, DailyVisit
+
+    now = time.time()
+    _IMPRESSION_BUFFER["count"] += 1
+    today = timezone.localdate()
+    today_iso = today.isoformat()
+    # reset the per-day visit cache at midnight
+    if _VISIT_SEEN_DATE[0] != today_iso:
+        _VISIT_SEEN_DATE[0] = today_iso
+        _VISIT_SEEN_TODAY.clear()
+    key = (today_iso, user.id)
+    if key not in _VISIT_SEEN_TODAY:
+        _VISIT_SEEN_TODAY.add(key)
+        try:
+            DailyVisit.objects.get_or_create(date=today, user=user)
+        except Exception:
+            pass
+    # flush impressions every 5 seconds at most
+    if now - _IMPRESSION_BUFFER["last_flush"] >= 5:
+        pending = _IMPRESSION_BUFFER["count"]
+        _IMPRESSION_BUFFER["count"] = 0
+        _IMPRESSION_BUFFER["last_flush"] = now
+        try:
+            from django.db.models import F
+            row, created = TrafficStat.objects.get_or_create(
+                date=today, defaults={"impressions": pending})
+            if not created:
+                TrafficStat.objects.filter(pk=row.pk).update(
+                    impressions=F("impressions") + pending)
+        except Exception:
+            pass
+
 
 def _mark_seen(user):
     try:
         _LAST_SEEN[user.id] = time.time()
+        _record_traffic(user)
     except Exception:
         pass
 
@@ -102,6 +144,10 @@ def user_from_token(request):
     try:
         user = Token.objects.select_related("user").get(key=key).user
     except Token.DoesNotExist:
+        return None
+    # ⭐ Disabled accounts are locked out instantly (token already deleted
+    # on disable, but this also covers any stale token edge case).
+    if not user.is_active:
         return None
     _mark_seen(user)
     return user
@@ -671,8 +717,18 @@ def student_login(request):
     password = str(body.get("password", ""))
     if not uid or not password:
         return fail("Both UID and password are required.")
+    # ⭐ Disabled accounts get a clear, dedicated message.
+    from myapp.models import DisabledAccount
+    blocked = User.objects.filter(username=uid, is_active=False).first()
+    if blocked is not None and DisabledAccount.objects.filter(
+            user=blocked).exists():
+        return fail("Your account has been disabled by the CUnnect team.",
+                    status=403)
     user = authenticate(request, username=uid, password=password)
     if user is None:
+        if blocked is not None:
+            return fail("Your account has been disabled by the CUnnect team.",
+                        status=403)
         return fail("Invalid UID or password.", status=401)
     token, _ = Token.objects.get_or_create(user=user)
     profile = getattr(user, "userprofile", None)
@@ -4545,9 +4601,14 @@ def admin_vendors(request, user):
         name = str(body.get("business_name", "")).strip()
         phone = str(body.get("phone", "")).strip()
         password = str(body.get("password", ""))
-        vtype = str(body.get("vendor_type", "food")).strip()
+        vtype = str(body.get("vendor_type", "food")).strip().lower()[:30]
+        # Built-in types OR the key of a custom store section.
         if vtype not in ("food", "printout", "hostel"):
-            return fail("vendor_type must be food, printout or hostel.")
+            from myapp.models import StoreSection
+            if not StoreSection.objects.filter(key=vtype).exists():
+                return fail(
+                    "vendor_type must be food, printout, hostel or the "
+                    "key of a store section you created.")
         if not name or not phone or not password:
             return fail("business_name, phone and password are required.")
         if VendorProfile.objects.filter(phone=phone).exists():
@@ -4590,8 +4651,14 @@ def admin_vendor_detail(request, user, vendor_id):
                 id=v.id).exists():
             return fail("This phone is already used by another vendor.")
         v.phone = phone
-    if vtype in ("food", "printout", "hostel"):
-        v.vendor_type = vtype
+    if vtype:
+        vtype = vtype.lower()[:30]
+        if vtype in ("food", "printout", "hostel"):
+            v.vendor_type = vtype
+        else:
+            from myapp.models import StoreSection
+            if StoreSection.objects.filter(key=vtype).exists():
+                v.vendor_type = vtype
     if "kitchen_open" in body:
         v.kitchen_open = bool(body.get("kitchen_open"))
     if "upi_id" in body:
@@ -4639,12 +4706,19 @@ def admin_student_action(request, user, user_id, action):
         return fail("User not found.", status=404)
     if target.is_superuser:
         return fail("Cannot modify a superuser.", status=403)
+    from myapp.models import DisabledAccount
     if action == "disable":
         target.is_active = False
         target.save(update_fields=["is_active"])
+        DisabledAccount.objects.get_or_create(user=target)
+        # ⭐ Kill the session token -> the app logs the user out on its
+        # very next API call (automatic logout).
+        Token.objects.filter(user=target).delete()
+        _LAST_SEEN.pop(target.id, None)
     elif action == "enable":
         target.is_active = True
         target.save(update_fields=["is_active"])
+        DisabledAccount.objects.filter(user=target).delete()
     elif action == "delete":
         target.delete()
         return ok({"deleted": True})
@@ -4797,6 +4871,8 @@ def _serialize_admin_coupon(c):
         "discount_type": c.discount_type,
         "discount_value": float(c.discount_value),
         "minimum_order_value": float(c.minimum_order_value),
+        "offer_text": c.offer_text,
+        "label": c.discount_label,
         "one_time_per_user": c.one_time_per_user,
         "is_active": c.is_active,
     }
@@ -4813,17 +4889,25 @@ def admin_coupons(request, user):
             return fail("Coupon code is required.")
         if Coupon.objects.filter(code=code).exists():
             return fail("This coupon code already exists.")
-        try:
-            value = float(body.get("discount_value"))
-        except (TypeError, ValueError):
-            return fail("Enter a valid discount value.")
         dtype = str(body.get("discount_type", "percentage"))
-        if dtype not in ("percentage", "fixed"):
+        if dtype not in ("percentage", "fixed", "bogo", "addon"):
             dtype = "percentage"
+        offer_text = str(body.get("offer_text", "")).strip()[:200]
+        if dtype in ("bogo", "addon"):
+            value = 0.0
+            if not offer_text:
+                return fail("Describe the offer (e.g. Buy 1 Burger, "
+                            "Get 1 Free).")
+        else:
+            try:
+                value = float(body.get("discount_value"))
+            except (TypeError, ValueError):
+                return fail("Enter a valid discount value.")
         c = Coupon.objects.create(
             code=code,
             discount_type=dtype,
             discount_value=value,
+            offer_text=offer_text,
             minimum_order_value=float(body.get("minimum_order_value", 0) or 0),
             one_time_per_user=bool(body.get("one_time_per_user", False)),
             is_active=bool(body.get("is_active", True)),
@@ -4859,6 +4943,8 @@ def admin_coupon_detail(request, user, coupon_id):
             pass
     if "one_time_per_user" in body:
         c.one_time_per_user = bool(body.get("one_time_per_user"))
+    if "offer_text" in body:
+        c.offer_text = str(body.get("offer_text", "")).strip()[:200]
     c.save()
     return ok({"coupon": _serialize_admin_coupon(c)})
 
@@ -5149,3 +5235,291 @@ def admin_broadcast(request, user):
         return fail("No registered devices found.")
     _push_tokens(tokens, title, message)
     return ok({"sent_to": len(tokens)})
+
+
+# ---------------------------------------------------------------------
+# ⭐ Admin Portal 2.0 (v50): stats, store sections, vendor portal access,
+# support acknowledge.
+# ---------------------------------------------------------------------
+
+
+def _range_buckets(period):
+    """Return (start_date, bucket) for daily/weekly/monthly up to 1 year."""
+    today = timezone.localdate()
+    if period == "weekly":
+        return today - timedelta(days=7 * 12), "weekly"    # 12 weeks
+    if period == "monthly":
+        return today - timedelta(days=365), "monthly"      # 12 months
+    return today - timedelta(days=30), "daily"             # 30 days
+
+
+@admin_required
+def admin_stats(request, user):
+    """⭐ Home-page stats: active users, impressions, unique traffic,
+    transactions and revenue (total + by source) for daily / weekly /
+    monthly windows up to 1 year. ?period=daily|weekly|monthly"""
+    from myapp.models import TrafficStat, DailyVisit, HostelOrder, PrintOrder
+    from django.db.models import Sum, Count
+
+    period = request.GET.get("period", "daily")
+    start, bucket = _range_buckets(period)
+    today = timezone.localdate()
+
+    # ---- live + today's headline numbers ----
+    now = time.time()
+    live = sum(1 for t in _LAST_SEEN.values()
+               if now - t <= LIVE_WINDOW_SECONDS)
+    imp_today = (TrafficStat.objects.filter(date=today)
+                 .aggregate(s=Sum("impressions"))["s"] or 0)
+    imp_today += _IMPRESSION_BUFFER["count"]
+    visits_today = DailyVisit.objects.filter(date=today).count()
+
+    # ---- revenue TODAY by source ----
+    def _sum(qs, field):
+        return float(qs.aggregate(s=Sum(field))["s"] or 0)
+
+    food_done = Order.objects.filter(
+        status__in=["completed", "out_for_delivery", "ready", "preparing",
+                    "accepted"])
+    print_done = PrintOrder.objects.filter(
+        status__in=["accepted", "printing", "ready", "completed"])
+    hostel_done = HostelOrder.objects.filter(
+        status__in=["accepted", "delivered"])
+
+    def day_filter(qs):
+        return qs.filter(created_at__date=today)
+
+    rev_today = {
+        "food": _sum(day_filter(food_done), "total_amount"),
+        "print": _sum(day_filter(print_done), "final_amount"),
+        "hostel": _sum(day_filter(hostel_done), "total"),
+    }
+    txn_today = (day_filter(food_done).count()
+                 + day_filter(print_done).count()
+                 + day_filter(hostel_done).count())
+
+    # ---- time series (impressions, traffic, revenue by source) ----
+    imps = {r["date"]: r["s"] for r in
+            TrafficStat.objects.filter(date__gte=start)
+            .values("date").annotate(s=Sum("impressions"))}
+    visits = {r["date"]: r["c"] for r in
+              DailyVisit.objects.filter(date__gte=start)
+              .values("date").annotate(c=Count("id"))}
+
+    def series_by_day(qs, field):
+        return {r["d"]: float(r["s"] or 0) for r in
+                qs.filter(created_at__date__gte=start)
+                .extra(select={"d": "date(created_at)"})
+                .values("d").annotate(s=Sum(field))}
+
+    rev_food = series_by_day(food_done, "total_amount")
+    rev_print = series_by_day(print_done, "final_amount")
+    rev_hostel = series_by_day(hostel_done, "total")
+
+    def norm_key(k):
+        return k.isoformat() if hasattr(k, "isoformat") else str(k)
+
+    rev_food = {norm_key(k): v for k, v in rev_food.items()}
+    rev_print = {norm_key(k): v for k, v in rev_print.items()}
+    rev_hostel = {norm_key(k): v for k, v in rev_hostel.items()}
+    imps = {norm_key(k): v for k, v in imps.items()}
+    visits = {norm_key(k): v for k, v in visits.items()}
+
+    # bucket the days into daily / weekly / monthly points
+    points = []
+    day = start
+    acc = None
+    while day <= today:
+        key = day.isoformat()
+        if bucket == "daily":
+            label = day.strftime("%d %b")
+            points.append({
+                "label": label,
+                "impressions": int(imps.get(key, 0)),
+                "traffic": int(visits.get(key, 0)),
+                "food": rev_food.get(key, 0.0),
+                "print": rev_print.get(key, 0.0),
+                "hostel": rev_hostel.get(key, 0.0),
+            })
+        else:
+            if bucket == "weekly":
+                blabel = f"W{day.isocalendar()[1]}"
+            else:
+                blabel = day.strftime("%b %y")
+            if acc is None or acc["label"] != blabel:
+                acc = {"label": blabel, "impressions": 0, "traffic": 0,
+                       "food": 0.0, "print": 0.0, "hostel": 0.0}
+                points.append(acc)
+            acc["impressions"] += int(imps.get(key, 0))
+            acc["traffic"] += int(visits.get(key, 0))
+            acc["food"] += rev_food.get(key, 0.0)
+            acc["print"] += rev_print.get(key, 0.0)
+            acc["hostel"] += rev_hostel.get(key, 0.0)
+        day += timedelta(days=1)
+
+    for p in points:
+        p["revenue"] = round(p["food"] + p["print"] + p["hostel"], 2)
+        p["food"] = round(p["food"], 2)
+        p["print"] = round(p["print"], 2)
+        p["hostel"] = round(p["hostel"], 2)
+
+    return ok({
+        "period": bucket,
+        "live_users": live,
+        "impressions_today": int(imp_today),
+        "traffic_today": visits_today,
+        "transactions_today": txn_today,
+        "revenue_today": round(sum(rev_today.values()), 2),
+        "revenue_today_by_source": {
+            k: round(v, 2) for k, v in rev_today.items()},
+        "points": points[-60:],
+        "totals": {
+            "impressions": sum(p["impressions"] for p in points),
+            "traffic": sum(p["traffic"] for p in points),
+            "revenue": round(sum(p["revenue"] for p in points), 2),
+            "food": round(sum(p["food"] for p in points), 2),
+            "print": round(sum(p["print"] for p in points), 2),
+            "hostel": round(sum(p["hostel"] for p in points), 2),
+        },
+    })
+
+
+def _serialize_section(sec):
+    return {
+        "id": sec.id,
+        "key": sec.key,
+        "title": sec.title,
+        "subtitle": sec.subtitle,
+        "icon": sec.icon,
+        "is_active": sec.is_active,
+        "coming_soon": sec.coming_soon,
+        "order": sec.order,
+    }
+
+
+@student_required
+def store_sections(request, user):
+    """Public: custom store sections shown on the CUnnect Store page."""
+    from myapp.models import StoreSection
+    return ok({"sections": [
+        _serialize_section(s)
+        for s in StoreSection.objects.filter(is_active=True)]})
+
+
+@csrf_exempt
+@admin_required
+def admin_store_sections(request, user):
+    """GET list; POST create a custom store section."""
+    from myapp.models import StoreSection
+    if request.method == "POST":
+        body = json_body(request)
+        title = str(body.get("title", "")).strip()[:80]
+        if not title:
+            return fail("Section title is required.")
+        key = str(body.get("key", "")).strip().lower()[:30]
+        if not key:
+            import re as _re
+            key = _re.sub(r"-+", "-", "".join(
+                c if c.isalnum() else "-"
+                for c in title.lower())).strip("-")[:30]
+        if StoreSection.objects.filter(key=key).exists():
+            return fail("A section with this key already exists.")
+        sec = StoreSection.objects.create(
+            key=key,
+            title=title,
+            subtitle=str(body.get("subtitle", "")).strip()[:200],
+            icon=str(body.get("icon", "🛍")).strip()[:8] or "🛍",
+            coming_soon=bool(body.get("coming_soon", False)),
+        )
+        return ok({"section": _serialize_section(sec)})
+    return ok({"sections": [
+        _serialize_section(s) for s in StoreSection.objects.all()]})
+
+
+@csrf_exempt
+@admin_required
+def admin_store_section_detail(request, user, section_id):
+    """POST update; DELETE remove a custom store section."""
+    from myapp.models import StoreSection
+    sec = StoreSection.objects.filter(id=section_id).first()
+    if sec is None:
+        return fail("Section not found.", status=404)
+    if request.method == "DELETE":
+        sec.delete()
+        return ok({"deleted": True})
+    if request.method != "POST":
+        return fail("POST or DELETE only.", status=405)
+    body = json_body(request)
+    if "title" in body:
+        sec.title = str(body.get("title", "")).strip()[:80] or sec.title
+    if "subtitle" in body:
+        sec.subtitle = str(body.get("subtitle", "")).strip()[:200]
+    if "icon" in body:
+        sec.icon = str(body.get("icon", "")).strip()[:8] or sec.icon
+    if "is_active" in body:
+        sec.is_active = bool(body.get("is_active"))
+    if "coming_soon" in body:
+        sec.coming_soon = bool(body.get("coming_soon"))
+    sec.save()
+    return ok({"section": _serialize_section(sec)})
+
+
+@csrf_exempt
+@admin_required
+def admin_vendor_portal(request, user, vendor_id):
+    """⭐ Full vendor-portal access for the admin: returns the vendor's own
+    session token + profile, so the admin's app can open the EXACT vendor
+    dashboard (every feature identical) inside the admin portal."""
+    if request.method != "POST":
+        return fail("POST only.", status=405)
+    v = VendorProfile.objects.select_related("user").filter(
+        id=vendor_id).first()
+    if v is None:
+        return fail("Vendor not found.", status=404)
+    token, _ = Token.objects.get_or_create(user=v.user)
+    return ok({
+        "token": token.key,
+        "vendor_id": v.id,
+        "business_name": v.business_name,
+        "vendor_type": v.vendor_type,
+        "phone": v.phone or "",
+        "owner_username": v.user.username,
+        "email": v.user.email or "",
+    })
+
+
+@csrf_exempt
+@admin_required
+def admin_support_ack(request, user, request_id):
+    """⭐ Acknowledge a support request — pushes 'your support request has
+    been acknowledged by the CUnnect team' to the requester's devices."""
+    if request.method != "POST":
+        return fail("POST only.", status=405)
+    req = SupportRequest.objects.select_related("user").filter(
+        id=request_id).first()
+    if req is None:
+        return fail("Request not found.", status=404)
+    if req.status == "pending":
+        req.status = "in_progress"
+        req.save(update_fields=["status", "updated_at"])
+    try:
+        from myapp.models import DeviceToken
+        tokens = list(DeviceToken.objects.filter(
+            user=req.user).values_list("token", flat=True))
+        if tokens:
+            _push_tokens(
+                tokens, "CUnnect Support",
+                "Your support request has been acknowledged by the "
+                "CUnnect team.")
+    except Exception:
+        pass
+    try:
+        _notify(
+            user=req.user,
+            title="Support request acknowledged",
+            message="Your support request has been acknowledged by the "
+                    "CUnnect team.",
+        )
+    except Exception:
+        pass
+    return ok({"acknowledged": True, "status": req.status})

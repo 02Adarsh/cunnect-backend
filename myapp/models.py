@@ -57,9 +57,10 @@ class VendorProfile(models.Model):
 
     business_name = models.CharField(max_length=150)
 
+    # ⭐ Free-form: built-in types (food/printout/hostel) OR the key of a
+    # custom StoreSection created from the admin portal.
     vendor_type = models.CharField(
-        max_length=20,
-        choices=VENDOR_TYPE_CHOICES,
+        max_length=30,
         default="food"
     )
 
@@ -506,3 +507,56 @@ class FeedCommentReaction(models.Model):
 
     def __str__(self):
         return f"{self.user.username} {self.emoji} comment#{self.comment_id}"
+
+class StoreSection(models.Model):
+    """⭐ Custom store category created from the admin portal — shows on the
+    CUnnect Store page alongside the built-in sections."""
+    key = models.SlugField(max_length=30, unique=True)
+    title = models.CharField(max_length=80)
+    subtitle = models.CharField(max_length=200, blank=True, default="")
+    icon = models.CharField(max_length=8, default="🛍")
+    is_active = models.BooleanField(default=True)
+    coming_soon = models.BooleanField(default=False)
+    order = models.IntegerField(default=100)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["order", "id"]
+
+    def __str__(self):
+        return self.title
+
+
+class DisabledAccount(models.Model):
+    """⭐ Marks a student account disabled by the CUnnect team.
+    The user's token is deleted on disable (forces logout) and login is
+    blocked with a clear message."""
+    user = models.OneToOneField(
+        User, on_delete=models.CASCADE, related_name="disabled_flag")
+    reason = models.CharField(max_length=200, blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"disabled: {self.user.username}"
+
+class TrafficStat(models.Model):
+    """⭐ Daily impressions counter (authenticated API hits)."""
+    date = models.DateField(unique=True)
+    impressions = models.BigIntegerField(default=0)
+
+    def __str__(self):
+        return f"{self.date}: {self.impressions}"
+
+
+class DailyVisit(models.Model):
+    """⭐ One row per user per day — powers unique-traffic stats."""
+    date = models.DateField()
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="daily_visits")
+
+    class Meta:
+        unique_together = ("date", "user")
+        indexes = [models.Index(fields=["date"])]
+
+    def __str__(self):
+        return f"{self.date}: {self.user.username}"

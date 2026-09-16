@@ -124,6 +124,8 @@ class Coupon(models.Model):
     DISCOUNT_TYPE_CHOICES = [
         ("percentage", "Percentage"),
         ("fixed", "Fixed Amount"),
+        ("bogo", "Buy 1 Get 1 Free"),
+        ("addon", "Free Add-on"),
     ]
 
     code = models.CharField(
@@ -136,6 +138,10 @@ class Coupon(models.Model):
         choices=DISCOUNT_TYPE_CHOICES,
         default="percentage"
     )
+
+    # ⭐ For "bogo" / "addon" offers — describes what the customer gets,
+    # e.g. "Buy 1 Burger, Get 1 Free" or "Free Coke with every Pizza".
+    offer_text = models.CharField(max_length=200, blank=True, default="")
 
     discount_value = models.DecimalField(
         max_digits=8,
@@ -172,7 +178,10 @@ class Coupon(models.Model):
     def discount_label(self):
         if self.discount_type == "percentage":
             return f"{self.discount_value:g}% OFF"
-
+        if self.discount_type == "bogo":
+            return self.offer_text or "BUY 1 GET 1 FREE"
+        if self.discount_type == "addon":
+            return self.offer_text or "FREE ADD-ON"
         return f"₹{self.discount_value:g} OFF"
 
     def discount_for(self, cart_total):
@@ -180,6 +189,10 @@ class Coupon(models.Model):
             discount = (
                 cart_total * self.discount_value
             ) / Decimal("100")
+        elif self.discount_type in ("bogo", "addon"):
+            # Offer coupons don't change the bill amount — the vendor
+            # fulfils the free item / add-on described in offer_text.
+            discount = Decimal("0")
         else:
             discount = self.discount_value
 

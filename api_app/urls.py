@@ -20,6 +20,7 @@ urlpatterns = [
 
     # ---- CUnnect Feed: notices + polls + reactions + comments ----
     path("notices/", views.notices_list),
+    path("store/sections/", views.store_sections),
     path("polls/", views.polls_list),
     path("polls/<int:poll_id>/vote/", views.poll_vote),
     path("feed/<str:kind>/<int:object_id>/react/", views.feed_react),
@@ -135,6 +136,11 @@ urlpatterns = [
     path("admin/notices/", views.admin_notices),
     path("admin/notices/<int:notice_id>/", views.admin_notice_detail),
     path("admin/setup-superuser/", views.admin_create_superuser),
+    path("admin/stats/", views.admin_stats),
+    path("admin/sections/", views.admin_store_sections),
+    path("admin/sections/<int:section_id>/", views.admin_store_section_detail),
+    path("admin/vendors/<int:vendor_id>/portal/", views.admin_vendor_portal),
+    path("admin/support/<int:request_id>/ack/", views.admin_support_ack),
     path("admin/feed/", views.admin_feed_list),
     path("admin/feed/post/", views.admin_feed_post),
     path("admin/feed/<str:kind>/<int:object_id>/pin/", views.admin_feed_pin),
