@@ -1701,8 +1701,27 @@ def upi_qr(request):
 
     import qrcode
 
-    upi = (f"upi://pay?pa={vp.upi_id}&pn={vp.business_name}"
-           + (f"&am={amount}" if amount else "") + "&cu=INR")
+    # ⭐ v57: build a SPEC-COMPLIANT upi:// URI. The previous string
+    # embedded the business name raw — a space or & in it produced an
+    # invalid URI and UPI apps rejected the QR ("This QR code is
+    # invalid"). All params are now URL-encoded and the amount is
+    # validated + normalised to 2 decimals.
+    from urllib.parse import quote
+
+    params = [("pa", vp.upi_id.strip()), ("pn", vp.business_name.strip())]
+    if amount:
+        try:
+            amt = float(amount)
+            if amt > 0:
+                params.append(("am", f"{amt:.2f}"))
+        except (TypeError, ValueError):
+            pass
+    params.append(("cu", "INR"))
+    # NOTE: '@' stays raw in the VPA (pa) — the universal convention in
+    # merchant QRs; some UPI apps mis-handle %40 there.
+    upi = "upi://pay?" + "&".join(
+        f"{k}={quote(str(v), safe='@' if k == 'pa' else '')}"
+        for k, v in params)
     img = qrcode.make(upi)
     buf = io.BytesIO()
     img.save(buf, format="PNG")
@@ -2286,8 +2305,8 @@ def vendor_menu_delete(request, user, item_id):
     _, profile = vendor_user(request)
     if profile is None:
         return fail("Vendor account not found.", status=401)
-    from myapp.models import FoodItem
-
+    # ⭐ v57: FoodItem lives in food.models — the old import from
+    # myapp.models raised ImportError, so EVERY delete failed with a 500.
     item = FoodItem.objects.filter(id=item_id, vendor=profile).first()
     if item is None:
         return fail("Item not found.")
