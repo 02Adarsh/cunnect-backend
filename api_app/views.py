@@ -418,6 +418,8 @@ def store_hostel(request, user):
         "freebie": "FREE Chilled Diet Coke",
         "upi_id": (vendor.upi_id.strip()
                    if vendor and vendor.upi_id.strip() else ""),
+        # ⭐ v55: uploaded QR counts as payment-enabled without a UPI ID.
+        "has_qr": bool(vendor and vendor.upi_qr_image),
         "vendor_id": vendor.id if vendor else None,
         "auto": {
             "uid": user.username,
@@ -2066,6 +2068,11 @@ def vendor_order_action(request, user, order_id, action):
         order = Order.objects.get(id=order_id, vendor_id=profile.id)
     except Order.DoesNotExist:
         return fail("Order not found.", status=404)
+    # ⭐ v55: idempotent — a double-tap that repeats the same action is a
+    # silent success (no duplicate notification, no error toast).
+    if order.status == new_status:
+        return ok({"order": serialize_order(
+            order, reveal_mobile=_reveal_phone(order.status))})
     if order.status != expected_from:
         return fail(f"Order is currently '{order.status}' — this action is not allowed.")
     order.status = new_status
@@ -2521,6 +2528,9 @@ def serialize_print_vendor(profile):
         "color_price_per_page": float(profile.color_price_per_page),
         # ⭐ UPI payment (QR + copyable ID) — for the printout checkout
         "upi_id": profile.upi_id,
+        # ⭐ v55: an uploaded QR counts as payment-enabled even when the
+        # UPI ID field is empty.
+        "has_qr": bool(profile.upi_qr_image),
     }
 
 
@@ -2824,6 +2834,9 @@ def print_order_action(request, user, order_id, action):
         order = PrintOrder.objects.get(id=order_id, vendor_id=profile.id)
     except PrintOrder.DoesNotExist:
         return fail("Print order not found.", status=404)
+    # ⭐ v55: idempotent — repeating the same action is a silent success.
+    if order.status == new_status:
+        return ok({"order": serialize_print_order(order)})
     if order.status != expected_from:
         # also allow jumping straight from 'ready' to complete (vendor shortcut).
         if not (action == "complete" and order.status == "ready"):
