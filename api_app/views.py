@@ -1673,20 +1673,24 @@ def vendor_upi_qr_upload(request):
 
 @csrf_exempt
 def upi_qr(request):
-    """⭐ Vendor ka UPI payment QR (base64 PNG) — checkout pe scan karke pay."""
+    """⭐ Vendor UPI payment QR (uploaded image or generated base64 PNG)."""
     vendor_id = str(request.GET.get("vendor_id", "")).strip()
     amount = str(request.GET.get("amount", "")).strip()
     from myapp.models import VendorProfile
 
     vp = VendorProfile.objects.filter(id=vendor_id).first()
-    if vp is None or not vp.upi_id:
+    if vp is None:
         return fail("Vendor UPI not set.")
+    # ⭐ v54: an uploaded QR image works even WITHOUT a UPI ID —
+    # (admin/vendor uploaded QR must always show at checkout).
     if vp.upi_qr_image:
         return ok({
             "qr_url": vp.upi_qr_image.url,
-            "upi_id": vp.upi_id,
+            "upi_id": vp.upi_id or "",
             "name": vp.business_name,
         })
+    if not vp.upi_id:
+        return fail("Vendor UPI not set.")
     import base64
     import io
 
