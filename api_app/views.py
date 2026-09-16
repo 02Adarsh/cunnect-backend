@@ -80,15 +80,31 @@ def json_body(request):
         return {}
 
 
+# ⭐ Live user tracking — user_id -> last request timestamp. In-memory,
+# refreshed on every authenticated API call (the app polls frequently,
+# so this closely mirrors who has the app open right now).
+_LAST_SEEN = {}
+LIVE_WINDOW_SECONDS = 180
+
+
+def _mark_seen(user):
+    try:
+        _LAST_SEEN[user.id] = time.time()
+    except Exception:
+        pass
+
+
 def user_from_token(request):
     header = request.headers.get("Authorization", "")
     if not header.startswith("Token "):
         return None
     key = header[6:].strip()
     try:
-        return Token.objects.select_related("user").get(key=key).user
+        user = Token.objects.select_related("user").get(key=key).user
     except Token.DoesNotExist:
         return None
+    _mark_seen(user)
+    return user
 
 
 def student_required(view):
@@ -2428,7 +2444,10 @@ def serialize_print_order(order, for_vendor=False):
         "vendor_id": order.vendor_id,
         "vendor_name": order.vendor.business_name if order.vendor else "",
         "file_name": order.document.name.split("/")[-1] if order.document else "",
-        "file_url": media_url(order.document),
+        # ⭐ Served through the backend (Cloudinary blocks direct public
+        # PDF/raw delivery on free plans — ERR_INVALID_RESPONSE / 401).
+        "file_url": (f"/api/print/orders/{order.id}/file/"
+                     if order.document else ""),
         "pages": order.pages,
         "copies": order.copies,
         "print_side": order.print_side,
@@ -2543,6 +2562,75 @@ def print_vendor_dashboard(request, user):
     ).order_by("-created_at")[:40]
     return ok({"orders": [
         serialize_print_order(order, for_vendor=True) for order in orders]})
+
+
+@csrf_exempt
+def print_order_file(request, order_id):
+    """Secure document download. Cloudinary free accounts block public
+    PDF/raw delivery (401 deny/ACL), so this endpoint hands out a signed
+    API download link instead. Token via header or ?token= (so the link
+    can open in an external browser)."""
+    user = user_from_token(request)
+    if user is None:
+        key = request.GET.get("token", "").strip()
+        if key:
+            try:
+                user = Token.objects.select_related("user").get(key=key).user
+            except Token.DoesNotExist:
+                user = None
+    if user is None:
+        return fail("Login required.", status=401)
+    try:
+        order = PrintOrder.objects.select_related("vendor").get(id=order_id)
+    except PrintOrder.DoesNotExist:
+        return fail("Print order not found.", status=404)
+    is_owner = order.student_id == user.id
+    is_vendor = bool(order.vendor and order.vendor.user_id == user.id)
+    is_admin = user.is_staff or user.is_superuser
+    if not (is_owner or is_vendor or is_admin):
+        return fail("Not allowed.", status=403)
+    # Vendors can download only after accepting the order.
+    if is_vendor and not (is_owner or is_admin) and \
+            order.status in ("pending", "rejected", "cancelled"):
+        return fail("Accept the order first to download the file.",
+                    status=403)
+    if not order.document:
+        return fail("No file attached to this order.", status=404)
+    cloud = os.environ.get("CLOUDINARY_CLOUD_NAME", "").strip()
+    if cloud:
+        import hashlib
+        from urllib.parse import urlencode
+
+        name = order.document.name
+        public_id = name if name.startswith("cunnect/") else f"cunnect/{name}"
+        params = {
+            "public_id": public_id,
+            "timestamp": str(int(time.time())),
+            "attachment": "true",
+        }
+        to_sign = "&".join(f"{k}={params[k]}" for k in sorted(params))
+        secret = os.environ.get("CLOUDINARY_API_SECRET", "")
+        signature = hashlib.sha1((to_sign + secret).encode()).hexdigest()
+        query = urlencode({
+            **params,
+            "api_key": os.environ.get("CLOUDINARY_API_KEY", ""),
+            "signature": signature,
+        })
+        from django.shortcuts import redirect
+        return redirect(
+            f"https://api.cloudinary.com/v1_1/{cloud}/raw/download?{query}")
+    # Local-disk fallback (development).
+    from django.conf import settings
+    from django.http import FileResponse
+    try:
+        path = os.path.join(str(settings.MEDIA_ROOT), order.document.name)
+        return FileResponse(
+            open(path, "rb"),
+            as_attachment=True,
+            filename=order.document.name.split("/")[-1],
+        )
+    except Exception:
+        return fail("File missing on the server.", status=404)
 
 
 PRINT_ACTIONS = {
@@ -4227,3 +4315,554 @@ def ums_logout(request):
                 pass
         _UMS_STATE.pop("__demo__", None)
     return ok({"logged_out": True})
+
+
+# ---------------------------------------------------------------------
+# ⭐ ADMIN PANEL — full app management from inside the CUnnect app.
+# Login with a Django superuser/staff account (username + password).
+# ---------------------------------------------------------------------
+
+
+def admin_user(request):
+    """User resolved from the token, only if staff/superuser."""
+    user = user_from_token(request)
+    if user is None or not (user.is_staff or user.is_superuser):
+        return None
+    return user
+
+
+def admin_required(view):
+    @wraps(view)
+    def wrapper(request, *args, **kwargs):
+        user = admin_user(request)
+        if user is None:
+            return fail("Admin login required.", status=401)
+        return view(request, user, *args, **kwargs)
+
+    return wrapper
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def admin_login(request):
+    body = json_body(request)
+    username = str(body.get("username", "")).strip()
+    password = str(body.get("password", ""))
+    if not username or not password:
+        return fail("Both username and password are required.")
+    user = authenticate(request, username=username, password=password)
+    if user is None or not (user.is_staff or user.is_superuser):
+        return fail("Invalid admin credentials.", status=401)
+    token, _ = Token.objects.get_or_create(user=user)
+    return ok({
+        "token": token.key,
+        "username": user.username,
+        "is_superuser": user.is_superuser,
+    })
+
+
+@admin_required
+def admin_overview(request, user):
+    """Dashboard numbers + live user count (app currently open)."""
+    now_ts = time.time()
+    live_ids = [uid for uid, ts in list(_LAST_SEEN.items())
+                if now_ts - ts <= LIVE_WINDOW_SECONDS]
+    today = timezone.now().date()
+    food_today = Order.objects.filter(created_at__date=today)
+    print_today = PrintOrder.objects.filter(created_at__date=today)
+    from myapp.models import HostelOrder
+    hostel_today = HostelOrder.objects.filter(created_at__date=today)
+    return ok({
+        "live_users": len(live_ids),
+        "live_window_seconds": LIVE_WINDOW_SECONDS,
+        "total_users": User.objects.filter(is_active=True).count(),
+        "total_students": UserProfile.objects.count(),
+        "total_vendors": VendorProfile.objects.count(),
+        "total_delivery": DeliveryProfile.objects.count(),
+        "food_orders_today": food_today.count(),
+        "food_sales_today": float(sum(
+            o.total_amount for o in food_today.filter(status="completed"))),
+        "print_orders_today": print_today.count(),
+        "hostel_orders_today": hostel_today.count(),
+        "orders_pending": Order.objects.filter(status="pending").count(),
+        "print_pending": PrintOrder.objects.filter(status="pending").count(),
+        "support_pending": SupportRequest.objects.filter(
+            status="pending").count(),
+    })
+
+
+@admin_required
+def admin_live_users(request, user):
+    """Who has the app open right now (last API call <= window)."""
+    now_ts = time.time()
+    rows = []
+    for uid, ts in sorted(_LAST_SEEN.items(), key=lambda x: -x[1]):
+        age = now_ts - ts
+        if age > LIVE_WINDOW_SECONDS:
+            continue
+        u = User.objects.filter(id=uid).first()
+        if u is None:
+            continue
+        profile = UserProfile.objects.filter(user=u).first()
+        vendor = VendorProfile.objects.filter(user=u).first()
+        kind = "student"
+        name = (profile.full_name if profile and profile.full_name
+                else (u.get_full_name() or u.username))
+        if vendor:
+            kind = f"vendor ({vendor.vendor_type})"
+            name = vendor.business_name
+        elif u.is_staff or u.is_superuser:
+            kind = "admin"
+        rows.append({
+            "user_id": uid,
+            "username": u.username,
+            "name": name,
+            "kind": kind,
+            "seconds_ago": int(age),
+        })
+    return ok({"count": len(rows), "users": rows[:200]})
+
+
+def _serialize_admin_vendor(v):
+    return {
+        "id": v.id,
+        "business_name": v.business_name,
+        "vendor_type": v.vendor_type,
+        "phone": v.phone or "",
+        "owner_username": v.user.username,
+        "kitchen_open": v.kitchen_open,
+        "upi_id": v.upi_id or "",
+        "bw_price_per_page": float(v.bw_price_per_page),
+        "color_price_per_page": float(v.color_price_per_page),
+    }
+
+
+@csrf_exempt
+@admin_required
+def admin_vendors(request, user):
+    """GET list; POST create a vendor (with a login user)."""
+    if request.method == "POST":
+        body = json_body(request)
+        name = str(body.get("business_name", "")).strip()
+        phone = str(body.get("phone", "")).strip()
+        password = str(body.get("password", ""))
+        vtype = str(body.get("vendor_type", "food")).strip()
+        if vtype not in ("food", "printout", "hostel"):
+            return fail("vendor_type must be food, printout or hostel.")
+        if not name or not phone or not password:
+            return fail("business_name, phone and password are required.")
+        if VendorProfile.objects.filter(phone=phone).exists():
+            return fail("A vendor with this phone already exists.")
+        username = f"vendor_{phone}"
+        if User.objects.filter(username=username).exists():
+            username = f"vendor_{phone}_{int(time.time())}"
+        vuser = User.objects.create_user(username=username, password=password)
+        v = VendorProfile.objects.create(
+            user=vuser, business_name=name, phone=phone, vendor_type=vtype)
+        return ok({"vendor": _serialize_admin_vendor(v)})
+    vendors = VendorProfile.objects.select_related("user").order_by("id")
+    return ok({"vendors": [_serialize_admin_vendor(v) for v in vendors]})
+
+
+@csrf_exempt
+@admin_required
+def admin_vendor_detail(request, user, vendor_id):
+    """POST update fields / reset password; DELETE remove vendor+user."""
+    try:
+        v = VendorProfile.objects.select_related("user").get(id=vendor_id)
+    except VendorProfile.DoesNotExist:
+        return fail("Vendor not found.", status=404)
+    if request.method == "DELETE":
+        vuser = v.user
+        v.delete()
+        vuser.delete()
+        return ok({"deleted": True})
+    if request.method != "POST":
+        return fail("POST or DELETE only.", status=405)
+    body = json_body(request)
+    name = str(body.get("business_name", "")).strip()
+    phone = str(body.get("phone", "")).strip()
+    vtype = str(body.get("vendor_type", "")).strip()
+    password = str(body.get("password", ""))
+    if name:
+        v.business_name = name
+    if phone:
+        if VendorProfile.objects.filter(phone=phone).exclude(
+                id=v.id).exists():
+            return fail("This phone is already used by another vendor.")
+        v.phone = phone
+    if vtype in ("food", "printout", "hostel"):
+        v.vendor_type = vtype
+    if "kitchen_open" in body:
+        v.kitchen_open = bool(body.get("kitchen_open"))
+    if "upi_id" in body:
+        v.upi_id = str(body.get("upi_id", "")).strip()[:120]
+    v.save()
+    if password:
+        v.user.set_password(password)
+        v.user.save(update_fields=["password"])
+    return ok({"vendor": _serialize_admin_vendor(v)})
+
+
+@admin_required
+def admin_students(request, user):
+    """Student list with basic profile info (search via ?q=)."""
+    q = request.GET.get("q", "").strip()
+    profiles = UserProfile.objects.select_related("user").order_by("-id")
+    if q:
+        from django.db.models import Q
+        profiles = profiles.filter(
+            Q(full_name__icontains=q) | Q(user__username__icontains=q) |
+            Q(phone__icontains=q))
+    rows = []
+    for p in profiles[:300]:
+        rows.append({
+            "id": p.user_id,
+            "uid": p.user.username,
+            "name": p.full_name or p.user.get_full_name() or "",
+            "phone": p.phone or "",
+            "branch": p.branch or "",
+            "year": p.year or "",
+            "verified": p.is_verified,
+            "active": p.user.is_active,
+        })
+    return ok({"students": rows, "total": profiles.count()})
+
+
+@csrf_exempt
+@admin_required
+def admin_student_action(request, user, user_id, action):
+    """POST enable/disable/delete a student account."""
+    if request.method != "POST":
+        return fail("POST only.", status=405)
+    target = User.objects.filter(id=user_id).first()
+    if target is None:
+        return fail("User not found.", status=404)
+    if target.is_superuser:
+        return fail("Cannot modify a superuser.", status=403)
+    if action == "disable":
+        target.is_active = False
+        target.save(update_fields=["is_active"])
+    elif action == "enable":
+        target.is_active = True
+        target.save(update_fields=["is_active"])
+    elif action == "delete":
+        target.delete()
+        return ok({"deleted": True})
+    else:
+        return fail("Unknown action.", status=404)
+    return ok({"active": target.is_active})
+
+
+@admin_required
+def admin_orders(request, user):
+    """Latest orders across food / print / hostel (?kind=food|print|hostel)."""
+    kind = request.GET.get("kind", "food")
+    if kind == "print":
+        orders = PrintOrder.objects.select_related(
+            "vendor", "student").order_by("-created_at")[:100]
+        return ok({"orders": [
+            serialize_print_order(o, for_vendor=True) for o in orders]})
+    if kind == "hostel":
+        from myapp.models import HostelOrder
+        rows = []
+        for o in HostelOrder.objects.order_by("-created_at")[:100]:
+            rows.append({
+                "id": o.id,
+                "order_no": o.order_no,
+                "orderer_name": o.orderer_name,
+                "recipient_name": o.recipient_name,
+                "recipient_mobile": o.recipient_mobile,
+                "status": o.status,
+                "total": float(o.total),
+                "txn_id": o.txn_id,
+                "created_at_iso": iso(o.created_at),
+            })
+        return ok({"orders": rows})
+    orders = Order.objects.select_related("vendor").order_by(
+        "-created_at")[:100]
+    return ok({"orders": [
+        serialize_order(o, include_items=False) for o in orders]})
+
+
+@csrf_exempt
+@admin_required
+def admin_order_status(request, user, kind, order_id):
+    """POST {status: ...} — force-set any order's status."""
+    if request.method != "POST":
+        return fail("POST only.", status=405)
+    status_new = str(json_body(request).get("status", "")).strip()
+    if kind == "print":
+        valid = [s for s, _ in PrintOrder.STATUS_CHOICES]
+        obj = PrintOrder.objects.filter(id=order_id).first()
+    elif kind == "hostel":
+        from myapp.models import HostelOrder
+        valid = [s for s, _ in HostelOrder.STATUS_CHOICES]
+        obj = HostelOrder.objects.filter(id=order_id).first()
+    else:
+        valid = [s for s, _ in Order.STATUS_CHOICES]
+        obj = Order.objects.filter(id=order_id).first()
+    if obj is None:
+        return fail("Order not found.", status=404)
+    if status_new not in valid:
+        return fail(f"Status must be one of: {', '.join(valid)}")
+    obj.status = status_new
+    obj.save()
+    return ok({"status": obj.status})
+
+
+def _serialize_admin_item(i):
+    return {
+        "id": i.id,
+        "name": i.name,
+        "price": float(i.price),
+        "category": i.category,
+        "vendor_id": i.vendor_id,
+        "vendor_name": i.vendor.business_name if i.vendor else "",
+        "is_available": i.is_available,
+        "is_veg": i.is_veg,
+        "stock": i.stock,
+        "image_url": media_url(i.image),
+    }
+
+
+@csrf_exempt
+@admin_required
+def admin_food_items(request, user):
+    """GET all items; POST create (vendor_id, name, price, ...)."""
+    if request.method == "POST":
+        body = json_body(request)
+        try:
+            vendor = VendorProfile.objects.get(id=int(body.get("vendor_id")))
+            price = float(body.get("price"))
+        except (TypeError, ValueError, VendorProfile.DoesNotExist):
+            return fail("Valid vendor_id and price are required.")
+        name = str(body.get("name", "")).strip()
+        if not name:
+            return fail("Item name is required.")
+        item = FoodItem.objects.create(
+            vendor=vendor,
+            name=name,
+            price=price,
+            description=str(body.get("description", "")).strip()[:250],
+            category=str(body.get("category", "wrap")).strip() or "wrap",
+            is_veg=bool(body.get("is_veg", True)),
+            is_available=bool(body.get("is_available", True)),
+        )
+        return ok({"item": _serialize_admin_item(item)})
+    items = FoodItem.objects.select_related("vendor").order_by("vendor_id", "id")
+    return ok({"items": [_serialize_admin_item(i) for i in items]})
+
+
+@csrf_exempt
+@admin_required
+def admin_food_item_detail(request, user, item_id):
+    """POST update; DELETE remove."""
+    item = FoodItem.objects.filter(id=item_id).first()
+    if item is None:
+        return fail("Item not found.", status=404)
+    if request.method == "DELETE":
+        item.delete()
+        return ok({"deleted": True})
+    if request.method != "POST":
+        return fail("POST or DELETE only.", status=405)
+    body = json_body(request)
+    if "name" in body:
+        item.name = str(body.get("name", "")).strip()[:100] or item.name
+    if "price" in body:
+        try:
+            item.price = float(body.get("price"))
+        except (TypeError, ValueError):
+            return fail("Enter a valid price.")
+    if "description" in body:
+        item.description = str(body.get("description", "")).strip()[:250]
+    if "category" in body:
+        item.category = str(body.get("category", "")).strip() or item.category
+    if "is_veg" in body:
+        item.is_veg = bool(body.get("is_veg"))
+    if "is_available" in body:
+        item.is_available = bool(body.get("is_available"))
+    if "stock" in body:
+        try:
+            item.stock = int(body.get("stock"))
+        except (TypeError, ValueError):
+            pass
+    item.save()
+    return ok({"item": _serialize_admin_item(item)})
+
+
+def _serialize_admin_coupon(c):
+    return {
+        "id": c.id,
+        "code": c.code,
+        "discount_type": c.discount_type,
+        "discount_value": float(c.discount_value),
+        "minimum_order_value": float(c.minimum_order_value),
+        "one_time_per_user": c.one_time_per_user,
+        "is_active": c.is_active,
+    }
+
+
+@csrf_exempt
+@admin_required
+def admin_coupons(request, user):
+    """GET list; POST create a coupon."""
+    if request.method == "POST":
+        body = json_body(request)
+        code = str(body.get("code", "")).strip().upper()
+        if not code:
+            return fail("Coupon code is required.")
+        if Coupon.objects.filter(code=code).exists():
+            return fail("This coupon code already exists.")
+        try:
+            value = float(body.get("discount_value"))
+        except (TypeError, ValueError):
+            return fail("Enter a valid discount value.")
+        dtype = str(body.get("discount_type", "percentage"))
+        if dtype not in ("percentage", "fixed"):
+            dtype = "percentage"
+        c = Coupon.objects.create(
+            code=code,
+            discount_type=dtype,
+            discount_value=value,
+            minimum_order_value=float(body.get("minimum_order_value", 0) or 0),
+            one_time_per_user=bool(body.get("one_time_per_user", False)),
+            is_active=bool(body.get("is_active", True)),
+        )
+        return ok({"coupon": _serialize_admin_coupon(c)})
+    return ok({"coupons": [
+        _serialize_admin_coupon(c) for c in Coupon.objects.order_by("code")]})
+
+
+@csrf_exempt
+@admin_required
+def admin_coupon_detail(request, user, coupon_id):
+    c = Coupon.objects.filter(id=coupon_id).first()
+    if c is None:
+        return fail("Coupon not found.", status=404)
+    if request.method == "DELETE":
+        c.delete()
+        return ok({"deleted": True})
+    if request.method != "POST":
+        return fail("POST or DELETE only.", status=405)
+    body = json_body(request)
+    if "is_active" in body:
+        c.is_active = bool(body.get("is_active"))
+    if "discount_value" in body:
+        try:
+            c.discount_value = float(body.get("discount_value"))
+        except (TypeError, ValueError):
+            return fail("Enter a valid discount value.")
+    if "minimum_order_value" in body:
+        try:
+            c.minimum_order_value = float(body.get("minimum_order_value"))
+        except (TypeError, ValueError):
+            pass
+    if "one_time_per_user" in body:
+        c.one_time_per_user = bool(body.get("one_time_per_user"))
+    c.save()
+    return ok({"coupon": _serialize_admin_coupon(c)})
+
+
+@csrf_exempt
+@admin_required
+def admin_notices(request, user):
+    """GET list; POST create a feed notice (broadcast push included)."""
+    from myapp.models import Notice
+    if request.method == "POST":
+        body = json_body(request)
+        title = str(body.get("title", "")).strip()
+        if not title:
+            return fail("Title is required.")
+        n = Notice.objects.create(
+            title=title[:200],
+            message=str(body.get("message", "")).strip(),
+            is_active=bool(body.get("is_active", True)),
+        )
+        try:
+            from myapp.models import DeviceToken
+            tokens = list(DeviceToken.objects.values_list("token", flat=True))
+            if tokens:
+                _push_tokens(tokens, f"📢 {n.title}",
+                             (n.message or "New update on the CUnnect Feed")[:180])
+        except Exception:
+            pass
+        return ok({"id": n.id})
+    from myapp.models import Notice
+    rows = [{
+        "id": n.id,
+        "title": n.title,
+        "message": n.message,
+        "is_active": n.is_active,
+        "created_at_iso": iso(n.created_at),
+    } for n in Notice.objects.order_by("-created_at")[:60]]
+    return ok({"notices": rows})
+
+
+@csrf_exempt
+@admin_required
+def admin_notice_detail(request, user, notice_id):
+    from myapp.models import Notice
+    n = Notice.objects.filter(id=notice_id).first()
+    if n is None:
+        return fail("Notice not found.", status=404)
+    if request.method == "DELETE":
+        n.delete()
+        return ok({"deleted": True})
+    if request.method != "POST":
+        return fail("POST or DELETE only.", status=405)
+    body = json_body(request)
+    if "title" in body:
+        n.title = str(body.get("title", "")).strip()[:200] or n.title
+    if "message" in body:
+        n.message = str(body.get("message", "")).strip()
+    if "is_active" in body:
+        n.is_active = bool(body.get("is_active"))
+    n.save()
+    return ok({"id": n.id})
+
+
+@csrf_exempt
+@admin_required
+def admin_support(request, user):
+    """GET support requests; POST {id, status} to update."""
+    if request.method == "POST":
+        body = json_body(request)
+        req = SupportRequest.objects.filter(id=body.get("id")).first()
+        if req is None:
+            return fail("Request not found.", status=404)
+        status_new = str(body.get("status", "")).strip()
+        if status_new in ("pending", "in_progress", "resolved"):
+            req.status = status_new
+            req.save(update_fields=["status", "updated_at"])
+        return ok({"status": req.status})
+    rows = [{
+        "id": r.id,
+        "email": r.email,
+        "subject": r.subject,
+        "message": r.message,
+        "status": r.status,
+        "user": r.user.username,
+        "created_at_iso": iso(r.created_at),
+    } for r in SupportRequest.objects.select_related(
+        "user").order_by("-created_at")[:100]]
+    return ok({"requests": rows})
+
+
+@csrf_exempt
+@admin_required
+def admin_broadcast(request, user):
+    """POST {title, message} — push notification to every device."""
+    if request.method != "POST":
+        return fail("POST only.", status=405)
+    body = json_body(request)
+    title = str(body.get("title", "")).strip()
+    message = str(body.get("message", "")).strip()
+    if not title or not message:
+        return fail("Both title and message are required.")
+    from myapp.models import DeviceToken
+    tokens = list(DeviceToken.objects.values_list("token", flat=True))
+    if not tokens:
+        return fail("No registered devices found.")
+    _push_tokens(tokens, title, message)
+    return ok({"sent_to": len(tokens)})

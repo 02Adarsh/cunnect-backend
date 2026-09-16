@@ -66,6 +66,7 @@ urlpatterns = [
     path("print/my-orders/", views.print_my_orders),
     path("print/vendor/dashboard/", views.print_vendor_dashboard),
     path("print/vendor/prices/", views.print_vendor_prices),
+    path("print/orders/<int:order_id>/file/", views.print_order_file),
     path("print/orders/<int:order_id>/<str:action>/", views.print_order_action),
 
     # ---- chat (network app) ----
@@ -111,4 +112,24 @@ urlpatterns = [
     path("ums/id-card/remove/", views.ums_id_card_remove),
     path("ums/ping/", views.ums_ping),
     path("ums/logout/", views.ums_logout),
+    # ⭐ Admin panel
+    path("admin/login/", views.admin_login),
+    path("admin/overview/", views.admin_overview),
+    path("admin/live-users/", views.admin_live_users),
+    path("admin/vendors/", views.admin_vendors),
+    path("admin/vendors/<int:vendor_id>/", views.admin_vendor_detail),
+    path("admin/students/", views.admin_students),
+    path("admin/students/<int:user_id>/<str:action>/",
+         views.admin_student_action),
+    path("admin/orders/", views.admin_orders),
+    path("admin/orders/<str:kind>/<int:order_id>/status/",
+         views.admin_order_status),
+    path("admin/food-items/", views.admin_food_items),
+    path("admin/food-items/<int:item_id>/", views.admin_food_item_detail),
+    path("admin/coupons/", views.admin_coupons),
+    path("admin/coupons/<int:coupon_id>/", views.admin_coupon_detail),
+    path("admin/notices/", views.admin_notices),
+    path("admin/notices/<int:notice_id>/", views.admin_notice_detail),
+    path("admin/support/", views.admin_support),
+    path("admin/broadcast/", views.admin_broadcast),
 ]
