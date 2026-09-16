@@ -1683,9 +1683,12 @@ def upi_qr(request):
     vp = VendorProfile.objects.filter(id=vendor_id).first()
     if vp is None:
         return fail("Vendor UPI not set.")
-    # ⭐ v54: an uploaded QR image works even WITHOUT a UPI ID —
-    # (admin/vendor uploaded QR must always show at checkout).
-    if vp.upi_qr_image:
+    # ⭐ v56: when the checkout sends an amount AND the vendor's UPI ID is
+    # known, a QR is GENERATED with the amount embedded (upi://...&am=X)
+    # so any UPI app auto-fills the exact total on scan. The uploaded
+    # QR image (static — cannot carry a dynamic amount) is used only
+    # when the UPI ID is missing.
+    if vp.upi_qr_image and not (amount and vp.upi_id):
         return ok({
             "qr_url": vp.upi_qr_image.url,
             "upi_id": vp.upi_id or "",
