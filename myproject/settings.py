@@ -183,6 +183,32 @@ SESSION_COOKIE_AGE = 60 * 60 * 24 * 365
 SESSION_SAVE_EVERY_REQUEST = True
 SESSION_EXPIRE_AT_BROWSER_CLOSE = False
 
+# ---------------------------------------------------------------------
+# ⭐ v65 SECURITY HARDENING
+# ---------------------------------------------------------------------
+# Render terminates TLS at its proxy — trust its forwarded-proto header
+# so Django knows the request was HTTPS (enables secure redirects).
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+if not DEBUG:
+    SECURE_SSL_REDIRECT = True          # force HTTPS everywhere
+    SECURE_HSTS_SECONDS = 60 * 60 * 24 * 30
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = False
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+
+SESSION_COOKIE_HTTPONLY = True          # JS cannot steal the session
+SECURE_CONTENT_TYPE_NOSNIFF = True      # no MIME-sniffing of uploads
+X_FRAME_OPTIONS = "DENY"                # no clickjacking iframes
+SECURE_REFERRER_POLICY = "same-origin"
+
+# Password reset links die after 30 minutes (default was 3 days).
+PASSWORD_RESET_TIMEOUT = 60 * 30
+
+# Upload bombs: reject request bodies above these caps at the door.
+DATA_UPLOAD_MAX_MEMORY_SIZE = 70 * 1024 * 1024   # biggest legit: feed video
+FILE_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 500
+
 # SMTP / OTP emails. Values are supplied through .env only.
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 EMAIL_HOST = "smtp.gmail.com"

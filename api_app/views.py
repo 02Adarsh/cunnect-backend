@@ -27,6 +27,16 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from rest_framework.authtoken.models import Token
 
+from .security import (
+    allow as _rl_allow,
+    check_upload,
+    clean_name,
+    client_ip,
+    throttle,
+    valid_user_id,
+)
+from django.utils.html import escape as _esc
+
 from food.models import (
     Coupon,
     CouponUsage,
@@ -312,6 +322,7 @@ def _find_user_any_case(uid):
 
 @csrf_exempt
 @require_http_methods(["POST"])
+@throttle("login1", 600, 600, body_field="uid", target_limit=30)
 def api_login_step1(request):
     body = json_body(request)
     uid = str(body.get("uid", "")).strip()
@@ -325,6 +336,7 @@ def api_login_step1(request):
 
 @csrf_exempt
 @require_http_methods(["POST"])
+@throttle("login2", 600, 600, body_field="uid", target_limit=12)
 def api_login_step2(request):
     body = json_body(request)
     uid = str(body.get("uid", "")).strip()
@@ -338,11 +350,13 @@ def api_login_step2(request):
     pw_ok = user.check_password(password)
     cap_ok = bool(captcha) and bool(correct) and \
         captcha.upper() == correct.upper()
-    print(f"[AUTH] login2 uid={uid!r} db_user={user.username!r} "
-          f"pw_ok={pw_ok} cap_ok={cap_ok} "
-          f"entered_captcha={captcha!r} expected={correct!r}")
+    # ⭐ v65 security: never log captcha values or auth outcomes in detail
+    print(f"[AUTH] login2 uid={uid!r} ok={pw_ok and cap_ok}")
     if pw_ok and cap_ok:
         _LOGIN_CAPTCHA.pop(uid, None)
+        from .security import _BUCKETS, _LOCK
+        with _LOCK:  # successful login clears the failed-attempt counter
+            _BUCKETS.pop(f"login2:tgt:{uid.lower()[:80]}", None)
         token, _ = Token.objects.get_or_create(user=user)
         profile, _ = UserProfile.objects.get_or_create(user=user)
         return ok({
@@ -506,6 +520,10 @@ def store_hostel_order(request, user):
     """Order place — orderer auto (login), recipient manual."""
     from myapp.models import HostelOrder
 
+    if not _rl_allow(f"hostelorder:{user.id}", 6, 600):
+        return fail("Too many orders in a short time — please wait a "
+                    "few minutes.", status=429)
+
     body = json_body(request)
     recipient_name = str(body.get("recipient_name", "")).strip()
     recipient_mobile = str(body.get("recipient_mobile", "")).strip()
@@ -641,6 +659,8 @@ def vendor_hostel_order_status(request):
 
 @csrf_exempt
 @require_http_methods(["POST"])
+@throttle("forgot", 60, 600, body_field="uid", target_limit=3,
+          target_window=600)
 def api_forgot_password(request):
     """⭐ Forgot password: registered email pe OTP."""
     from myapp.views import send_cunnect_otp_email
@@ -668,6 +688,7 @@ def api_forgot_password(request):
 
 @csrf_exempt
 @require_http_methods(["POST"])
+@throttle("resetpw", 120, 600, body_field="uid", target_limit=8)
 def api_reset_password(request):
     """⭐ Verify the OTP and set a new password."""
     body = json_body(request)
@@ -685,6 +706,10 @@ def api_reset_password(request):
         _REG_OTP.pop(key, None)
         return fail("OTP expired - send a new one.")
     if temp["otp"] != entered:
+        temp["tries"] = int(temp.get("tries", 0)) + 1
+        if temp["tries"] >= 6:
+            _REG_OTP.pop(key, None)
+            return fail("Too many wrong attempts - send a new OTP.")
         return fail("OTP is wrong")
     if len(new_password) < 6:
         return fail("Keep the password at least 6 characters long.")
@@ -696,6 +721,8 @@ def api_reset_password(request):
 
 @csrf_exempt
 @require_http_methods(["POST"])
+@throttle("forgotlink", 60, 600, body_field="uid", target_limit=3,
+          target_window=600)
 def api_forgot_link(request):
     """⭐ v58: forgot password — email a secure reset LINK (not an OTP).
     Accepts a student User ID or a vendor's registered phone number."""
@@ -863,7 +890,7 @@ def api_reset_page(request, uidb64, token):
         f"Continue in the app</h2>"
         f"<p style='margin:0 0 22px;color:#9a9a9a;font-size:12.5px;"
         f"line-height:1.55;text-align:center;'>Hi <b style='color:#fff;'>"
-        f"{user.username}</b> — tap the button below and the CUnnect app "
+        f"{_esc(user.username)}</b> — tap the button below and the CUnnect app "
         f"will open so you can set your new password securely.</p>"
         f"<a href='{app_link}' style='display:block;text-align:center;"
         f"background:#f10b1d;color:#fff;text-decoration:none;"
@@ -879,6 +906,7 @@ def api_reset_page(request, uidb64, token):
 
 @csrf_exempt
 @require_http_methods(["POST"])
+@throttle("resetlink", 120, 600)
 def api_reset_link_password(request):
     """⭐ v63: called from INSIDE the app — the deep-linked reset screen
     posts uidb64+token+new password here."""
@@ -906,6 +934,7 @@ def api_reset_link_password(request):
 
 @csrf_exempt
 @require_http_methods(["POST"])
+@throttle("register", 60, 3600, body_field="email", target_limit=4)
 def api_register(request):
     from myapp.views import send_cunnect_otp_email
 
@@ -916,6 +945,17 @@ def api_register(request):
     password = str(body.get("password", ""))
     if not (full_name and user_id and email and password):
         return fail("Fill in all the details.")
+    # ⭐ v65 security: strict UID format (blocks scripts/emoji/path tricks)
+    if not valid_user_id(user_id):
+        return fail("User ID can only contain letters and numbers "
+                    "(3-30 characters).")
+    full_name = clean_name(full_name)
+    if not full_name:
+        return fail("Enter your real name.")
+    if len(password) < 6:
+        return fail("Keep the password at least 6 characters long.")
+    if len(email) > 100 or email.count("@") != 1:
+        return fail("Enter a valid email address.")
     if not email.lower().endswith("@culkomail.in"):
         return fail("Please use your official CULKO email ID ending with "
                     "@culkomail.in. Example: 25lbcs3056@culkomail.in")
@@ -939,6 +979,7 @@ def api_register(request):
 
 @csrf_exempt
 @require_http_methods(["POST"])
+@throttle("otpverify", 300, 600, body_field="user_id", target_limit=8)
 def api_otp_verify(request):
     body = json_body(request)
     user_id = str(body.get("user_id", "")).strip()
@@ -950,6 +991,11 @@ def api_otp_verify(request):
         _REG_OTP.pop(user_id, None)
         return fail("OTP expired after 5 minutes. Please register again.")
     if temp["otp"] != entered:
+        # ⭐ v65 security: 6 wrong tries burn the OTP (no infinite guessing)
+        temp["tries"] = int(temp.get("tries", 0)) + 1
+        if temp["tries"] >= 6:
+            _REG_OTP.pop(user_id, None)
+            return fail("Too many wrong attempts. Please register again.")
         return fail("OTP is wrong")
     try:
         user = User.objects.create_user(
@@ -964,6 +1010,8 @@ def api_otp_verify(request):
 
 @csrf_exempt
 @require_http_methods(["POST"])
+@throttle("otpresend", 60, 600, body_field="user_id", target_limit=3,
+          target_window=300)
 def api_resend_otp(request):
     from myapp.views import send_cunnect_otp_email
 
@@ -1011,7 +1059,11 @@ def api_complete_profile(request, user):
             photo_b64 = photo_b64.split(",", 1)[1]
         try:
             raw = base64.b64decode(photo_b64)
-            if 0 < len(raw) < 3_000_000:
+            # ⭐ v65 security: must actually BE an image (magic bytes)
+            is_img = (raw.startswith(b"\xff\xd8\xff")      # jpeg
+                      or raw.startswith(b"\x89PNG")           # png
+                      or raw.startswith(b"RIFF"))              # webp
+            if 0 < len(raw) < 3_000_000 and is_img:
                 from django.core.files.base import ContentFile
                 name = f"{user.username}_{int(time.time())}.jpg"
                 profile.profile_photo.save(name, ContentFile(raw), save=False)
@@ -1038,6 +1090,7 @@ def api_complete_profile(request, user):
 
 @csrf_exempt
 @require_http_methods(["POST"])
+@throttle("slogin", 600, 600, body_field="uid", target_limit=12)
 def student_login(request):
     body = json_body(request)
     uid = str(body.get("uid", "")).strip()
@@ -1246,6 +1299,8 @@ def feed_comment_add(request, user, kind, object_id):
 
     body = json_body(request)
     text = str(body.get("text", "")).strip()[:600]
+    if text and not _rl_allow(f"comment:{user.id}", 15, 60):
+        return fail("You are commenting too fast.", status=429)
     if not text:
         return fail("Comment cannot be empty.")
     parent = None
@@ -1387,10 +1442,14 @@ def student_support(request, user):
     if request.method != "POST":
         return fail("POST required.", status=405)
     body = json_body(request)
-    subject = str(body.get("subject", "")).strip()
-    message = str(body.get("message", "")).strip()
+    subject = str(body.get("subject", "")).strip()[:200]
+    message = str(body.get("message", "")).strip()[:4000]
     if not subject or not message:
         return fail("Fill in both subject and message.")
+    # ⭐ v65 security: support spam guard (per user)
+    if not _rl_allow(f"support:{user.id}", 5, 3600):
+        return fail("You have sent several requests already — "
+                    "please wait a while.", status=429)
     email = (str(body.get("email", "")).strip()
              or user.email or f"{user.username}@cunnect.app")
     SupportRequest.objects.create(
@@ -1532,6 +1591,11 @@ def _new_order_number():
 @csrf_exempt
 @student_required
 def food_place_order(request, user):
+    # ⭐ v65 security: order-bot guard (10 orders / 10 min per account)
+    if request.method == "POST" and not _rl_allow(
+            f"foodorder:{user.id}", 10, 600):
+        return fail("Too many orders in a short time — please wait a "
+                    "few minutes.", status=429)
     if request.method != "POST":
         return fail("POST required.", status=405)
     body = json_body(request)
@@ -1971,6 +2035,9 @@ def vendor_logo_upload(request):
     f = request.FILES.get("file")
     if f is None:
         return fail("No image file sent.")
+    upload_error = check_upload(f, kind="image", max_mb=8)
+    if upload_error:
+        return fail(upload_error)
     profile.logo = f
     profile.save()
     return ok({"logo_url": media_url(profile.logo)})
@@ -1996,6 +2063,9 @@ def vendor_upi_qr_upload(request):
     f = request.FILES.get("file")
     if f is None:
         return fail("No image file sent.")
+    upload_error = check_upload(f, kind="image", max_mb=8)
+    if upload_error:
+        return fail(upload_error)
     profile.upi_qr_image = f
     profile.save()
     return ok({"qr_url": profile.upi_qr_image.url})
@@ -2306,6 +2376,7 @@ def food_notifications_read(request, user):
 
 @csrf_exempt
 @require_http_methods(["POST"])
+@throttle("vlogin", 120, 600, body_field="phone", target_limit=10)
 def vendor_login(request):
     body = json_body(request)
     phone = str(body.get("phone", "")).strip()
@@ -2534,6 +2605,9 @@ def vendor_menu_photo(request, item_id):
     f = request.FILES.get("file")
     if f is None:
         return fail("No image file sent.")
+    upload_error = check_upload(f, kind="image", max_mb=8)
+    if upload_error:
+        return fail(upload_error)
     item.image = f
     item.save(update_fields=["image"])
     return ok({"image_url": media_url(item.image)})
@@ -3018,9 +3092,15 @@ def serialize_print_order(order, for_vendor=False):
 def print_place_order(request, user):
     if request.method != "POST":
         return fail("POST required.", status=405)
+    if not _rl_allow(f"printorder:{user.id}", 8, 600):
+        return fail("Too many orders in a short time — please wait a "
+                    "few minutes.", status=429)
     document = request.FILES.get("document")
     if document is None:
         return fail("Upload a file (field: document).")
+    upload_error = check_upload(document, kind="doc", max_mb=25)
+    if upload_error:
+        return fail(upload_error)
     try:
         vendor_id = int(request.POST.get("vendor_id", 0))
     except ValueError:
@@ -3353,6 +3433,8 @@ def chat_room_join(request, user, name):
 def chat_send_message(request, user, name):
     if request.method != "POST":
         return fail("POST required.", status=405)
+    if not _rl_allow(f"chat:{user.id}", 20, 30):
+        return fail("You are sending messages too fast.", status=429)
     room, error = _room_or_fail(name, user)
     if error:
         return error
@@ -3367,6 +3449,11 @@ def chat_send_message(request, user, name):
     attachment = request.FILES.get("attachment")
     if not content and not image and not video and not attachment:
         return fail("Message is empty.")
+    for f, k in ((image, "image"), (video, "video"), (attachment, "doc")):
+        if f is not None:
+            upload_error = check_upload(f, kind=k, max_mb=25)
+            if upload_error:
+                return fail(upload_error)
     message = Message.objects.create(
         room=room, user=user, content=content[:2000],
         image=image or None, video=video or None,
@@ -3615,6 +3702,40 @@ def _ums_saved_update(uid, **kw):
             print(f"[API-UMS] file persist failed: {exc2}")
 
 
+def _ums_access(request, uid):
+    """⭐ v65 security: UMS data endpoints require a logged-in app user
+    AND that user must own the UMS session (or claim an unowned one).
+    Token comes from the Authorization header or ?token= (images/PDFs
+    that open in browser/Image.network can't always send headers)."""
+    user = user_from_token(request)
+    if user is None:
+        key = str(request.GET.get("token", "")).strip()
+        if key:
+            try:
+                user = Token.objects.select_related("user").get(key=key).user
+            except Token.DoesNotExist:
+                user = None
+            if user is not None and not user.is_active:
+                user = None
+    if user is None:
+        return None, fail("Login required.", status=401)
+    if uid and uid != "__demo__":
+        try:
+            data = _ums_saved_load()
+            entry = data.get(uid) or {}
+            owner = str(entry.get("owner") or "")
+            if owner and owner != user.username:
+                return None, fail(
+                    "This UMS account is not linked to your app login.",
+                    status=403)
+            if entry and not owner:
+                # claim the orphan session for this user
+                _ums_saved_update(uid, owner=user.username)
+        except Exception:
+            pass
+    return user, None
+
+
 def _ums_owner(request):
     """⭐ Which app user owns this UMS session (multi-student isolation)."""
     try:
@@ -3715,10 +3836,17 @@ def _ums_error(result):
 def ums_stage1(request):
     from scraper_app.scraper_backend import CUIMSScraperBackend
 
+    # ⭐ v65 security: UMS bridge only for logged-in app users + throttled
+    if user_from_token(request) is None:
+        return fail("Login required.", status=401)
+    if not _rl_allow(f"ums1:{client_ip(request)}", 120, 600):
+        return fail("Too many attempts. Please wait a moment.", status=429)
     body = json_body(request)
     uid = str(body.get("uid", "")).strip()
     if not uid:
         return fail("Enter your CUIMS UID.")
+    if not valid_user_id(uid):
+        return fail("Enter a valid CUIMS UID.")
     scraper = CUIMSScraperBackend(uid=uid)
     result = scraper.execute_stage1()
     if not result.get("success"):
@@ -3740,6 +3868,10 @@ def ums_stage1(request):
 @csrf_exempt
 @require_http_methods(["POST"])
 def ums_stage2(request):
+    if user_from_token(request) is None:
+        return fail("Login required.", status=401)
+    if not _rl_allow(f"ums2:{client_ip(request)}", 120, 600):
+        return fail("Too many attempts. Please wait a moment.", status=429)
     body = json_body(request)
     uid = str(body.get("uid", "")).strip()
     password = str(body.get("password", ""))
@@ -4555,6 +4687,9 @@ def ums_dashboard(request, user):
 def ums_captcha(request):
     """⭐ Fresh captcha image (app ka 'Verification Required' dialog)."""
     uid = request.GET.get("uid", "").strip()
+    _, err = _ums_access(request, uid)
+    if err is not None:
+        return err
     b64 = _ums_start_captcha(uid)
     if not b64:
         return fail("The portal is not asking for a captcha / portal unreachable.")
@@ -4567,6 +4702,9 @@ def ums_verify_captcha(request):
     """⭐ The student's captcha code -> portal login -> instant live scrape."""
     body = json_body(request)
     uid = str(body.get("uid", "")).strip()
+    _, err = _ums_access(request, uid)
+    if err is not None:
+        return err
     code = str(body.get("code", "")).strip()
     if not uid or not code:
         return fail("Enter the captcha code.")
@@ -4607,6 +4745,9 @@ def ums_course_pdf(request, index):
     from scraper_app.views import course_plan_pdf_view
 
     uid = request.GET.get("uid", "").strip()
+    _, err = _ums_access(request, uid)
+    if err is not None:
+        return err
     state = _ums_auto_session(uid)
     if not state or not state.get("scraper"):
         return HttpResponseNotFound(
@@ -4637,6 +4778,9 @@ def ums_semester(request, user):
     )
 
     uid = request.GET.get("uid", "").strip() or str(user.username)
+    _, err = _ums_access(request, uid)
+    if err is not None:
+        return err
     state = _ums_auto_session(uid)
     if not state or not state.get("scraper"):
         return fail("UMS session not found — please login again.", status=404)
@@ -4740,6 +4884,9 @@ def ums_fee_receipt(request, receipt_id):
     from scraper_app.views import fee_receipt_view
 
     uid = request.GET.get("uid", "").strip()
+    _, err = _ums_access(request, uid)
+    if err is not None:
+        return err
     state = _ums_auto_session(uid)
     if not state or not state.get("scraper"):
         return HttpResponseNotFound(
@@ -4761,6 +4908,9 @@ def ums_profile_photo(request):
     from scraper_app.views import profile_photo_view
 
     uid = request.GET.get("uid", "").strip()
+    _, err = _ums_access(request, uid)
+    if err is not None:
+        return err
     state = _ums_auto_session(uid)
     if not state or not state.get("scraper"):
         return HttpResponseNotFound("UMS session not found.")
@@ -4785,6 +4935,9 @@ def ums_id_card(request):
     """⭐ College ID card — GET: image serve, POST {image: dataURL}: save
     (original id_card_upload_view/image_view ka API mirror, state-based)."""
     uid = request.GET.get("uid", "").strip()
+    _, err = _ums_access(request, uid)
+    if err is not None:
+        return err
     state = _ums_auto_session(uid)
     if not state:
         if request.method == "GET":
@@ -4838,6 +4991,9 @@ def ums_id_card(request):
 @require_http_methods(["POST"])
 def ums_id_card_remove(request):
     uid = request.GET.get("uid", "").strip()
+    _, err = _ums_access(request, uid)
+    if err is not None:
+        return err
     state = _ums_auto_session(uid)
     if state:
         for key in ("id_card", "id_card_type", "id_card_v"):
@@ -4848,6 +5004,9 @@ def ums_id_card_remove(request):
 def ums_ping(request):
     """⭐ Realtime sync (original dashboard_data ka lite mirror) —
     cached attendance numbers + alive flag, without hitting the portal."""
+    _, err = _ums_access(request, request.GET.get("uid", "").strip())
+    if err is not None:
+        return err
     uid = request.GET.get("uid", "").strip()
     state = _ums_auto_session(uid)
     if not state or not state.get("dashboard"):
@@ -4884,6 +5043,11 @@ def ums_ping(request):
 def ums_logout(request):
     body = json_body(request)
     uid = str(body.get("uid", "")).strip()
+    # ⭐ v65 security: login + ownership required — a stranger cannot
+    # wipe another student's saved UMS session by guessing the UID.
+    _, err = _ums_access(request, uid)
+    if err is not None:
+        return err
     with _UMS_LOCK:
         if uid and uid in _UMS_STATE:
             del _UMS_STATE[uid]
@@ -4926,6 +5090,8 @@ def admin_required(view):
 
 @csrf_exempt
 @require_http_methods(["POST"])
+@throttle("alogin", 60, 900, body_field="username", target_limit=8,
+          target_window=900)
 def admin_login(request):
     body = json_body(request)
     username = str(body.get("username", "")).strip()
@@ -5471,8 +5637,12 @@ def admin_create_superuser(request):
     setup_key = os.environ.get("ADMIN_SETUP_KEY", "")
     if not setup_key:
         return fail("Superuser setup is disabled on this server.", status=403)
+    # ⭐ v65 security: brutal throttle + constant-time compare (no timing leak)
+    if not _rl_allow(f"setupkey:{client_ip(request)}", 5, 3600):
+        return fail("Too many attempts.", status=429)
+    import hmac
     body = json_body(request)
-    if str(body.get("setup_key", "")) != setup_key:
+    if not hmac.compare_digest(str(body.get("setup_key", "")), setup_key):
         return fail("Invalid setup key.", status=403)
     username = str(body.get("username", "")).strip()
     password = str(body.get("password", ""))
@@ -5510,6 +5680,10 @@ def admin_feed_post(request, user):
     question = str(request.POST.get("question", "")).strip()[:240]
     options_raw = str(request.POST.get("options", "")).strip()
     media = request.FILES.get("media")
+    if media is not None:
+        upload_error = check_upload(media, kind="media", max_mb=60)
+        if upload_error:
+            return fail(upload_error)
 
     options = []
     if options_raw:
@@ -5696,6 +5870,9 @@ def admin_banners(request, user):
              or request.FILES.get("video"))
         if f is None:
             return fail("Pick a photo or a video for the banner.")
+        upload_error = check_upload(f, kind="media", max_mb=60)
+        if upload_error:
+            return fail(upload_error)
         try:
             order = int(str(request.POST.get("order", "")).strip() or 0)
         except ValueError:
@@ -6171,6 +6348,9 @@ def _hostel_product_photo_handler(request, product_id):
     f = request.FILES.get("image") or request.FILES.get("file")
     if f is None:
         return fail("No image file sent.")
+    upload_error = check_upload(f, kind="image", max_mb=8)
+    if upload_error:
+        return fail(upload_error)
     ph = HostelProductPhoto.objects.create(product=p, image=f)
     return ok({"photo": {"id": ph.id, "url": media_url(ph.image)},
                "product": _serialize_hostel_product(p)})
