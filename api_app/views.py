@@ -581,6 +581,203 @@ def api_reset_password(request):
 
 @csrf_exempt
 @require_http_methods(["POST"])
+def api_forgot_link(request):
+    """⭐ v58: forgot password — email a secure reset LINK (not an OTP).
+    Accepts a student User ID or a vendor's registered phone number."""
+    from django.contrib.auth.tokens import default_token_generator
+    from django.utils.http import urlsafe_base64_encode
+    from django.utils.encoding import force_bytes
+    from django.core.mail import EmailMultiAlternatives
+    from django.conf import settings
+
+    body = json_body(request)
+    identifier = str(body.get("identifier",
+                              body.get("uid", ""))).strip()
+    if not identifier:
+        return fail("Enter your User ID (or registered phone).")
+    user = _find_user_any_case(identifier)
+    if user is None:
+        vp = VendorProfile.objects.filter(
+            phone=identifier).select_related("user").first()
+        if vp is not None:
+            user = vp.user
+    if user is None:
+        return fail("No account found for this User ID / phone.")
+    email_addr = (user.email or "").strip()
+    if not email_addr:
+        return fail("No email on this account — contact support.")
+
+    token = default_token_generator.make_token(user)
+    uidb64 = urlsafe_base64_encode(force_bytes(user.pk))
+    public_url = getattr(settings, "CUNNECT_PUBLIC_URL",
+                         "https://cunnect-backend.onrender.com").rstrip("/")
+    link = f"{public_url}/api/auth/reset/{uidb64}/{token}/"
+    logo_url = f"{public_url}/static/images/cunnect_email_logo_black.png"
+    name = user.first_name or user.username
+
+    plain = (f"Hi {name},\n\nTap the link below to set a new CUnnect "
+             f"password:\n{link}\n\nThe link is valid for a limited time "
+             "and can be used once.\n\nIf you didn't ask for this, you can "
+             "safely ignore this email.")
+    html = f"""
+    <!doctype html>
+    <html>
+      <body style="margin:0;padding:0;background:#000000;
+                   font-family:Arial,sans-serif;color:#ffffff;">
+        <table role="presentation" width="100%" cellspacing="0"
+               cellpadding="0" style="background:#000000;padding:28px 12px;">
+          <tr><td align="center">
+            <table role="presentation" width="100%" cellspacing="0"
+                   cellpadding="0" style="max-width:560px;background:#000000;
+                   border:0;overflow:hidden;">
+              <tr><td>
+                <img src="{logo_url}" alt="CUnnect" width="560"
+                     style="display:block;width:100%;max-width:560px;
+                            height:auto;">
+              </td></tr>
+              <tr><td style="padding:28px 30px 32px;">
+                <p style="margin:0 0 8px;font-size:16px;line-height:1.55;
+                          color:#f2f2f2;">
+                  Locked out? Happens to the best of us.<br>
+                  Let's get you back in.
+                </p>
+                <div style="margin:25px 0 20px;padding:22px 17px;
+                            border:1px solid #f10b1d;border-radius:12px;
+                            background:#250d11;text-align:center;">
+                  <div style="margin-bottom:14px;font-size:12px;
+                              font-weight:700;letter-spacing:1.5px;
+                              color:#ff9ca5;">
+                    🔐 RESET YOUR PASSWORD
+                  </div>
+                  <a href="{link}" style="display:inline-block;
+                     background:#f10b1d;color:#ffffff;text-decoration:none;
+                     font-size:14px;font-weight:800;letter-spacing:.6px;
+                     padding:13px 34px;border-radius:10px;">
+                    SET NEW PASSWORD
+                  </a>
+                </div>
+                <p style="margin:0 0 20px;font-size:14px;color:#d0d0d0;">
+                  ⏳ The link works <strong style="color:#ffffff;">once</strong>
+                  and expires soon — use it right away.
+                </p>
+                <p style="margin:0;font-size:13px;line-height:1.55;
+                          color:#9a9a9a;">
+                  Didn't request this? Ignore this email —
+                  your password stays unchanged.
+                </p>
+              </td></tr>
+            </table>
+          </td></tr>
+        </table>
+      </body>
+    </html>
+    """
+    try:
+        msg = EmailMultiAlternatives(
+            subject="Reset your CUnnect password 🔐",
+            body=plain,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            to=[email_addr],
+        )
+        msg.attach_alternative(html, "text/html")
+        msg.send(fail_silently=False)
+    except Exception as exc:
+        print(f"[API-RESET-LINK] email failed: {exc}")
+        return fail("Error sending email. Please try again.")
+    at = email_addr.find("@")
+    masked = (email_addr[:2] + "****" + email_addr[at - 1:]
+              if at > 3 else email_addr)
+    return ok({"sent": True, "email": masked})
+
+
+_RESET_PAGE_STYLE = """
+      margin:0;background:#000;color:#fff;
+      font-family:Arial,Helvetica,sans-serif;min-height:100vh;
+      display:flex;align-items:center;justify-content:center;
+"""
+
+
+def _reset_page_html(inner):
+    """Black/red CUnnect-themed shell for the reset pages."""
+    return f"""<!doctype html>
+<html><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CUnnect — Reset Password</title></head>
+<body style="{_RESET_PAGE_STYLE}">
+  <div style="width:100%;max-width:400px;padding:20px;">
+    <div style="text-align:center;margin-bottom:18px;">
+      <span style="font-size:26px;font-weight:800;letter-spacing:1px;">
+        CU<span style="color:#f10b1d;">nnect</span></span>
+    </div>
+    <div style="background:#111;border:1px solid #f10b1d;
+                border-radius:16px;padding:26px 22px;">
+      {inner}
+    </div>
+  </div>
+</body></html>"""
+
+
+@csrf_exempt
+def api_reset_page(request, uidb64, token):
+    """⭐ v58: the reset link target — themed page to set a new password."""
+    from django.contrib.auth.tokens import default_token_generator
+    from django.utils.http import urlsafe_base64_decode
+    from django.http import HttpResponse
+
+    try:
+        uid_pk = urlsafe_base64_decode(uidb64).decode()
+        user = User.objects.get(pk=uid_pk)
+    except Exception:
+        user = None
+    if user is None or not default_token_generator.check_token(user, token):
+        return HttpResponse(_reset_page_html(
+            "<h2 style='margin:0 0 10px;font-size:19px;'>Link expired</h2>"
+            "<p style='margin:0;color:#bdbdbd;font-size:13px;"
+            "line-height:1.5;'>This reset link is invalid or was already "
+            "used. Open the app and tap <b style='color:#fff;'>Forgot "
+            "password?</b> again to get a fresh one.</p>"))
+
+    error = ""
+    if request.method == "POST":
+        p1 = request.POST.get("password1", "")
+        p2 = request.POST.get("password2", "")
+        if len(p1) < 6:
+            error = "Keep the password at least 6 characters long."
+        elif p1 != p2:
+            error = "The two passwords do not match."
+        else:
+            user.set_password(p1)
+            user.save()
+            return HttpResponse(_reset_page_html(
+                "<h2 style='margin:0 0 10px;font-size:19px;'>"
+                "Password changed ✅</h2>"
+                "<p style='margin:0;color:#bdbdbd;font-size:13px;"
+                "line-height:1.5;'>Your new password is active. Open the "
+                "CUnnect app and log in with it.</p>"))
+
+    err_html = (f"<p style='margin:0 0 12px;color:#ff8791;font-size:12px;'>"
+                f"{error}</p>" if error else "")
+    field = ("width:100%;box-sizing:border-box;background:#0c0c0c;"
+             "border:1px solid #363636;border-radius:10px;color:#fff;"
+             "padding:13px 14px;font-size:14px;margin-bottom:12px;")
+    return HttpResponse(_reset_page_html(
+        f"<h2 style='margin:0 0 4px;font-size:19px;'>Set a new password</h2>"
+        f"<p style='margin:0 0 18px;color:#9a9a9a;font-size:12px;'>"
+        f"for <b style='color:#fff;'>{user.username}</b></p>"
+        f"{err_html}"
+        f"<form method='post'>"
+        f"<input type='password' name='password1' placeholder='New password'"
+        f" required minlength='6' style='{field}'>"
+        f"<input type='password' name='password2'"
+        f" placeholder='Confirm new password' required style='{field}'>"
+        f"<button type='submit' style='width:100%;background:#f10b1d;"
+        f"color:#fff;border:0;border-radius:10px;padding:14px;"
+        f"font-size:14px;font-weight:800;letter-spacing:.5px;"
+        f"cursor:pointer;'>RESET PASSWORD</button></form>"))
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
 def api_register(request):
     from myapp.views import send_cunnect_otp_email
 
@@ -5278,6 +5475,83 @@ def admin_support(request, user):
     } for r in SupportRequest.objects.select_related(
         "user").order_by("-created_at")[:100]]
     return ok({"requests": rows})
+
+
+@csrf_exempt
+@admin_required
+def admin_banners(request, user):
+    """⭐ v58: GET list / POST create (multipart) — student home banners."""
+    from myapp.models import Banner
+    if request.method == "POST":
+        title = str(request.POST.get("title", "")).strip()[:200]
+        if not title:
+            return fail("Title is required.")
+        b = Banner.objects.create(
+            title=title,
+            subtitle=str(request.POST.get("subtitle", "")).strip() or None,
+            image=request.FILES.get("image"),
+            is_active=str(request.POST.get(
+                "is_active", "1")).strip() not in ("0", "false", "False"),
+            order=int(str(request.POST.get("order", "0")).strip() or 0),
+        )
+        return ok({"id": b.id})
+    rows = [{
+        "id": b.id,
+        "title": b.title,
+        "subtitle": b.subtitle or "",
+        "image_url": media_url(b.image),
+        "is_active": b.is_active,
+        "order": b.order,
+    } for b in Banner.objects.order_by("order", "-id")]
+    return ok({"banners": rows})
+
+
+@csrf_exempt
+@admin_required
+def admin_banner_detail(request, user, banner_id):
+    """⭐ v58: POST update (multipart, partial) / DELETE remove a banner."""
+    from myapp.models import Banner
+    b = Banner.objects.filter(id=banner_id).first()
+    if b is None:
+        return fail("Banner not found.", status=404)
+    if request.method == "DELETE":
+        if b.image:
+            b.image.delete(save=False)
+        b.delete()
+        return ok({"deleted": True})
+    if request.method != "POST":
+        return fail("POST or DELETE only.", status=405)
+    if "title" in request.POST:
+        b.title = str(request.POST.get("title", "")).strip()[:200] or b.title
+    if "subtitle" in request.POST:
+        b.subtitle = str(request.POST.get("subtitle", "")).strip() or None
+    if "is_active" in request.POST:
+        b.is_active = str(request.POST.get(
+            "is_active", "1")).strip() not in ("0", "false", "False")
+    if "order" in request.POST:
+        try:
+            b.order = int(str(request.POST.get("order", "0")).strip() or 0)
+        except ValueError:
+            pass
+    if request.FILES.get("image") is not None:
+        if b.image:
+            b.image.delete(save=False)
+        b.image = request.FILES["image"]
+    b.save()
+    return ok({"id": b.id})
+
+
+@csrf_exempt
+@admin_required
+def admin_support_delete(request, user, request_id):
+    """⭐ v58: permanently delete a support request."""
+    if request.method not in ("POST", "DELETE"):
+        return fail("POST or DELETE only.", status=405)
+    req = SupportRequest.objects.filter(id=request_id).first()
+    if req is None:
+        return fail("Request not found.", status=404)
+    req.delete()
+    return ok({"deleted": True})
 
 
 @csrf_exempt
