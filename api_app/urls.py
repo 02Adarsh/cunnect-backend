@@ -109,6 +109,14 @@ urlpatterns = [
     path("store/hostel/my-orders/", views.store_hostel_my_orders),
     path("vendor/hostel-orders/", views.vendor_hostel_orders),
     path("vendor/hostel-order-status/", views.vendor_hostel_order_status),
+    # ⭐ v61: hostel vendor manages the catalogue from their own portal
+    path("vendor/hostel-products/", views.vendor_hostel_products),
+    path("vendor/hostel-products/<int:product_id>/",
+         views.vendor_hostel_product_detail),
+    path("vendor/hostel-products/<int:product_id>/photo/",
+         views.vendor_hostel_product_photo),
+    # ⭐ v61: any vendor edits their storefront name + description
+    path("vendor/store-settings/", views.vendor_store_settings),
     path("ums/captcha/", views.ums_captcha),
     path("ums/verify-captcha/", views.ums_verify_captcha),
     path("ums/pdf/<int:index>/", views.ums_course_pdf),
@@ -129,6 +137,7 @@ urlpatterns = [
     path("admin/students/<int:user_id>/<str:action>/",
          views.admin_student_action),
     path("admin/orders/", views.admin_orders),
+    path("admin/order-kinds/", views.admin_order_kinds),
     path("admin/orders/<str:kind>/<int:order_id>/status/",
          views.admin_order_status),
     path("admin/food-items/", views.admin_food_items),

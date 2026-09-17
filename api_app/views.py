@@ -450,6 +450,8 @@ def _serialize_hostel_product(p):
         "description": p.description,
         "emoji": p.emoji or "🛒",
         "is_active": p.is_active,
+        # ⭐ v61: live stock (0 = unlimited/off, like food items)
+        "stock": p.stock,
         "order": p.order,
         "photos": [
             {"id": ph.id, "url": media_url(ph.image)}
@@ -470,7 +472,12 @@ def store_hostel(request, user):
         "price": HOSTEL_PACK_PRICE,
         "worth": 2500,
         "freebie": "FREE Chilled Diet Coke",
-        # ⭐ v60: individual products (admin-managed)
+        # ⭐ v61: vendor-controlled storefront
+        "store_open": vendor.kitchen_open if vendor else True,
+        "store_name": vendor.business_name if vendor else "Hostel Essentials",
+        "store_description": (vendor.store_description
+                              if vendor else ""),
+        # ⭐ v60: individual products (vendor-managed since v61)
         "products": [
             _serialize_hostel_product(p)
             for p in HostelProduct.objects.filter(
@@ -511,6 +518,12 @@ def store_hostel_order(request, user):
     if len(recipient_mobile) < 10:
         return fail("Enter a valid recipient mobile number.")
 
+    # ⭐ v61: store closed = no orders (vendor controls this switch).
+    hostel_vendor = _hostel_vendor()
+    if hostel_vendor is not None and not hostel_vendor.kitchen_open:
+        return fail("The Hostel Essentials store is closed right now — "
+                    "please try again later.")
+
     # ⭐ v60: cart items [{product_id, qty}] — validated server-side
     # against the live product list; the total is computed here, never
     # trusted from the client.
@@ -518,6 +531,7 @@ def store_hostel_order(request, user):
     raw_items = body.get("items") or []
     items = []
     total = 0.0
+    picked = []  # (product, qty) for stock deduction after validation
     if raw_items:
         for entry in raw_items:
             try:
@@ -528,10 +542,22 @@ def store_hostel_order(request, user):
             p = HostelProduct.objects.filter(id=pid, is_active=True).first()
             if p is None:
                 continue
+            # ⭐ v61: live stock guard (0 = unlimited, like food items)
+            if p.stock > 0 and qty > p.stock:
+                return fail(f"Only {p.stock} left of \"{p.name}\" — "
+                            "please lower the quantity.")
             items.append({"name": p.name, "mrp": float(p.mrp), "qty": qty})
             total += float(p.mrp) * qty
+            picked.append((p, qty))
         if not items:
             return fail("Your cart is empty — add at least one product.")
+        # deduct stock; auto-unavailable at 0 (mirrors the food section)
+        for p, qty in picked:
+            if p.stock > 0:
+                p.stock = max(0, p.stock - qty)
+                if p.stock == 0:
+                    p.is_active = False
+                p.save(update_fields=["stock", "is_active"])
     else:
         # legacy pack order from an older app version
         total = float(HOSTEL_PACK_PRICE)
@@ -1043,6 +1069,9 @@ def student_dashboard(request, user):
                 "id": banner.id,
                 "title": banner.title,
                 "image_url": media_url(banner.image),
+                # ⭐ v61: video banners on the student home carousel
+                "video_url": media_url(banner.video),
+                "is_video": bool(banner.video),
             }
             for banner in banners
         ],
@@ -5077,15 +5106,20 @@ def admin_student_action(request, user, user_id, action):
 
 @admin_required
 def admin_orders(request, user):
-    """Latest orders across food / print / hostel (?kind=food|print|hostel)."""
+    """⭐ v61: latest orders for EVERY store section (?kind=<section key>).
+    Built-ins map to their own order tables; custom sections list their
+    food-style orders filtered by the section's vendors. Every row
+    carries vendor_name so multi-vendor stores stay unambiguous."""
     kind = request.GET.get("kind", "food")
-    if kind == "print":
+    if kind == "print" or kind == "printout":
         orders = PrintOrder.objects.select_related(
             "vendor", "student").order_by("-created_at")[:100]
         return ok({"orders": [
             serialize_print_order(o, for_vendor=True) for o in orders]})
     if kind == "hostel":
         from myapp.models import HostelOrder
+        hostel_vendor = _hostel_vendor()
+        vname = hostel_vendor.business_name if hostel_vendor else ""
         rows = []
         for o in HostelOrder.objects.order_by("-created_at")[:100]:
             rows.append({
@@ -5094,16 +5128,32 @@ def admin_orders(request, user):
                 "orderer_name": o.orderer_name,
                 "recipient_name": o.recipient_name,
                 "recipient_mobile": o.recipient_mobile,
+                "vendor_name": vname,
                 "status": o.status,
                 "total": float(o.total),
+                "items": o.items or [],
                 "txn_id": o.txn_id,
                 "created_at_iso": iso(o.created_at),
             })
         return ok({"orders": rows})
-    orders = Order.objects.select_related("vendor").order_by(
-        "-created_at")[:100]
+    qs = Order.objects.select_related("vendor").order_by("-created_at")
+    if kind != "food":
+        # custom section: only orders of vendors that belong to it
+        qs = qs.filter(vendor__vendor_type=kind)
     return ok({"orders": [
-        serialize_order(o, include_items=False) for o in orders]})
+        serialize_order(o, include_items=False) for o in qs[:100]]})
+
+
+@admin_required
+def admin_order_kinds(request, user):
+    """⭐ v61: every store section as an order tab — key + title."""
+    from myapp.models import StoreSection
+    _ensure_builtin_sections()
+    kinds = []
+    for s in StoreSection.objects.all():
+        key = "print" if s.key == "printout" else s.key
+        kinds.append({"key": key, "title": s.title})
+    return ok({"kinds": kinds})
 
 
 @csrf_exempt
@@ -5567,22 +5617,45 @@ def admin_support(request, user):
     return ok({"requests": rows})
 
 
+_VIDEO_EXTS = (".mp4", ".mov", ".webm", ".mkv", ".m4v", ".avi", ".3gp")
+
+
+def _is_video_file(f):
+    """True when the uploaded file looks like a video (name or MIME)."""
+    if f is None:
+        return False
+    name = (getattr(f, "name", "") or "").lower()
+    ctype = (getattr(f, "content_type", "") or "").lower()
+    return ctype.startswith("video/") or name.endswith(_VIDEO_EXTS)
+
+
 @csrf_exempt
 @admin_required
 def admin_banners(request, user):
-    """⭐ v58: GET list / POST create (multipart) — student home banners."""
+    """⭐ v61: GET list / POST create — student home banners.
+    Creating needs ONLY a media file (photo OR video) + a position:
+    the file arrives as 'media' (or legacy 'image'/'video') and is
+    routed to the right field automatically."""
     from myapp.models import Banner
     if request.method == "POST":
-        title = str(request.POST.get("title", "")).strip()[:200]
-        if not title:
-            return fail("Title is required.")
+        f = (request.FILES.get("media") or request.FILES.get("image")
+             or request.FILES.get("video"))
+        if f is None:
+            return fail("Pick a photo or a video for the banner.")
+        try:
+            order = int(str(request.POST.get("order", "")).strip() or 0)
+        except ValueError:
+            order = 0
+        if order < 1:
+            return fail("Enter the banner position (1 onwards).")
+        is_video = _is_video_file(f)
         b = Banner.objects.create(
-            title=title,
-            subtitle=str(request.POST.get("subtitle", "")).strip() or None,
-            image=request.FILES.get("image"),
-            is_active=str(request.POST.get(
-                "is_active", "1")).strip() not in ("0", "false", "False"),
-            order=int(str(request.POST.get("order", "0")).strip() or 0),
+            title=str(request.POST.get("title", "")).strip()[:200]
+            or f"Banner {order}",
+            image=None if is_video else f,
+            video=f if is_video else None,
+            is_active=True,
+            order=order,
         )
         return ok({"id": b.id})
     rows = [{
@@ -5590,6 +5663,8 @@ def admin_banners(request, user):
         "title": b.title,
         "subtitle": b.subtitle or "",
         "image_url": media_url(b.image),
+        "video_url": media_url(b.video),
+        "is_video": bool(b.video),
         "is_active": b.is_active,
         "order": b.order,
     } for b in Banner.objects.order_by("order", "-id")]
@@ -5607,6 +5682,8 @@ def admin_banner_detail(request, user, banner_id):
     if request.method == "DELETE":
         if b.image:
             b.image.delete(save=False)
+        if b.video:
+            b.video.delete(save=False)
         b.delete()
         return ok({"deleted": True})
     if request.method != "POST":
@@ -5623,10 +5700,20 @@ def admin_banner_detail(request, user, banner_id):
             b.order = int(str(request.POST.get("order", "0")).strip() or 0)
         except ValueError:
             pass
-    if request.FILES.get("image") is not None:
+    # ⭐ v61: replacing media accepts photo OR video and clears the other.
+    f = (request.FILES.get("media") or request.FILES.get("image")
+         or request.FILES.get("video"))
+    if f is not None:
         if b.image:
             b.image.delete(save=False)
-        b.image = request.FILES["image"]
+        if b.video:
+            b.video.delete(save=False)
+        if _is_video_file(f):
+            b.image = None
+            b.video = f
+        else:
+            b.video = None
+            b.image = f
     b.save()
     return ok({"id": b.id})
 
@@ -5931,10 +6018,11 @@ def admin_store_section_detail(request, user, section_id):
     return ok({"section": _serialize_section(sec)})
 
 
-@csrf_exempt
-@admin_required
-def admin_hostel_products(request, user):
-    """⭐ v60: GET list / POST create a hostel product (admin portal)."""
+# ---- ⭐ v61: hostel product CRUD core, shared by the vendor portal and
+# the admin (admin opens the vendor portal to manage the store) --------
+
+def _hostel_products_handler(request):
+    """GET list / POST create a hostel product."""
     from myapp.models import HostelProduct
     _ensure_hostel_products()
     if request.method == "POST":
@@ -5948,11 +6036,16 @@ def admin_hostel_products(request, user):
             return fail("Enter a valid MRP.")
         if mrp <= 0:
             return fail("MRP must be greater than zero.")
+        try:
+            stock = max(0, int(body.get("stock", 0) or 0))
+        except (TypeError, ValueError):
+            stock = 0
         p = HostelProduct.objects.create(
             name=name,
             mrp=mrp,
             description=str(body.get("description", "")).strip()[:2000],
             emoji=str(body.get("emoji", "🛒")).strip()[:8] or "🛒",
+            stock=stock,
             order=int(body.get("order", 100) or 100),
         )
         return ok({"product": _serialize_hostel_product(p)})
@@ -5961,10 +6054,8 @@ def admin_hostel_products(request, user):
         for p in HostelProduct.objects.all().prefetch_related("photos")]})
 
 
-@csrf_exempt
-@admin_required
-def admin_hostel_product_detail(request, user, product_id):
-    """⭐ v60: POST update / DELETE remove a hostel product."""
+def _hostel_product_detail_handler(request, product_id):
+    """POST update / DELETE remove a hostel product."""
     from myapp.models import HostelProduct
     p = HostelProduct.objects.filter(id=product_id).first()
     if p is None:
@@ -5990,6 +6081,14 @@ def admin_hostel_product_detail(request, user, product_id):
         p.emoji = str(body.get("emoji", "")).strip()[:8] or p.emoji
     if "is_active" in body:
         p.is_active = bool(body.get("is_active"))
+    if "stock" in body:
+        try:
+            p.stock = max(0, int(body.get("stock") or 0))
+            # restocking flips the item back on if it auto-closed at 0
+            if p.stock > 0 and not p.is_active and "is_active" not in body:
+                p.is_active = True
+        except (TypeError, ValueError):
+            pass
     if "order" in body:
         try:
             p.order = int(body.get("order"))
@@ -5999,10 +6098,8 @@ def admin_hostel_product_detail(request, user, product_id):
     return ok({"product": _serialize_hostel_product(p)})
 
 
-@csrf_exempt
-@admin_required
-def admin_hostel_product_photo(request, user, product_id):
-    """⭐ v60: POST multipart 'image' adds a photo; DELETE ?photo_id=N."""
+def _hostel_product_photo_handler(request, product_id):
+    """POST multipart 'image' adds a photo; DELETE ?photo_id=N."""
     from myapp.models import HostelProduct, HostelProductPhoto
     p = HostelProduct.objects.filter(id=product_id).first()
     if p is None:
@@ -6023,6 +6120,90 @@ def admin_hostel_product_photo(request, user, product_id):
     ph = HostelProductPhoto.objects.create(product=p, image=f)
     return ok({"photo": {"id": ph.id, "url": media_url(ph.image)},
                "product": _serialize_hostel_product(p)})
+
+
+def _require_hostel_vendor(request):
+    """Vendor-token auth; only the hostel vendor may manage the catalogue."""
+    _, profile = vendor_user(request)
+    if profile is None:
+        return None, fail("Vendor login required.", status=401)
+    if profile.vendor_type != "hostel":
+        return None, fail(
+            "Only the Hostel Essentials partner can manage these products.",
+            status=403)
+    return profile, None
+
+
+@csrf_exempt
+def vendor_hostel_products(request):
+    """⭐ v61: hostel VENDOR manages their own catalogue from the portal."""
+    _, err = _require_hostel_vendor(request)
+    if err is not None:
+        return err
+    return _hostel_products_handler(request)
+
+
+@csrf_exempt
+def vendor_hostel_product_detail(request, product_id):
+    _, err = _require_hostel_vendor(request)
+    if err is not None:
+        return err
+    return _hostel_product_detail_handler(request, product_id)
+
+
+@csrf_exempt
+def vendor_hostel_product_photo(request, product_id):
+    _, err = _require_hostel_vendor(request)
+    if err is not None:
+        return err
+    return _hostel_product_photo_handler(request, product_id)
+
+
+@csrf_exempt
+def vendor_store_settings(request):
+    """⭐ v61: any vendor edits their storefront content (name shown on
+    the store card + description shown at the top of their store page)."""
+    _, profile = vendor_user(request)
+    if profile is None:
+        return fail("Vendor login required.", status=401)
+    if request.method == "POST":
+        body = json_body(request)
+        if "store_description" in body:
+            profile.store_description = str(
+                body.get("store_description", "")).strip()[:2000]
+        if "business_name" in body:
+            name = str(body.get("business_name", "")).strip()[:150]
+            if name:
+                profile.business_name = name
+        profile.save()
+    return ok({
+        "business_name": profile.business_name,
+        "store_description": profile.store_description,
+        "open": profile.kitchen_open,
+    })
+
+
+# ---- admin equivalents (kept so the admin API also works directly) ----
+
+@csrf_exempt
+@admin_required
+def admin_hostel_products(request, user):
+    """⭐ v60: GET list / POST create a hostel product (admin portal)."""
+    return _hostel_products_handler(request)
+
+
+@csrf_exempt
+@admin_required
+def admin_hostel_product_detail(request, user, product_id):
+    """⭐ v60: POST update / DELETE remove a hostel product."""
+    return _hostel_product_detail_handler(request, product_id)
+
+
+@csrf_exempt
+@admin_required
+def admin_hostel_product_photo(request, user, product_id):
+    """⭐ v60: POST multipart 'image' adds a photo; DELETE ?photo_id=N."""
+    return _hostel_product_photo_handler(request, product_id)
 
 
 @csrf_exempt

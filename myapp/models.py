@@ -98,6 +98,10 @@ class VendorProfile(models.Model):
     logo = models.ImageField(
         upload_to="vendor_logo/", blank=True, null=True)
 
+    # ⭐ v61: vendor-controlled storefront content — the description shown
+    # on the store card / store page is set from the vendor portal.
+    store_description = models.TextField(blank=True, default="")
+
     def __str__(self):
         return f"{self.business_name} - {self.vendor_type}"
 
@@ -537,6 +541,9 @@ class HostelProduct(models.Model):
     description = models.TextField(blank=True, default="")
     emoji = models.CharField(max_length=8, blank=True, default="🛒")
     is_active = models.BooleanField(default=True)
+    # ⭐ v61: 0 = unlimited (tracking off); >0 = live stock,
+    # auto-unavailable at 0 — exactly like FoodItem.stock.
+    stock = models.IntegerField(default=0)
     order = models.IntegerField(default=100)
     created_at = models.DateTimeField(auto_now_add=True)
 
