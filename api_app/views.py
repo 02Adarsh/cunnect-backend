@@ -601,8 +601,11 @@ def api_forgot_link(request):
             phone=identifier).select_related("user").first()
         if vp is not None:
             user = vp.user
+    # ⭐ v59: people often type their EMAIL here — accept that too.
+    if user is None and "@" in identifier:
+        user = User.objects.filter(email__iexact=identifier).first()
     if user is None:
-        return fail("No account found for this User ID / phone.")
+        return fail("No account found for this User ID / phone / email.")
     email_addr = (user.email or "").strip()
     if not email_addr:
         return fail("No email on this account — contact support.")
