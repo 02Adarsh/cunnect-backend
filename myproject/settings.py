@@ -204,9 +204,11 @@ SERVER_EMAIL = DEFAULT_FROM_EMAIL
 
 BREVO_API_KEY = os.environ.get("BREVO_API_KEY", "").strip()
 
+# ⭐ v63.1: public links (reset emails, logo) use the clean OWN domain —
+# the shared onrender.com host got flagged by Safe Browsing.
 CUNNECT_PUBLIC_URL = os.environ.get(
     "CUNNECT_PUBLIC_URL",
-    "https://cunnect-backend.onrender.com",
+    "https://cunnect.online",
 ).rstrip("/")
 
 if BREVO_API_KEY:
