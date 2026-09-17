@@ -141,6 +141,12 @@ urlpatterns = [
     path("admin/stats/", views.admin_stats),
     path("admin/sections/", views.admin_store_sections),
     path("admin/sections/<int:section_id>/", views.admin_store_section_detail),
+    # ⭐ v60: hostel products (admin full control)
+    path("admin/hostel-products/", views.admin_hostel_products),
+    path("admin/hostel-products/<int:product_id>/",
+         views.admin_hostel_product_detail),
+    path("admin/hostel-products/<int:product_id>/photo/",
+         views.admin_hostel_product_photo),
     path("admin/vendors/<int:vendor_id>/portal/", views.admin_vendor_portal),
     path("admin/vendors/<int:vendor_id>/qr/", views.admin_vendor_qr),
     path("admin/support/<int:request_id>/ack/", views.admin_support_ack),

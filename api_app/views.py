@@ -402,20 +402,79 @@ def _serialize_hostel_order(o, reveal_mobile=False):
         "paid": o.paid,
         "status": o.status,
         "total": float(o.total),
+        "items": o.items or [],
         "created_at": o.created_at.strftime("%d %b, %I:%M %p"),
+    }
+
+
+# ⭐ v60: default products seeded once so the redesigned store is never
+# empty — the admin portal can edit/delete/extend them freely afterwards.
+_HOSTEL_DEFAULT_PRODUCTS = [
+    ("Mattress", 649, "🛏️",
+     "Single-bed hostel mattress — comfortable, durable foam that fits "
+     "the standard CU hostel bed frame."),
+    ("Pillow", 149, "🛌",
+     "Soft fibre pillow with a breathable cover — ready to use from "
+     "night one."),
+    ("Bucket", 129, "🪣",
+     "Sturdy 18L plastic bucket for bathing and laundry."),
+    ("Bathing Jug", 49, "🚿",
+     "Strong plastic bathing jug that pairs with the bucket."),
+    ("Rope", 59, "🪢",
+     "5-metre clothesline rope for drying clothes in your room or "
+     "balcony."),
+    ("Clothes Clips", 49, "🧷",
+     "Pack of 12 strong clothes clips that grip in wind."),
+    ("Hanger", 99, "👕",
+     "Set of 6 durable hangers for shirts, jackets and trousers."),
+    ("Foot Mat", 79, "🩴",
+     "Anti-slip doormat that keeps your room dust-free."),
+]
+
+
+def _ensure_hostel_products():
+    """Seeds the default hostel products once (idempotent)."""
+    from myapp.models import HostelProduct
+    if HostelProduct.objects.exists():
+        return
+    for i, (name, mrp, emoji, desc) in enumerate(_HOSTEL_DEFAULT_PRODUCTS):
+        HostelProduct.objects.create(
+            name=name, mrp=mrp, emoji=emoji, description=desc, order=i)
+
+
+def _serialize_hostel_product(p):
+    return {
+        "id": p.id,
+        "name": p.name,
+        "mrp": float(p.mrp),
+        "description": p.description,
+        "emoji": p.emoji or "🛒",
+        "is_active": p.is_active,
+        "order": p.order,
+        "photos": [
+            {"id": ph.id, "url": media_url(ph.image)}
+            for ph in p.photos.all()],
     }
 
 
 @student_required
 def store_hostel(request, user):
-    """Product info + logged-in user's AUTO details + vendor UPI."""
+    """Product list + logged-in user's AUTO details + vendor UPI."""
+    from myapp.models import HostelProduct
+    _ensure_hostel_products()
     profile = getattr(user, "userprofile", None)
     vendor = _hostel_vendor()
     return ok({
+        # legacy keys kept so older app versions keep working
         "items": HOSTEL_PACK_ITEMS,
         "price": HOSTEL_PACK_PRICE,
         "worth": 2500,
         "freebie": "FREE Chilled Diet Coke",
+        # ⭐ v60: individual products (admin-managed)
+        "products": [
+            _serialize_hostel_product(p)
+            for p in HostelProduct.objects.filter(
+                is_active=True).prefetch_related("photos")],
         "upi_id": (vendor.upi_id.strip()
                    if vendor and vendor.upi_id.strip() else ""),
         # ⭐ v55: uploaded QR counts as payment-enabled without a UPI ID.
@@ -451,6 +510,32 @@ def store_hostel_order(request, user):
         return fail("Enter the recipient's name.")
     if len(recipient_mobile) < 10:
         return fail("Enter a valid recipient mobile number.")
+
+    # ⭐ v60: cart items [{product_id, qty}] — validated server-side
+    # against the live product list; the total is computed here, never
+    # trusted from the client.
+    from myapp.models import HostelProduct
+    raw_items = body.get("items") or []
+    items = []
+    total = 0.0
+    if raw_items:
+        for entry in raw_items:
+            try:
+                pid = int(entry.get("product_id"))
+                qty = max(1, min(99, int(entry.get("qty", 1))))
+            except (TypeError, ValueError, AttributeError):
+                continue
+            p = HostelProduct.objects.filter(id=pid, is_active=True).first()
+            if p is None:
+                continue
+            items.append({"name": p.name, "mrp": float(p.mrp), "qty": qty})
+            total += float(p.mrp) * qty
+        if not items:
+            return fail("Your cart is empty — add at least one product.")
+    else:
+        # legacy pack order from an older app version
+        total = float(HOSTEL_PACK_PRICE)
+
     profile = getattr(user, "userprofile", None)
     order_no = f"HE{int(time.time() * 1000) % 1000000000}"
     order = HostelOrder.objects.create(
@@ -469,6 +554,8 @@ def store_hostel_order(request, user):
         txn_id=txn_id,
         txn_last4=txn_last4,
         paid=True,
+        total=round(total, 2),
+        items=items,
     )
     return ok({"order": _serialize_hostel_order(order)})
 
@@ -5723,6 +5810,30 @@ def admin_stats(request, user):
     })
 
 
+# ⭐ v60: built-in store sections are now DB rows too, so the admin
+# portal has full control (title/subtitle/icon/hide/coming-soon) over
+# Food Court, Printout Services and Hostel Essentials as well.
+BUILTIN_SECTIONS = [
+    ("food", "🍔", "Food Court",
+     "Order from campus food partners."),
+    ("printout", "🖨", "Printout Services",
+     "PDF print, color print, photocopy, binding and lamination."),
+    ("hostel", "🛏", "Hostel Essentials",
+     "Everything your hostel room needs, delivered on campus."),
+]
+BUILTIN_KEYS = {k for k, _, _, _ in BUILTIN_SECTIONS}
+
+
+def _ensure_builtin_sections():
+    """Creates the built-in StoreSection rows once (idempotent)."""
+    from myapp.models import StoreSection
+    for i, (key, icon, title, subtitle) in enumerate(BUILTIN_SECTIONS):
+        StoreSection.objects.get_or_create(
+            key=key,
+            defaults={"title": title, "subtitle": subtitle,
+                      "icon": icon, "order": i})
+
+
 def _serialize_section(sec):
     return {
         "id": sec.id,
@@ -5733,23 +5844,35 @@ def _serialize_section(sec):
         "is_active": sec.is_active,
         "coming_soon": sec.coming_soon,
         "order": sec.order,
+        "builtin": sec.key in BUILTIN_KEYS,
     }
 
 
 @student_required
 def store_sections(request, user):
-    """Public: custom store sections shown on the CUnnect Store page."""
+    """Public: store sections shown on the CUnnect Store page.
+    'sections' keeps the old shape (custom + active only) so older app
+    versions render unchanged; 'builtin' carries the admin-controlled
+    flags for the built-in categories (v60+ clients use it)."""
     from myapp.models import StoreSection
-    return ok({"sections": [
-        _serialize_section(s)
-        for s in StoreSection.objects.filter(is_active=True)]})
+    _ensure_builtin_sections()
+    all_secs = list(StoreSection.objects.all())
+    return ok({
+        "sections": [
+            _serialize_section(s) for s in all_secs
+            if s.is_active and s.key not in BUILTIN_KEYS],
+        "builtin": {
+            s.key: _serialize_section(s)
+            for s in all_secs if s.key in BUILTIN_KEYS},
+    })
 
 
 @csrf_exempt
 @admin_required
 def admin_store_sections(request, user):
-    """GET list; POST create a custom store section."""
+    """GET list (built-in + custom); POST create a custom store section."""
     from myapp.models import StoreSection
+    _ensure_builtin_sections()
     if request.method == "POST":
         body = json_body(request)
         title = str(body.get("title", "")).strip()[:80]
@@ -5784,6 +5907,11 @@ def admin_store_section_detail(request, user, section_id):
     if sec is None:
         return fail("Section not found.", status=404)
     if request.method == "DELETE":
+        # ⭐ v60: built-ins cannot be deleted (the whole app links to them)
+        # — hide them with the is_active toggle instead.
+        if sec.key in BUILTIN_KEYS:
+            return fail("Built-in sections cannot be deleted — "
+                        "switch them off to hide them from the store.")
         sec.delete()
         return ok({"deleted": True})
     if request.method != "POST":
@@ -5801,6 +5929,100 @@ def admin_store_section_detail(request, user, section_id):
         sec.coming_soon = bool(body.get("coming_soon"))
     sec.save()
     return ok({"section": _serialize_section(sec)})
+
+
+@csrf_exempt
+@admin_required
+def admin_hostel_products(request, user):
+    """⭐ v60: GET list / POST create a hostel product (admin portal)."""
+    from myapp.models import HostelProduct
+    _ensure_hostel_products()
+    if request.method == "POST":
+        body = json_body(request)
+        name = str(body.get("name", "")).strip()[:120]
+        if not name:
+            return fail("Product name is required.")
+        try:
+            mrp = round(float(body.get("mrp", 0)), 2)
+        except (TypeError, ValueError):
+            return fail("Enter a valid MRP.")
+        if mrp <= 0:
+            return fail("MRP must be greater than zero.")
+        p = HostelProduct.objects.create(
+            name=name,
+            mrp=mrp,
+            description=str(body.get("description", "")).strip()[:2000],
+            emoji=str(body.get("emoji", "🛒")).strip()[:8] or "🛒",
+            order=int(body.get("order", 100) or 100),
+        )
+        return ok({"product": _serialize_hostel_product(p)})
+    return ok({"products": [
+        _serialize_hostel_product(p)
+        for p in HostelProduct.objects.all().prefetch_related("photos")]})
+
+
+@csrf_exempt
+@admin_required
+def admin_hostel_product_detail(request, user, product_id):
+    """⭐ v60: POST update / DELETE remove a hostel product."""
+    from myapp.models import HostelProduct
+    p = HostelProduct.objects.filter(id=product_id).first()
+    if p is None:
+        return fail("Product not found.", status=404)
+    if request.method == "DELETE":
+        p.delete()
+        return ok({"deleted": True})
+    if request.method != "POST":
+        return fail("POST or DELETE only.", status=405)
+    body = json_body(request)
+    if "name" in body:
+        p.name = str(body.get("name", "")).strip()[:120] or p.name
+    if "mrp" in body:
+        try:
+            mrp = round(float(body.get("mrp")), 2)
+            if mrp > 0:
+                p.mrp = mrp
+        except (TypeError, ValueError):
+            pass
+    if "description" in body:
+        p.description = str(body.get("description", "")).strip()[:2000]
+    if "emoji" in body:
+        p.emoji = str(body.get("emoji", "")).strip()[:8] or p.emoji
+    if "is_active" in body:
+        p.is_active = bool(body.get("is_active"))
+    if "order" in body:
+        try:
+            p.order = int(body.get("order"))
+        except (TypeError, ValueError):
+            pass
+    p.save()
+    return ok({"product": _serialize_hostel_product(p)})
+
+
+@csrf_exempt
+@admin_required
+def admin_hostel_product_photo(request, user, product_id):
+    """⭐ v60: POST multipart 'image' adds a photo; DELETE ?photo_id=N."""
+    from myapp.models import HostelProduct, HostelProductPhoto
+    p = HostelProduct.objects.filter(id=product_id).first()
+    if p is None:
+        return fail("Product not found.", status=404)
+    if request.method == "DELETE":
+        photo_id = request.GET.get("photo_id", "")
+        ph = HostelProductPhoto.objects.filter(
+            id=photo_id or 0, product=p).first()
+        if ph is None:
+            return fail("Photo not found.", status=404)
+        ph.delete()
+        return ok({"deleted": True})
+    if request.method != "POST":
+        return fail("POST or DELETE only.", status=405)
+    f = request.FILES.get("image") or request.FILES.get("file")
+    if f is None:
+        return fail("No image file sent.")
+    ph = HostelProductPhoto.objects.create(product=p, image=f)
+    return ok({"photo": {"id": ph.id, "url": media_url(ph.image)},
+               "product": _serialize_hostel_product(p)})
 
 
 @csrf_exempt

@@ -200,8 +200,16 @@ CUNNECT_PUBLIC_URL = os.environ.get(
 ).rstrip("/")
 
 if BREVO_API_KEY:
-    EMAIL_BACKEND = "anymail.backends.brevo.EmailBackend"
+    # v60: only switch to the Brevo API backend when django-anymail is
+    # actually installed — otherwise stay on plain SMTP so emails still
+    # send instead of crashing with "No module named 'anymail'".
+    try:
+        import anymail  # noqa: F401
 
-    ANYMAIL = {
-        "BREVO_API_KEY": BREVO_API_KEY,
-    }
+        EMAIL_BACKEND = "anymail.backends.brevo.EmailBackend"
+
+        ANYMAIL = {
+            "BREVO_API_KEY": BREVO_API_KEY,
+        }
+    except ImportError:
+        pass

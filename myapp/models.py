@@ -370,6 +370,8 @@ class HostelOrder(models.Model):
     status = models.CharField(
         max_length=16, choices=STATUS_CHOICES, default="pending")
     total = models.DecimalField(max_digits=8, decimal_places=2, default=1799)
+    # ⭐ v60: ordered products — list of {"name": str, "mrp": float, "qty": int}
+    items = models.JSONField(default=list, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -525,6 +527,32 @@ class StoreSection(models.Model):
 
     def __str__(self):
         return self.title
+
+
+class HostelProduct(models.Model):
+    """⭐ v60: individual Hostel Essentials product — fully managed from the
+    admin portal (name, MRP, description, photos, on/off, ordering)."""
+    name = models.CharField(max_length=120)
+    mrp = models.DecimalField(max_digits=8, decimal_places=2, default=0)
+    description = models.TextField(blank=True, default="")
+    emoji = models.CharField(max_length=8, blank=True, default="🛒")
+    is_active = models.BooleanField(default=True)
+    order = models.IntegerField(default=100)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["order", "id"]
+
+    def __str__(self):
+        return self.name
+
+
+class HostelProductPhoto(models.Model):
+    """⭐ v60: photo attached to a hostel product (multiple per product)."""
+    product = models.ForeignKey(
+        HostelProduct, on_delete=models.CASCADE, related_name="photos")
+    image = models.ImageField(upload_to="hostel_products/")
+    created_at = models.DateTimeField(auto_now_add=True)
 
 
 class DisabledAccount(models.Model):
