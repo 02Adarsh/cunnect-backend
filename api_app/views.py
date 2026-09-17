@@ -837,7 +837,9 @@ def _reset_page_html(inner):
 
 @csrf_exempt
 def api_reset_page(request, uidb64, token):
-    """⭐ v58: the reset link target — themed page to set a new password."""
+    """⭐ v63: the reset link target — NO web form anymore. The page
+    bounces straight into the CUnnect APP via the cunnect:// deep link;
+    the new password is set on the in-app screen."""
     from django.contrib.auth.tokens import default_token_generator
     from django.utils.http import urlsafe_base64_decode
     from django.http import HttpResponse
@@ -855,43 +857,51 @@ def api_reset_page(request, uidb64, token):
             "used. Open the app and tap <b style='color:#fff;'>Forgot "
             "password?</b> again to get a fresh one.</p>"))
 
-    error = ""
-    if request.method == "POST":
-        p1 = request.POST.get("password1", "")
-        p2 = request.POST.get("password2", "")
-        if len(p1) < 6:
-            error = "Keep the password at least 6 characters long."
-        elif p1 != p2:
-            error = "The two passwords do not match."
-        else:
-            user.set_password(p1)
-            user.save()
-            return HttpResponse(_reset_page_html(
-                "<h2 style='margin:0 0 10px;font-size:19px;'>"
-                "Password changed ✅</h2>"
-                "<p style='margin:0;color:#bdbdbd;font-size:13px;"
-                "line-height:1.5;'>Your new password is active. Open the "
-                "CUnnect app and log in with it.</p>"))
-
-    err_html = (f"<p style='margin:0 0 12px;color:#ff8791;font-size:12px;'>"
-                f"{error}</p>" if error else "")
-    field = ("width:100%;box-sizing:border-box;background:#0c0c0c;"
-             "border:1px solid #363636;border-radius:10px;color:#fff;"
-             "padding:13px 14px;font-size:14px;margin-bottom:12px;")
+    app_link = f"cunnect://reset/{uidb64}/{token}"
     return HttpResponse(_reset_page_html(
-        f"<h2 style='margin:0 0 4px;font-size:19px;'>Set a new password</h2>"
-        f"<p style='margin:0 0 18px;color:#9a9a9a;font-size:12px;'>"
-        f"for <b style='color:#fff;'>{user.username}</b></p>"
-        f"{err_html}"
-        f"<form method='post'>"
-        f"<input type='password' name='password1' placeholder='New password'"
-        f" required minlength='6' style='{field}'>"
-        f"<input type='password' name='password2'"
-        f" placeholder='Confirm new password' required style='{field}'>"
-        f"<button type='submit' style='width:100%;background:#f10b1d;"
-        f"color:#fff;border:0;border-radius:10px;padding:14px;"
-        f"font-size:14px;font-weight:800;letter-spacing:.5px;"
-        f"cursor:pointer;'>RESET PASSWORD</button></form>"))
+        f"<h2 style='margin:0 0 6px;font-size:19px;text-align:center;'>"
+        f"Continue in the app</h2>"
+        f"<p style='margin:0 0 22px;color:#9a9a9a;font-size:12.5px;"
+        f"line-height:1.55;text-align:center;'>Hi <b style='color:#fff;'>"
+        f"{user.username}</b> — tap the button below and the CUnnect app "
+        f"will open so you can set your new password securely.</p>"
+        f"<a href='{app_link}' style='display:block;text-align:center;"
+        f"background:#f10b1d;color:#fff;text-decoration:none;"
+        f"border-radius:10px;padding:15px;font-size:14px;font-weight:800;"
+        f"letter-spacing:.5px;'>OPEN CUNNECT APP</a>"
+        f"<p style='margin:18px 0 0;color:#7a7a7a;font-size:11px;"
+        f"line-height:1.55;text-align:center;'>Nothing happens? Make sure "
+        f"the CUnnect app is installed on this phone, then tap the button "
+        f"again.</p>"
+        f"<script>setTimeout(function(){{"
+        f"window.location.href='{app_link}';}},350);</script>"))
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def api_reset_link_password(request):
+    """⭐ v63: called from INSIDE the app — the deep-linked reset screen
+    posts uidb64+token+new password here."""
+    from django.contrib.auth.tokens import default_token_generator
+    from django.utils.http import urlsafe_base64_decode
+
+    body = json_body(request)
+    uidb64 = str(body.get("uidb64", "")).strip()
+    token = str(body.get("token", "")).strip()
+    password = str(body.get("password", ""))
+    try:
+        uid_pk = urlsafe_base64_decode(uidb64).decode()
+        user = User.objects.get(pk=uid_pk)
+    except Exception:
+        user = None
+    if user is None or not default_token_generator.check_token(user, token):
+        return fail("This reset link is invalid or was already used. "
+                    "Tap 'Forgot password?' again for a fresh one.")
+    if len(password) < 6:
+        return fail("Keep the password at least 6 characters long.")
+    user.set_password(password)
+    user.save()
+    return ok({"reset": True, "user_id": user.username})
 
 
 @csrf_exempt

@@ -97,6 +97,7 @@ urlpatterns = [
     path("auth/forgot/", views.api_forgot_password),
     path("auth/forgot-link/", views.api_forgot_link),
     path("auth/reset/<str:uidb64>/<str:token>/", views.api_reset_page),
+    path("auth/reset-link-password/", views.api_reset_link_password),
     path("auth/reset-password/", views.api_reset_password),
     path("auth/complete-profile/", views.api_complete_profile),
     path("ums/stage1/", views.ums_stage1),
