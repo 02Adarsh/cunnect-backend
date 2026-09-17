@@ -20,18 +20,25 @@ if not SECRET_KEY:
 
 DEBUG = os.environ.get("DJANGO_DEBUG", "False").lower() == "true"
 
+# ⭐ v62.1: custom domain cunnect.online works out of the box —
+# Render URL + apex domain + www are all allowed by default.
 ALLOWED_HOSTS = [
     host.strip()
     for host in os.environ.get(
         "DJANGO_ALLOWED_HOSTS",
-        "127.0.0.1,localhost",
+        "127.0.0.1,localhost,cunnect-backend.onrender.com,"
+        "cunnect.online,www.cunnect.online",
     ).split(",")
     if host.strip()
 ]
 
 CSRF_TRUSTED_ORIGINS = [
     origin.strip()
-    for origin in os.environ.get("DJANGO_CSRF_TRUSTED_ORIGINS", "").split(",")
+    for origin in os.environ.get(
+        "DJANGO_CSRF_TRUSTED_ORIGINS",
+        "https://cunnect-backend.onrender.com,"
+        "https://cunnect.online,https://www.cunnect.online",
+    ).split(",")
     if origin.strip()
 ]
 
