@@ -203,14 +203,16 @@ def serialize_order(order, include_items=True, include_otp=False,
         "customer_upi": order.customer_upi,
         "txn_last4": order.txn_last4,
         "txn_id": order.txn_id,
+        # ⭐ v62: the correct reverse accessor is `userprofile` (joined via
+        # select_related, zero extra queries) — `profile` never existed.
         "customer_branch": getattr(
-            getattr(order.customer, "profile", None), "branch", "") or "",
+            getattr(order.customer, "userprofile", None), "branch", "") or "",
         "customer_year": getattr(
-            getattr(order.customer, "profile", None), "year", "") or "",
+            getattr(order.customer, "userprofile", None), "year", "") or "",
         "customer_hostel": getattr(
-            getattr(order.customer, "profile", None), "hostel", "") or "",
+            getattr(order.customer, "userprofile", None), "hostel", "") or "",
         "customer_room": getattr(
-            getattr(order.customer, "profile", None), "room", "") or "",
+            getattr(order.customer, "userprofile", None), "room", "") or "",
 
         "delivery_address": order.delivery_address,
         "landmark": order.landmark,
@@ -1668,7 +1670,7 @@ def food_place_order(request, user):
 def food_my_orders(request, user):
     orders = (
         Order.objects.filter(customer=user)
-        .select_related("vendor")
+        .select_related("vendor", "customer", "customer__userprofile")
         .prefetch_related("items")
         .order_by("-created_at")[:40]
     )
@@ -1683,7 +1685,7 @@ def food_my_orders(request, user):
 def food_orders_status(request, user):
     orders = (
         Order.objects.filter(customer=user)
-        .select_related("vendor")
+        .select_related("vendor", "customer", "customer__userprofile")
         .order_by("-created_at")[:40]
     )
     return ok({
@@ -2325,8 +2327,11 @@ def _reveal_phone(status):
 
 
 def _vendor_orders(vendor_profile):
+    # ⭐ v62: customer + profile joined in ONE query — serialize_order reads
+    # order.customer.profile, so without this every order row cost 2 extra
+    # DB round-trips (the classic N+1 that made the dashboard feel slow).
     return Order.objects.filter(vendor_id=vendor_profile.id).select_related(
-        "vendor"
+        "vendor", "customer", "customer__userprofile"
     ).prefetch_related("items")
 
 
@@ -2704,6 +2709,7 @@ def vendor_earnings(request, user):
         })
     completed = (
         Order.objects.filter(vendor_id=profile.id, status="completed")
+        .select_related("vendor", "customer", "customer__userprofile")
         .order_by("-created_at")[:400]
     )
     now = timezone.now()
@@ -2764,19 +2770,19 @@ def delivery_dashboard(request, user):
         return fail("Delivery account not found.", status=401)
     ready = (
         Order.objects.filter(status="ready")
-        .select_related("vendor")
+        .select_related("vendor", "customer", "customer__userprofile")
         .prefetch_related("items")
         .order_by("created_at")[:15]
     )
     active = (
         Order.objects.filter(status="out_for_delivery", otp_verified=False)
-        .select_related("vendor")
+        .select_related("vendor", "customer", "customer__userprofile")
         .prefetch_related("items")
         .order_by("-created_at")[:15]
     )
     history = (
         Order.objects.filter(status="completed")
-        .select_related("vendor")
+        .select_related("vendor", "customer", "customer__userprofile")
         .order_by("-created_at")[:25]
     )
     return ok({
@@ -3511,14 +3517,18 @@ def _ums_ensure_keepalive():
 
 
 def _ums_keepalive_loop():
-    # ⭐ v53: 5-min cycle — present/absent push reaches the student fast
-    # even when the app is closed (server scrapes, FCM delivers).
+    # ⭐ v62: 10-min cycle and ONLY for sessions the student actually used
+    # in the last 30 minutes. Idle sessions are never scraped — at scale
+    # (thousands of users) the portal is hit only for people actively in
+    # the app, so the server load stays flat.
     while True:
-        time.sleep(300)
+        time.sleep(600)
         try:
+            now = time.time()
             with _UMS_LOCK:
                 uids = [u for u, st in _UMS_STATE.items()
-                        if st.get("scraper") and st.get("cookies")]
+                        if st.get("scraper") and st.get("cookies")
+                        and now - float(st.get("last_seen") or 0) < 1800]
             for uid in uids:
                 try:
                     with _UMS_LOCK:
@@ -4431,6 +4441,9 @@ def ums_dashboard(request, user):
     if state is None:
         return fail(
             "UMS session not found — please log in to UMS in the app.", status=404)
+    # ⭐ v62: mark this session ACTIVE — the keepalive only scrapes
+    # sessions used recently, never the whole user base.
+    state["last_seen"] = time.time()
     if not state.get("scraper"):
         if state.get("dashboard"):
             return ok(state["dashboard"])
@@ -4439,16 +4452,42 @@ def ums_dashboard(request, user):
     now = time.time()
     stale = now - float(state.get("dashboard_at") or 0) > 240
     busy = now - float(state.get("scraping_at") or 0) < 25
-    # ⭐ Celery: serve the stale cache instantly, fresh scrape in the background
-    if not refresh and stale and state.get("dashboard") and not busy:
+    # ⭐ v62: ZERO-WAIT OPEN — whenever a cached dashboard exists, return
+    # it IMMEDIATELY and run the fresh scrape in the background (Celery if
+    # available, else a daemon thread). The app listens via /api/ums/ping/
+    # and picks up the fresh numbers seconds later. Only `live=1`
+    # (explicit SYNC / pull-to-refresh) waits for the portal.
+    live = request.GET.get("live", "") in ("1", "true", "yes")
+    if not live and state.get("dashboard") and not busy and (
+            refresh or stale):
+        started = False
         try:
             from api_app.tasks import redis_ok, ums_scrape_task
             if redis_ok():
                 ums_scrape_task.delay(uid)
-                return ok(state["dashboard"])
+                started = True
         except Exception:
             pass
-    if (refresh or stale or not state.get("dashboard")) and not (
+        if not started:
+            def _bg_scrape():
+                try:
+                    dash = _scrape_ums_dashboard(
+                        state["scraper"], state.get("cookies") or {},
+                        state=state)
+                    if state.get("last_scrape_ok") and isinstance(dash, dict):
+                        with _UMS_LOCK:
+                            state["dashboard"] = dash
+                            state["dashboard_at"] = time.time()
+                        _ums_attendance_notify(uid, dash)
+                except Exception as exc:
+                    print(f"[UMS-BG] {uid}: {exc}")
+            state["scraping_at"] = now
+            threading.Thread(target=_bg_scrape, daemon=True).start()
+        return ok(state["dashboard"])
+    if not live and state.get("dashboard") and (busy or not stale):
+        # Fresh-enough cache (or a scrape already running) — instant reply.
+        return ok(state["dashboard"])
+    if (refresh or live or stale or not state.get("dashboard")) and not (
             busy and state.get("dashboard")):
         state["scraping_at"] = now
         dashboard = _scrape_ums_dashboard(
@@ -4803,6 +4842,8 @@ def ums_ping(request):
     state = _ums_auto_session(uid)
     if not state or not state.get("dashboard"):
         return JsonResponse({"ok": False, "alive": False}, status=401)
+    # ⭐ v62: ping = the student is actively on the UMS screen
+    state["last_seen"] = time.time()
     dash = state["dashboard"]
     return JsonResponse({
         "ok": True,
@@ -5136,7 +5177,10 @@ def admin_orders(request, user):
                 "created_at_iso": iso(o.created_at),
             })
         return ok({"orders": rows})
-    qs = Order.objects.select_related("vendor").order_by("-created_at")
+    # ⭐ v62: join customer + profile too — serialize_order reads them,
+    # so this cuts ~200 extra queries per page load.
+    qs = Order.objects.select_related(
+        "vendor", "customer", "customer__userprofile").order_by("-created_at")
     if kind != "food":
         # custom section: only orders of vendors that belong to it
         qs = qs.filter(vendor__vendor_type=kind)

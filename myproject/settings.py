@@ -57,6 +57,9 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "api_app.middleware.SimpleCorsMiddleware",
+    # ⭐ v62: gzip every API response — payloads shrink 5-10x, so lists
+    # (orders, students, feed) arrive in a fraction of the time on 4G.
+    "django.middleware.gzip.GZipMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
