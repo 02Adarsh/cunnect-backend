@@ -56,6 +56,8 @@ INSTALLED_APPS = [
     "food",
     "network",
     "scraper_app",
+    # ⭐ v66: CUnnect Ride (student ride booking + rider partner portal)
+    "ride",
     "django.contrib.sites",
     "rest_framework",
     "rest_framework.authtoken",
@@ -201,8 +203,10 @@ SECURE_CONTENT_TYPE_NOSNIFF = True      # no MIME-sniffing of uploads
 X_FRAME_OPTIONS = "DENY"                # no clickjacking iframes
 SECURE_REFERRER_POLICY = "same-origin"
 
-# Password reset links die after 30 minutes (default was 3 days).
-PASSWORD_RESET_TIMEOUT = 60 * 30
+# Password reset links stay valid for 24 hours (default was 3 days).
+# 24h + single-use = safe, and nobody lands on a dead page because the
+# mail reached them late. The link is burned the moment it is used.
+PASSWORD_RESET_TIMEOUT = 60 * 60 * 24
 
 # Upload bombs: reject request bodies above these caps at the door.
 DATA_UPLOAD_MAX_MEMORY_SIZE = 70 * 1024 * 1024   # biggest legit: feed video

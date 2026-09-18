@@ -761,8 +761,8 @@ def api_forgot_link(request):
     name = user.first_name or user.username
 
     plain = (f"Hi {name},\n\nTap the link below to set a new CUnnect "
-             f"password:\n{link}\n\nThe link is valid for a limited time "
-             "and can be used once.\n\nIf you didn't ask for this, you can "
+             f"password:\n{link}\n\nThis link is valid for 24 hours and "
+             "can be used once.\n\nIf you didn't ask for this, you can "
              "safely ignore this email.")
     html = f"""
     <!doctype html>
@@ -862,11 +862,39 @@ def _reset_page_html(inner):
 </body></html>"""
 
 
+def _reset_bounce_script(app_link):
+    """⭐ v66: open the CUnnect app from ANY mail browser.
+
+    1) plain custom scheme (works in Chrome/Safari/Firefox),
+    2) intent:// — Gmail/Chrome Custom Tabs block plain scheme jumps
+       from a page, this form resolves to the package reliably,
+    3) the visible button stays as the always-works user gesture.
+    """
+    rest = app_link.split("://", 1)[-1]
+    intent = (f"intent://{rest}#Intent;scheme=cunnect;"
+              f"package=com.cunnect.cunnect_food;end")
+    return (
+        f"<script>"
+        f"var _d=document,_went=false;"
+        f"window.addEventListener('pagehide',function(){{_went=true}});"
+        f"document.addEventListener('visibilitychange',function(){{"
+        f"if(document.hidden)_went=true}});"
+        f"setTimeout(function(){{"
+        f"if(_went)return;window.location.replace('{app_link}');}},300);"
+        f"setTimeout(function(){{"
+        f"if(_went)return;window.location.replace('{intent}');}},1400);"
+        f"</script>")
+
+
 @csrf_exempt
 def api_reset_page(request, uidb64, token):
-    """⭐ v63: the reset link target — NO web form anymore. The page
+    """⭐ v63/v66: the reset link target — NO web form anymore. The page
     bounces straight into the CUnnect APP via the cunnect:// deep link;
-    the new password is set on the in-app screen."""
+    the new password is set on the in-app screen.
+
+    ⭐ v66: an EXPIRED link also bounces into the app (as
+    cunnect://reset/expired/1) — the user is never left sitting on a
+    website page, they get the in-app "request a new link" screen."""
     from django.contrib.auth.tokens import default_token_generator
     from django.utils.http import urlsafe_base64_decode
     from django.http import HttpResponse
@@ -877,12 +905,24 @@ def api_reset_page(request, uidb64, token):
     except Exception:
         user = None
     if user is None or not default_token_generator.check_token(user, token):
+        # ⭐ v66: expired/used link -> open the APP and ask for a new one.
+        app_link = "cunnect://reset/expired/1"
         return HttpResponse(_reset_page_html(
-            "<h2 style='margin:0 0 10px;font-size:19px;'>Link expired</h2>"
-            "<p style='margin:0;color:#bdbdbd;font-size:13px;"
-            "line-height:1.5;'>This reset link is invalid or was already "
-            "used. Open the app and tap <b style='color:#fff;'>Forgot "
-            "password?</b> again to get a fresh one.</p>"))
+            "<h2 style='margin:0 0 10px;font-size:19px;text-align:center;'>"
+            "Link expired</h2>"
+            "<p style='margin:0 0 22px;color:#9a9a9a;font-size:12.5px;"
+            "line-height:1.55;text-align:center;'>This reset link is invalid "
+            "or was already used. Tap the button and the CUnnect app will "
+            "open — you can send yourself a fresh link in one tap.</p>"
+            f"<a href='{app_link}' style='display:block;text-align:center;"
+            f"background:#f10b1d;color:#fff;text-decoration:none;"
+            f"border-radius:10px;padding:15px;font-size:14px;font-weight:800;"
+            f"letter-spacing:.5px;'>OPEN CUNNECT APP</a>"
+            f"<p style='margin:18px 0 0;color:#7a7a7a;font-size:11px;"
+            f"line-height:1.55;text-align:center;'>Nothing happens? Make sure "
+            f"the CUnnect app is installed on this phone, then tap the button "
+            f"again.</p>"
+            + _reset_bounce_script(app_link)))
 
     app_link = f"cunnect://reset/{uidb64}/{token}"
     return HttpResponse(_reset_page_html(
@@ -900,8 +940,7 @@ def api_reset_page(request, uidb64, token):
         f"line-height:1.55;text-align:center;'>Nothing happens? Make sure "
         f"the CUnnect app is installed on this phone, then tap the button "
         f"again.</p>"
-        f"<script>setTimeout(function(){{"
-        f"window.location.href='{app_link}';}},350);</script>"))
+        + _reset_bounce_script(app_link)))
 
 
 @csrf_exempt
@@ -5196,13 +5235,13 @@ def admin_vendors(request, user):
         phone = str(body.get("phone", "")).strip()
         password = str(body.get("password", ""))
         vtype = str(body.get("vendor_type", "food")).strip().lower()[:30]
-        # Built-in types OR the key of a custom store section.
-        if vtype not in ("food", "printout", "hostel"):
+        # Built-in types (⭐ v66 adds "ride") OR a custom store section key.
+        if vtype not in ("food", "printout", "hostel", "ride"):
             from myapp.models import StoreSection
             if not StoreSection.objects.filter(key=vtype).exists():
                 return fail(
-                    "vendor_type must be food, printout, hostel or the "
-                    "key of a store section you created.")
+                    "vendor_type must be food, printout, hostel, ride or "
+                    "the key of a store section you created.")
         if not name or not phone or not password:
             return fail("business_name, phone and password are required.")
         if VendorProfile.objects.filter(phone=phone).exists():
@@ -6527,3 +6566,707 @@ def admin_vendor_qr(request, user, vendor_id):
     v.upi_qr_image = f
     v.save()
     return ok({"qr_url": v.upi_qr_image.url})
+
+
+# ---------------------------------------------------------------------
+# ⭐ v66: CUnnect RIDE — student booking + rider partner portal.
+#
+# Flow: estimate -> book -> rider alert -> accept (fare locks to that
+# rider's own rate) -> student pays (full | 50-50 with +5%) -> rider
+# arrives ("I'm on location") -> OTP to student -> ride starts ->
+# rider completes -> student notified.
+# ---------------------------------------------------------------------
+
+def _ride_haversine_km(lat1, lng1, lat2, lng2):
+    """Straight-line km, scaled to approximate the real road distance."""
+    import math
+
+    try:
+        lat1, lng1, lat2, lng2 = (float(lat1), float(lng1),
+                                  float(lat2), float(lng2))
+    except (TypeError, ValueError):
+        return 0.0
+    radius = 6371.0
+    d_lat = math.radians(lat2 - lat1)
+    d_lng = math.radians(lng2 - lng1)
+    a = (math.sin(d_lat / 2) ** 2
+         + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2))
+         * math.sin(d_lng / 2) ** 2)
+    km = radius * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+    return round(km * 1.25, 2)          # ⭐ road factor
+
+
+def _ride_fare(base, per_km, distance_km):
+    """base + per_km x distance (never below the base fare)."""
+    try:
+        base = float(base)
+        per_km = float(per_km)
+        distance_km = float(distance_km or 0)
+    except (TypeError, ValueError):
+        return 0.0
+    fare = base + per_km * distance_km
+    if fare < base:
+        fare = base
+    return round(fare, 2)
+
+
+def _ride_rate_pool(vehicle_type):
+    """Ride partners offering this vehicle — online ones first."""
+    from ride.models import RideVendor
+
+    field = f"{vehicle_type}_active"
+    if vehicle_type not in ("auto", "mini", "sedan", "xl"):
+        return []
+    qs = RideVendor.objects.filter(**{field: True}).select_related("vendor")
+    pool = list(qs)
+    online = [v for v in pool if v.is_online]
+    return online or pool
+
+
+def _ride_estimate_for(vehicle_type, distance_km):
+    """Cheapest live rate for a vehicle type (platform default fallback)."""
+    from ride.models import (VEHICLE_DEFAULT_BASE, VEHICLE_DEFAULT_PER_KM,
+                             VEHICLE_ICON, VEHICLE_LABEL, VEHICLE_SEATS)
+
+    pool = _ride_rate_pool(vehicle_type)
+    best = None
+    for rv in pool:
+        _active, base, per_km = rv.rate_for(vehicle_type)
+        fare = _ride_fare(base, per_km, distance_km)
+        if best is None or fare < best:
+            best = fare
+    if best is None:
+        best = _ride_fare(VEHICLE_DEFAULT_BASE.get(vehicle_type, 30),
+                          VEHICLE_DEFAULT_PER_KM.get(vehicle_type, 14),
+                          distance_km)
+    return {
+        "key": vehicle_type,
+        "label": VEHICLE_LABEL.get(vehicle_type, vehicle_type.title()),
+        "icon": VEHICLE_ICON.get(vehicle_type, "🚗"),
+        "seats": VEHICLE_SEATS.get(vehicle_type, 4),
+        "fare": round(best, 2),
+        "available": True,
+    }
+
+
+def _ride_split_amounts(fare):
+    """full  -> pay the fare, nothing later.
+    split  -> +5% add-on, half now, rest after the ride ends."""
+    fare = round(float(fare or 0), 2)
+    total_split = round(fare * 1.05, 2)
+    first = round(total_split / 2, 2)
+    return {
+        "fare": fare,
+        "full_total": fare,
+        "split_total": total_split,
+        "split_fee": round(total_split - fare, 2),
+        "split_now": first,
+        "split_later": round(total_split - first, 2),
+    }
+
+
+def _ride_public(ride, viewer="student"):
+    """Serialize a ride.
+
+    ⭐ privacy: the student's phone stays hidden from the rider until
+    the ride is accepted (same rule as the print vendor portal).
+    """
+    from ride.models import VEHICLE_ICON, VEHICLE_LABEL
+
+    rider_phone = ""
+    rider_name = ""
+    vendor_id = None
+    if ride.rider_id:
+        rider_name = ride.rider.vendor.business_name
+        vendor_id = ride.rider.vendor_id
+        rider_phone = ride.rider.vendor.phone or ""
+
+    phone_visible = viewer != "rider" or ride.status != "requested"
+    return {
+        "ride_code": ride.ride_code,
+        "status": ride.status,
+        "vehicle_type": ride.vehicle_type,
+        "vehicle_label": VEHICLE_LABEL.get(ride.vehicle_type,
+                                           ride.vehicle_type.title()),
+        "vehicle_icon": VEHICLE_ICON.get(ride.vehicle_type, "🚗"),
+        "pickup_text": ride.pickup_text,
+        "pickup_lat": ride.pickup_lat,
+        "pickup_lng": ride.pickup_lng,
+        "drop_text": ride.drop_text,
+        "drop_lat": ride.drop_lat,
+        "drop_lng": ride.drop_lng,
+        "distance_km": ride.distance_km,
+        "scheduled_at": (ride.scheduled_at.isoformat()
+                         if ride.scheduled_at else ""),
+        "notes": ride.notes,
+        "fare": float(ride.fare or 0),
+        "split_fee": float(ride.split_fee or 0),
+        "total": float(ride.total or 0),
+        "base_fare": float(ride.base_fare or 0),
+        "per_km": float(ride.per_km or 0),
+        "payment_mode": ride.payment_mode,
+        "amount_paid": float(ride.amount_paid or 0),
+        "balance_due": float(ride.balance_due or 0),
+        "payment_done": ride.payment_done,
+        "amount_now": float(ride.amount_now() or 0),
+        "txn_first": ride.txn_first,
+        "txn_second": ride.txn_second,
+        "rider_name": rider_name,
+        "rider_phone": rider_phone,
+        "rider_vehicle": (ride.rider.vehicle_number if ride.rider_id else ""),
+        "rider_model": (ride.rider.vehicle_model if ride.rider_id else ""),
+        "vendor_id": vendor_id,
+        "student_name": ride.student_name,
+        # ⭐ hidden from the rider until they accept
+        "student_phone": ride.student_phone if phone_visible else "",
+        "phone_hidden": not phone_visible,
+        "otp_required": ride.status == "arrived",
+        # ⭐ the OTP is shown to the RIDER only (and only once arrived)
+        "otp": ride.otp if (viewer == "rider" and ride.status == "arrived")
+        else "",
+        "created_at": ride.created_at.isoformat() if ride.created_at else "",
+    }
+
+
+def _ride_notify_riders(ride):
+    """Alert every online ride partner offering this vehicle type."""
+    from ride.models import RideVendor
+
+    field = f"{ride.vehicle_type}_active"
+    if ride.vehicle_type not in ("auto", "mini", "sedan", "xl"):
+        return 0
+    riders = RideVendor.objects.filter(
+        **{field: True}, is_online=True).select_related("vendor")
+    title = "New ride request 🛺"
+    message = (f"{ride.pickup_text[:38]} → {ride.drop_text[:38]} · "
+               f"{ride.distance_km} km · {ride.vehicle_label}")
+    count = 0
+    for rv in riders:
+        _notify_vendor(rv.vendor, title, message)
+        count += 1
+    return count
+
+
+def _ride_rider_or_none(request):
+    """(user, VendorProfile, RideVendor) for a ride partner, else None."""
+    from ride.models import RideVendor
+
+    user, profile = vendor_user(request)
+    if user is None or profile is None:
+        return None, None, None
+    rv = RideVendor.objects.filter(vendor_id=profile.id).first()
+    return user, profile, rv
+
+
+@csrf_exempt
+@student_required
+@throttle("rideest", 120, 600)
+def ride_estimate(request, user):
+    """Distance + fare per vehicle type, before booking."""
+    from ride.models import VEHICLE_KEYS
+
+    if request.method != "POST":
+        return fail("POST required.", status=405)
+    b = json_body(request)
+    distance = _ride_haversine_km(b.get("pickup_lat"), b.get("pickup_lng"),
+                                  b.get("drop_lat"), b.get("drop_lng"))
+    if distance <= 0:
+        return fail("Pick a pickup and a drop point on the map first.")
+    if distance > 120:
+        return fail("That is too far for a campus ride (max 120 km).")
+    options = [_ride_estimate_for(v, distance) for v in VEHICLE_KEYS]
+    return ok({
+        "distance_km": distance,
+        "options": options,
+        "split_fee_percent": 5.0,
+    })
+
+
+@csrf_exempt
+@student_required
+@throttle("ridebook", 12, 600)
+def ride_book(request, user):
+    """Create a ride request and alert the ride partners."""
+    from ride.models import Ride, VEHICLE_KEYS
+
+    if request.method != "POST":
+        return fail("POST required.", status=405)
+    b = json_body(request)
+    vtype = str(b.get("vehicle_type", "")).strip().lower()
+    if vtype not in VEHICLE_KEYS:
+        return fail("Choose a vehicle type.")
+    pickup_text = str(b.get("pickup_text", "")).strip()[:200]
+    drop_text = str(b.get("drop_text", "")).strip()[:200]
+    if not pickup_text or not drop_text:
+        return fail("Enter both the pickup and the drop location.")
+
+    distance = _ride_haversine_km(b.get("pickup_lat"), b.get("pickup_lng"),
+                                  b.get("drop_lat"), b.get("drop_lng"))
+    if distance <= 0:
+        return fail("Pick both points on the map so we can price the ride.")
+    if distance > 120:
+        return fail("That is too far for a campus ride (max 120 km).")
+
+    # ⭐ trust guard: clear any unpaid balance from an earlier ride first.
+    pending = Ride.objects.filter(
+        student_id=user.id, payment_done=False, amount_paid__gt=0,
+        status__in=["accepted", "paid", "arrived", "ongoing", "completed"]
+    ).exists()
+    if pending:
+        return fail("You have an unpaid ride balance. Please clear it "
+                    "before booking a new ride.")
+
+    active = Ride.objects.filter(
+        student_id=user.id,
+        status__in=["requested", "accepted", "paid", "arrived", "ongoing"]
+    ).exists()
+    if active:
+        return fail("You already have an active ride. Complete or cancel "
+                    "it before booking another.")
+
+    estimate = _ride_estimate_for(vtype, distance)
+    scheduled = None
+    when = str(b.get("scheduled_at", "")).strip()
+    if when:
+        try:
+            from django.utils.dateparse import parse_datetime
+
+            scheduled = parse_datetime(when)
+        except Exception:
+            scheduled = None
+
+    ride = Ride.objects.create(
+        student_id=user.id,
+        vehicle_type=vtype,
+        pickup_text=pickup_text,
+        pickup_lat=b.get("pickup_lat"),
+        pickup_lng=b.get("pickup_lng"),
+        drop_text=drop_text,
+        drop_lat=b.get("drop_lat"),
+        drop_lng=b.get("drop_lng"),
+        distance_km=distance,
+        scheduled_at=scheduled,
+        notes=str(b.get("notes", "")).strip()[:300],
+        fare=estimate["fare"],
+        total=estimate["fare"],
+        student_name=(user.first_name or user.username)[:120],
+        student_phone=str(b.get("phone", "")).strip()[:20],
+        status="requested",
+    )
+    riders = _ride_notify_riders(ride)
+    return ok({"ride": _ride_public(ride), "riders_notified": riders})
+
+
+@csrf_exempt
+@student_required
+def ride_list(request, user):
+    """My rides — active first, then history."""
+    from ride.models import Ride
+
+    rides = Ride.objects.filter(student_id=user.id).select_related(
+        "rider", "rider__vendor")[:40]
+    data = [_ride_public(r) for r in rides]
+    active = [r for r in data
+              if r["status"] in ("requested", "accepted", "paid",
+                                 "arrived", "ongoing")]
+    past = [r for r in data if r not in active]
+    return ok({"active": active, "past": past})
+
+
+@csrf_exempt
+@student_required
+def ride_detail(request, user, ride_code):
+    """One ride (student must own it)."""
+    from ride.models import Ride
+
+    ride = Ride.objects.filter(
+        ride_code=str(ride_code).strip(),
+        student_id=user.id).select_related("rider", "rider__vendor").first()
+    if ride is None:
+        return fail("Ride not found.", status=404)
+    return ok({"ride": _ride_public(ride)})
+
+
+@csrf_exempt
+@student_required
+@throttle("rideact", 60, 600)
+def ride_cancel(request, user, ride_code):
+    from ride.models import Ride
+
+    ride = Ride.objects.filter(
+        ride_code=str(ride_code).strip(), student_id=user.id).first()
+    if ride is None:
+        return fail("Ride not found.", status=404)
+    if ride.status in ("completed", "cancelled"):
+        return fail("This ride is already closed.")
+    if ride.status == "ongoing":
+        return fail("The ride is already running — it cannot be cancelled.")
+    ride.status = "cancelled"
+    ride.cancel_reason = "Cancelled by student"
+    ride.save(update_fields=["status", "cancel_reason"])
+    if ride.rider_id:
+        _notify_vendor(ride.rider.vendor, "Ride cancelled ❌",
+                       f"{ride.ride_code} was cancelled by the student.")
+    return ok({"ride": _ride_public(ride)})
+
+
+@csrf_exempt
+@student_required
+@throttle("ridepay", 40, 600)
+def ride_pay(request, user, ride_code):
+    """Student pays: 'full' (no extra) or 'split' (+5%, half now).
+
+    ⭐ Prices are ALWAYS recomputed server side from the locked fare —
+    the app can never tell us a smaller amount.
+    """
+    from ride.models import Ride
+
+    if request.method != "POST":
+        return fail("POST required.", status=405)
+    ride = Ride.objects.filter(
+        ride_code=str(ride_code).strip(), student_id=user.id).first()
+    if ride is None:
+        return fail("Ride not found.", status=404)
+    if ride.rider_id is None:
+        return fail("No rider has accepted this ride yet.")
+    if ride.payment_done:
+        return fail("This ride is already paid.")
+    b = json_body(request)
+    mode = str(b.get("mode", "")).strip().lower()
+    if mode not in ("full", "split"):
+        return fail("Choose full payment or the 50-50 split.")
+    txn = str(b.get("txn_id", "")).strip()[:120]
+
+    amounts = _ride_split_amounts(ride.fare)
+    if mode == "full":
+        pay_now = amounts["full_total"]
+        ride.split_fee = 0
+        ride.total = pay_now
+        ride.balance_due = 0
+        ride.payment_done = True
+    else:
+        pay_now = amounts["split_now"]
+        ride.split_fee = amounts["split_fee"]
+        ride.total = amounts["split_total"]
+        ride.balance_due = amounts["split_later"]
+        ride.payment_done = False
+    ride.payment_mode = mode
+    ride.amount_paid = pay_now
+    ride.txn_first = txn
+    ride.status = "paid"
+    if not ride.accepted_at:
+        ride.accepted_at = timezone.now()
+    ride.save()
+    _notify_vendor(ride.rider.vendor, "Payment received 💸",
+                   f"{ride.ride_code} · ₹{pay_now} paid "
+                   f"({'full' if mode == 'full' else 'first half'}).")
+    return ok({"ride": _ride_public(ride), "paid": pay_now})
+
+
+@csrf_exempt
+@student_required
+@throttle("ridepay", 40, 600)
+def ride_pay_balance(request, user, ride_code):
+    """Second half of a 50-50 ride (after the ride is completed)."""
+    from ride.models import Ride
+
+    if request.method != "POST":
+        return fail("POST required.", status=405)
+    ride = Ride.objects.filter(
+        ride_code=str(ride_code).strip(), student_id=user.id).first()
+    if ride is None:
+        return fail("Ride not found.", status=404)
+    if ride.payment_done:
+        return fail("Nothing left to pay on this ride.")
+    if ride.payment_mode != "split":
+        return fail("This ride was not booked on the 50-50 plan.")
+    if ride.balance_due <= 0:
+        return fail("Nothing left to pay on this ride.")
+    txn = str(json_body(request).get("txn_id", "")).strip()[:120]
+    ride.amount_paid = float(ride.amount_paid or 0) + float(ride.balance_due)
+    ride.balance_due = 0
+    ride.txn_second = txn
+    ride.payment_done = True
+    ride.save()
+    if ride.rider_id:
+        _notify_vendor(ride.rider.vendor, "Balance cleared ✅",
+                       f"{ride.ride_code} · full payment received.")
+    return ok({"ride": _ride_public(ride), "paid": float(ride.amount_paid)})
+
+
+@csrf_exempt
+@student_required
+@throttle("rideotp", 30, 600)
+def ride_verify_otp(request, user, ride_code):
+    """Student shares the OTP the rider's app triggered — ride starts."""
+    from ride.models import Ride
+
+    if request.method != "POST":
+        return fail("POST required.", status=405)
+    ride = Ride.objects.filter(
+        ride_code=str(ride_code).strip(), student_id=user.id).first()
+    if ride is None:
+        return fail("Ride not found.", status=404)
+    if ride.status == "ongoing":
+        return ok({"ride": _ride_public(ride), "already": True})
+    if ride.status != "arrived":
+        return fail("Your rider has not reached the pickup point yet.")
+    entered = str(json_body(request).get("otp", "")).strip()
+    if not entered or entered != (ride.otp or ""):
+        return fail("That OTP is not correct. Check with your rider.")
+    ride.status = "ongoing"
+    ride.started_at = timezone.now()
+    ride.otp = ""
+    ride.save(update_fields=["status", "started_at", "otp"])
+    if ride.rider_id:
+        _notify_vendor(ride.rider.vendor, "Ride started ▶️",
+                       f"{ride.ride_code} · OTP verified by the student.")
+    return ok({"ride": _ride_public(ride)})
+
+
+# --------------------------- RIDER PORTAL ---------------------------
+
+@csrf_exempt
+@student_required
+def ride_vendor_profile(request, user):
+    """GET/POST the ride partner's vehicles + own pricing."""
+    from ride.models import (RideVendor, VEHICLE_ICON, VEHICLE_KEYS,
+                             VEHICLE_LABEL, VEHICLE_SEATS)
+
+    _u, profile, rv = _ride_rider_or_none(request)
+    if profile is None:
+        return fail("Vendor account not found.", status=401)
+    if request.method != "POST":
+        if rv is None:
+            rv = RideVendor.objects.create(vendor_id=profile.id)
+        vehicles = []
+        for key in VEHICLE_KEYS:
+            active, base, per_km = (rv.rate_for(key) if rv.pk
+                                    else (False, 0, 0))
+            vehicles.append({
+                "key": key,
+                "label": VEHICLE_LABEL[key],
+                "icon": VEHICLE_ICON[key],
+                "seats": VEHICLE_SEATS[key],
+                "active": bool(active),
+                "base": float(base or 0),
+                "per_km": float(per_km or 0),
+            })
+        return ok({
+            "profile": {
+                "business_name": profile.business_name,
+                "vehicle_number": rv.vehicle_number,
+                "vehicle_model": rv.vehicle_model,
+                "is_online": rv.is_online,
+                "upi_id": profile.upi_id or "",
+                "total_rides": rv.total_rides,
+                "total_earnings": float(rv.total_earnings or 0),
+            },
+            "vehicles": vehicles,
+        })
+
+    b = json_body(request)
+    if rv is None:
+        rv = RideVendor.objects.create(vendor_id=profile.id)
+    rv.vehicle_number = str(b.get("vehicle_number", ""))[:24].strip().upper()
+    rv.vehicle_model = str(b.get("vehicle_model", ""))[:80].strip()
+    if "is_online" in b:
+        rv.is_online = bool(b.get("is_online"))
+    for key in VEHICLE_KEYS:
+        spec = b.get(key)
+        if not isinstance(spec, dict):
+            continue
+        try:
+            base = round(float(spec.get("base", 0) or 0), 2)
+            per_km = round(float(spec.get("per_km", 0) or 0), 2)
+        except (TypeError, ValueError):
+            continue
+        if base < 0 or per_km < 0 or base > 5000 or per_km > 500:
+            continue
+        rv.set_rate(key, bool(spec.get("active")), base, per_km)
+    rv.save()
+    return ok({"saved": True, "is_online": rv.is_online})
+
+
+@csrf_exempt
+@student_required
+def ride_vendor_requests(request, user):
+    """Open ride requests this partner can accept (phone stays hidden)."""
+    from ride.models import Ride
+
+    _u, profile, rv = _ride_rider_or_none(request)
+    if profile is None:
+        return fail("Vendor account not found.", status=401)
+    if rv is None:
+        return ok({"requests": [], "setup_required": True})
+    from ride.models import RideRejection
+
+    mine = rv.active_vehicles()
+    skipped = RideRejection.objects.filter(
+        vendor=rv).values_list("ride_id", flat=True)
+    rides = Ride.objects.filter(
+        status="requested", vehicle_type__in=mine
+    ).exclude(id__in=list(skipped)).select_related(
+        "student").order_by("created_at")[:30]
+    return ok({
+        "requests": [_ride_public(r, viewer="rider") for r in rides],
+        "active_vehicles": mine,
+    })
+
+
+@csrf_exempt
+@student_required
+def ride_vendor_rides(request, user):
+    """This partner's accepted / running / finished rides."""
+    from ride.models import Ride
+
+    _u, profile, rv = _ride_rider_or_none(request)
+    if profile is None:
+        return fail("Vendor account not found.", status=401)
+    if rv is None:
+        return ok({"active": [], "past": []})
+    rides = Ride.objects.filter(rider_id=rv.id).select_related(
+        "student").order_by("-created_at")[:50]
+    data = [_ride_public(r, viewer="rider") for r in rides]
+    active = [r for r in data
+              if r["status"] in ("accepted", "paid", "arrived", "ongoing")]
+    past = [r for r in data if r not in active]
+    return ok({"active": active, "past": past})
+
+
+@csrf_exempt
+@student_required
+@throttle("rideact", 60, 600)
+def ride_vendor_accept(request, user, ride_code):
+    """Accept a ride — the fare locks to THIS rider's own rate."""
+    from ride.models import Ride
+
+    _u, profile, rv = _ride_rider_or_none(request)
+    if profile is None:
+        return fail("Vendor account not found.", status=401)
+    if rv is None:
+        return fail("Set up your ride profile first.")
+    ride = Ride.objects.filter(ride_code=str(ride_code).strip()).first()
+    if ride is None:
+        return fail("Ride not found.", status=404)
+    active, base, per_km = rv.rate_for(ride.vehicle_type)
+    if not active:
+        return fail(f"You do not offer {ride.vehicle_label} rides.")
+    # ⭐ first-come-first-served (atomic — two riders cannot both win)
+    updated = Ride.objects.filter(
+        id=ride.id, status="requested").update(
+            rider_id=rv.id, status="accepted",
+            accepted_at=timezone.now(), base_fare=base, per_km=per_km)
+    if not updated:
+        return fail("Another rider already took this ride.")
+    ride.refresh_from_db()
+    ride.fare = _ride_fare(base, per_km, ride.distance_km)
+    ride.total = ride.fare
+    ride.split_fee = 0
+    ride.balance_due = 0
+    ride.save(update_fields=["fare", "total", "split_fee", "balance_due"])
+    if ride.student_id:
+        _notify(user=ride.student,
+                title="Rider accepted your ride 🚗",
+                message=(f"{profile.business_name} is on the way — "
+                         f"complete the payment to confirm."),
+                route="ride")
+    return ok({"ride": _ride_public(ride, viewer="rider")})
+
+
+@csrf_exempt
+@student_required
+@throttle("rideact", 60, 600)
+def ride_vendor_reject(request, user, ride_code):
+    """Decline — the ride simply leaves this partner's list."""
+    from ride.models import Ride
+
+    _u, profile, rv = _ride_rider_or_none(request)
+    if profile is None or rv is None:
+        return fail("Vendor account not found.", status=401)
+    ride = Ride.objects.filter(
+        ride_code=str(ride_code).strip(), status="requested").first()
+    if ride is None:
+        return fail("This ride is no longer available.")
+    from ride.models import RideRejection
+
+    RideRejection.objects.get_or_create(ride=ride, vendor=rv)
+    return ok({"rejected": True, "ride_code": ride.ride_code})
+
+
+@csrf_exempt
+@student_required
+@throttle("rideact", 60, 600)
+def ride_vendor_arrived(request, user, ride_code):
+    """Rider: "I'm on location" -> generate + send the start OTP."""
+    from ride.models import Ride
+
+    _u, profile, rv = _ride_rider_or_none(request)
+    if profile is None or rv is None:
+        return fail("Vendor account not found.", status=401)
+    ride = Ride.objects.filter(ride_code=str(ride_code).strip()).first()
+    if ride is None:
+        return fail("Ride not found.", status=404)
+    if ride.rider_id != rv.id:
+        return fail("You have not accepted this ride.", status=403)
+    if ride.status in ("completed", "cancelled"):
+        return fail("This ride is closed.")
+    if ride.status == "arrived":
+        return ok({"ride": _ride_public(ride, viewer="rider"), "otp": ride.otp})
+    if ride.status == "ongoing":
+        return fail("This ride is already running.")
+    if ride.status == "accepted":
+        return fail("The student has not paid yet — you will be notified "
+                    "as soon as the payment comes in.")
+    if ride.amount_paid <= 0:
+        return fail("Payment is not recorded for this ride yet.")
+    import random
+
+    otp = "".join(random.choice("0123456789") for _ in range(4))
+    ride.otp = otp
+    ride.status = "arrived"
+    ride.arrived_at = timezone.now()
+    ride.save(update_fields=["otp", "status", "arrived_at"])
+    if ride.student_id:
+        _notify(user=ride.student, title="Your rider has arrived 📍",
+                message=(f"Share this OTP to start your ride: {otp}"),
+                route="ride")
+    return ok({"ride": _ride_public(ride, viewer="rider"), "otp": otp})
+
+
+@csrf_exempt
+@student_required
+@throttle("rideact", 60, 600)
+def ride_vendor_complete(request, user, ride_code):
+    """Rider finishes the ride -> student is notified."""
+    from ride.models import Ride
+
+    _u, profile, rv = _ride_rider_or_none(request)
+    if profile is None or rv is None:
+        return fail("Vendor account not found.", status=401)
+    ride = Ride.objects.filter(ride_code=str(ride_code).strip()).first()
+    if ride is None:
+        return fail("Ride not found.", status=404)
+    if ride.rider_id != rv.id:
+        return fail("You have not accepted this ride.", status=403)
+    if ride.status == "completed":
+        return ok({"ride": _ride_public(ride, viewer="rider")})
+    if ride.status != "ongoing":
+        return fail("The ride has not started yet (OTP pending).")
+    ride.status = "completed"
+    ride.completed_at = timezone.now()
+    ride.otp = ""
+    ride.save(update_fields=["status", "completed_at", "otp"])
+    rv.total_rides = (rv.total_rides or 0) + 1
+    rv.total_earnings = float(rv.total_earnings or 0) + float(ride.amount_paid or 0)
+    rv.save(update_fields=["total_rides", "total_earnings"])
+    if ride.student_id:
+        extra = ""
+        if not ride.payment_done and float(ride.balance_due or 0) > 0:
+            extra = f" Please clear the remaining ₹{ride.balance_due}."
+        _notify(user=ride.student,
+                title="Your ride has been completed successfully 🏁",
+                message=(f"{ride.pickup_text[:28]} → "
+                         f"{ride.drop_text[:28]} · ₹{ride.total}.{extra}"),
+                route="ride")
+    return ok({"ride": _ride_public(ride, viewer="rider")})

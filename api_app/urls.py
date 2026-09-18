@@ -171,4 +171,23 @@ urlpatterns = [
          views.admin_feed_delete),
     path("admin/support/", views.admin_support),
     path("admin/broadcast/", views.admin_broadcast),
+
+    # ⭐ v66: CUnnect Ride — student booking
+    path("ride/estimate/", views.ride_estimate),
+    path("ride/book/", views.ride_book),
+    path("ride/list/", views.ride_list),
+    path("ride/<str:ride_code>/", views.ride_detail),
+    path("ride/<str:ride_code>/cancel/", views.ride_cancel),
+    path("ride/<str:ride_code>/pay/", views.ride_pay),
+    path("ride/<str:ride_code>/pay-balance/", views.ride_pay_balance),
+    path("ride/<str:ride_code>/verify-otp/", views.ride_verify_otp),
+
+    # ⭐ v66: CUnnect Ride — ride partner portal
+    path("ride/vendor/profile/", views.ride_vendor_profile),
+    path("ride/vendor/requests/", views.ride_vendor_requests),
+    path("ride/vendor/rides/", views.ride_vendor_rides),
+    path("ride/vendor/accept/<str:ride_code>/", views.ride_vendor_accept),
+    path("ride/vendor/reject/<str:ride_code>/", views.ride_vendor_reject),
+    path("ride/vendor/arrived/<str:ride_code>/", views.ride_vendor_arrived),
+    path("ride/vendor/complete/<str:ride_code>/", views.ride_vendor_complete),
 ]
