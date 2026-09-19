@@ -23,8 +23,8 @@ from django.utils import timezone
 # Vehicle catalogue (Uber-like, but NO bike — the owner asked for
 # Auto / Mini / Sedan / XL only).
 # ---------------------------------------------------------------------
+# ⭐ v73: the Auto rickshaw option has been removed from CUnnect Ride.
 VEHICLE_TYPES = [
-    ("auto", "Auto", "🛺", 3, 25.0, 12.0),
     ("mini", "Mini", "🚗", 4, 30.0, 14.0),
     ("sedan", "Sedan", "🚙", 4, 45.0, 18.0),
     ("xl", "Car XL", "🚐", 6, 60.0, 23.0),
@@ -221,6 +221,11 @@ class Ride(models.Model):
     student_lng = models.FloatField(null=True, blank=True)
     student_at = models.DateTimeField(null=True, blank=True)
     share_location = models.BooleanField(default=False)
+    # ⭐ v73: the number the rider will actually call. It is the student's
+    # own number unless they ticked "booking for someone else".
+    contact_phone = models.CharField(max_length=20, blank=True, default="")
+    booking_for_other = models.BooleanField(default=False)
+    other_name = models.CharField(max_length=80, blank=True, default="")
 
     status = models.CharField(
         max_length=16, choices=STATUS_CHOICES, default="requested", db_index=True
@@ -283,3 +288,91 @@ def _new_ride_code():
         if not Ride.objects.filter(ride_code=code).exists():
             return code
     return "RIDE-" + str(int(timezone.now().timestamp()))[-8:]
+
+
+class RiderBlock(models.Model):
+    """⭐ v73: when a ride partner is NOT available.
+
+    Two kinds, both fully editable from the rider portal:
+      * "daily"  — repeats every week (e.g. every Monday 09:00-11:00)
+      * "date"   — one specific calendar date (e.g. 2026-10-02 14:00-18:00)
+    Rides requested inside a blocked window are automatically answered
+    with "rider unavailable right now, please book for another time".
+    """
+
+    DAILY = "daily"
+    DATE = "date"
+
+    rider = models.ForeignKey(
+        RideVendor, on_delete=models.CASCADE, related_name="blocks")
+    kind = models.CharField(max_length=8, default=DATE)
+
+    # daily blocks
+    weekday = models.IntegerField(
+        default=0, help_text="0 = Monday … 6 = Sunday")
+    start_min = models.IntegerField(default=0, help_text="minutes past midnight")
+    end_min = models.IntegerField(default=1439, help_text="minutes past midnight")
+
+    # one-off blocks
+    date = models.DateField(null=True, blank=True)
+
+    label = models.CharField(max_length=80, blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["kind", "weekday", "date", "start_min"]
+        verbose_name = "Rider unavailability"
+        verbose_name_plural = "Rider unavailability slots"
+
+    def __str__(self):
+        if self.kind == self.DAILY:
+            return (f"{self.rider} · every {self.weekday_name} "
+                    f"{_hhmm(self.start_min)}-{_hhmm(self.end_min)}")
+        return (f"{self.rider} · {self.date} "
+                f"{_hhmm(self.start_min)}-{_hhmm(self.end_min)}")
+
+    @property
+    def weekday_name(self):
+        return ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][
+            self.weekday if 0 <= self.weekday <= 6 else 0]
+
+    def covers(self, when):
+        """True when `when` (aware datetime) falls inside this block."""
+        from django.utils import timezone
+
+        if when is None:
+            return False
+        try:
+            local = timezone.localtime(when)
+        except Exception:
+            local = when
+        minutes = local.hour * 60 + local.minute
+        if self.kind == self.DAILY:
+            return local.weekday() == self.weekday and (
+                self.start_min <= minutes <= self.end_min)
+        if self.date is None:
+            return False
+        if local.date() != self.date:
+            return False
+        return self.start_min <= minutes <= self.end_min
+
+
+def _hhmm(minutes):
+    minutes = int(minutes or 0)
+    return f"{minutes // 60:02d}:{minutes % 60:02d}"
+
+
+def rider_is_blocked(rider, when):
+    """Is this partner unavailable at `when`? (aware or naive datetime)"""
+    if rider is None or when is None:
+        return False
+    from django.utils import timezone
+
+    try:
+        local = timezone.localtime(when)
+    except Exception:
+        local = when
+    for block in RiderBlock.objects.filter(rider_id=rider.id):
+        if block.covers(local):
+            return True
+    return False

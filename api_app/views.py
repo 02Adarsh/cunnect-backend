@@ -6116,7 +6116,9 @@ def admin_broadcast(request, user):
     tokens = list(DeviceToken.objects.values_list("token", flat=True))
     if not tokens:
         return fail("No registered devices found.")
-    _push_tokens(tokens, title, message, route="notifications")
+    # ⭐ v73: broadcasts carry their own route so the app can open the
+    # message as a full-screen card on the home page.
+    _push_tokens(tokens, title, message, route="broadcast")
     return ok({"sent_to": len(tokens)})
 
 
@@ -6749,6 +6751,57 @@ def _ride_estimate_for(vehicle_type, distance_km):
     }
 
 
+def _ride_parse_when(raw):
+    """Parse an ISO datetime from the app ('' when not given)."""
+    raw = str(raw or "").strip()
+    if not raw:
+        return None
+    try:
+        from django.utils.dateparse import parse_datetime
+
+        return parse_datetime(raw)
+    except Exception:
+        return None
+
+
+def _ride_profile_phone(user):
+    """The number stored on the student's own profile."""
+    try:
+        from myapp.models import UserProfile
+
+        prof = UserProfile.objects.filter(user_id=user.id).first()
+        return (prof.phone if prof and prof.phone else "")[:20]
+    except Exception:
+        return ""
+
+
+def _ride_contact_phone(user, body):
+    """Who should the rider call? The student, or the "someone else".
+
+    The student's own number is NEVER taken from the phone — it always
+    comes from the profile/database.
+    """
+    own = _ride_profile_phone(user)
+    if not body.get("booking_for_other"):
+        return own
+    other = str(body.get("other_phone", "")).strip()
+    digits = "".join(ch for ch in other if ch.isdigit())
+    if len(digits) < 8:
+        return own
+    return digits[-12:]
+
+
+def _ride_has_free_rider(vehicle_type, when):
+    """Is at least one online partner for this vehicle free at `when`?"""
+    from ride.models import RideVendor, rider_is_blocked
+
+    field = f"{vehicle_type}_active"
+    if vehicle_type not in ("mini", "sedan", "xl"):
+        return False
+    riders = RideVendor.objects.filter(**{field: True}, is_online=True)
+    return any(not rider_is_blocked(rv, when) for rv in riders)
+
+
 def _ride_split_amounts(fare):
     """full  -> pay the fare, nothing later.
     split  -> +5% add-on, half now, rest after the ride ends."""
@@ -6781,7 +6834,10 @@ def _ride_public(ride, viewer="student"):
         vendor_id = ride.rider.vendor_id
         rider_phone = ride.rider.vendor.phone or ""
 
-    phone_visible = viewer != "rider" or ride.status != "requested"
+    # ⭐ v73: the rider only sees a phone number once the ride is PAID
+    # (accepted is not enough any more — same privacy rule as food).
+    paid_statuses = ("paid", "arrived", "ongoing", "completed")
+    phone_visible = (viewer != "rider") or (ride.status in paid_statuses)
     return {
         "ride_code": ride.ride_code,
         "status": ride.status,
@@ -6817,9 +6873,16 @@ def _ride_public(ride, viewer="student"):
         "rider_model": (ride.rider.vehicle_model if ride.rider_id else ""),
         "vendor_id": vendor_id,
         "student_name": ride.student_name,
-        # ⭐ hidden from the rider until they accept
+        # ⭐ hidden from the rider until the ride is paid for
         "student_phone": ride.student_phone if phone_visible else "",
         "phone_hidden": not phone_visible,
+        # ⭐ v73: the number to dial = the student's own number, or the
+        # "booking for someone else" contact.
+        "contact_phone": (ride.contact_phone or ride.student_phone)
+        if phone_visible
+        else "",
+        "booking_for_other": bool(ride.booking_for_other),
+        "other_name": ride.other_name or "",
         "otp_required": ride.status == "arrived",
         # ⭐ v68: the OTP goes to the STUDENT — he reads it out and the
         # rider types it into his console. The rider never sees it.
@@ -6842,18 +6905,28 @@ def _ride_public(ride, viewer="student"):
 
 def _ride_notify_riders(ride):
     """Alert every online ride partner offering this vehicle type."""
-    from ride.models import RideVendor
+    from ride.models import RideVendor, rider_is_blocked
 
     field = f"{ride.vehicle_type}_active"
-    if ride.vehicle_type not in ("auto", "mini", "sedan", "xl"):
+    if ride.vehicle_type not in ("mini", "sedan", "xl"):
         return 0
+    # ⭐ v73: partners who blocked this slot are not disturbed at all.
+    when = ride.scheduled_at or timezone.now()
     riders = RideVendor.objects.filter(
         **{field: True}, is_online=True).select_related("vendor")
-    title = "New ride request 🛺"
-    message = (f"{ride.pickup_text[:38]} → {ride.drop_text[:38]} · "
-               f"{ride.distance_km} km · {ride.vehicle_label}")
+    title = "New ride request 🚗"
+    when_txt = ""
+    try:
+        local = timezone.localtime(when)
+        when_txt = (f" · {local.strftime('%d %b, %I:%M %p')}")
+    except Exception:
+        when_txt = ""
+    message = (f"{ride.pickup_text[:34]} → {ride.drop_text[:34]} · "
+               f"{ride.distance_km} km · {ride.vehicle_label}{when_txt}")
     count = 0
     for rv in riders:
+        if rider_is_blocked(rv, when):
+            continue
         _notify_vendor(rv.vendor, title, message)
         count += 1
     return count
@@ -6886,7 +6959,15 @@ def ride_estimate(request, user):
         return fail("Pick a pickup and a drop point on the map first.")
     if distance > 120:
         return fail("That is too far for a campus ride (max 120 km).")
-    options = [_ride_estimate_for(v, distance) for v in VEHICLE_KEYS]
+    # ⭐ v73: a vehicle with nobody free right now (or at the chosen
+    # time) is shown as UNAVAILABLE — the student can still book it for
+    # another slot, we simply never pretend a driver is waiting.
+    when = _ride_parse_when(b.get("scheduled_at")) or timezone.now()
+    options = []
+    for v in VEHICLE_KEYS:
+        opt = _ride_estimate_for(v, distance)
+        opt["available"] = _ride_has_free_rider(v, when)
+        options.append(opt)
     return ok({
         "distance_km": distance,
         "options": options,
@@ -6937,15 +7018,11 @@ def ride_book(request, user):
                     "it before booking another.")
 
     estimate = _ride_estimate_for(vtype, distance)
-    scheduled = None
-    when = str(b.get("scheduled_at", "")).strip()
-    if when:
-        try:
-            from django.utils.dateparse import parse_datetime
-
-            scheduled = parse_datetime(when)
-        except Exception:
-            scheduled = None
+    # ⭐ v73: the time slot is COMPULSORY — even "right now" has to be
+    # picked by hand, so the rider always knows when to come.
+    scheduled = _ride_parse_when(b.get("scheduled_at"))
+    if scheduled is None:
+        return fail("Choose the time slot for this ride.")
 
     ride = Ride.objects.create(
         student_id=user.id,
@@ -6962,10 +7039,23 @@ def ride_book(request, user):
         fare=estimate["fare"],
         total=estimate["fare"],
         student_name=(user.first_name or user.username)[:120],
-        student_phone=str(b.get("phone", "")).strip()[:20],
+        # ⭐ v73: the number comes from the PROFILE, never from the phone —
+        # the student cannot type a different one.
+        student_phone=_ride_profile_phone(user),
+        contact_phone=_ride_contact_phone(user, b),
+        booking_for_other=bool(b.get("booking_for_other")),
+        other_name=str(b.get("other_name", "")).strip()[:80],
         status="requested",
     )
     riders = _ride_notify_riders(ride)
+    if riders == 0:
+        # nobody free at that slot -> say it plainly
+        return ok({
+            "ride": _ride_public(ride),
+            "riders_notified": 0,
+            "message": ("No ride partner is available at that time. "
+                        "Please book for another time slot."),
+        })
     return ok({"ride": _ride_public(ride), "riders_notified": riders})
 
 
@@ -7303,6 +7393,42 @@ def ride_vendor_reject(request, user, ride_code):
     from ride.models import RideRejection
 
     RideRejection.objects.get_or_create(ride=ride, vendor=rv)
+    # ⭐ v73: the student hears about it immediately.
+    if ride.student_id:
+        _notify(
+            user_id=ride.student_id,
+            title="Rider unavailable 🚫",
+            message=("The ride partner cannot take this ride right now. "
+                     "Please book for another time slot."),
+            route="ride",
+        )
+    # ⭐ v73: if NO partner is left who could still take it, the ride is
+    # over — the student's app then says "book for another time"
+    # instead of spinning on "finding your rider" forever.
+    try:
+        from ride.models import RideVendor, rider_is_blocked
+        field = f"{ride.vehicle_type}_active"
+        when = ride.scheduled_at or timezone.now()
+        left = 0
+        for other in RideVendor.objects.filter(**{field: True}, is_online=True):
+            if RideRejection.objects.filter(ride=ride, vendor=other).exists():
+                continue
+            if rider_is_blocked(other, when):
+                continue
+            left += 1
+        if left == 0:
+            ride.status = "rejected"
+            ride.save(update_fields=["status"])
+            if ride.student_id:
+                _notify(
+                    user_id=ride.student_id,
+                    title="No rider available right now 🚫",
+                    message=("Every ride partner is busy at that time. "
+                             "Please book the ride for another time slot."),
+                    route="ride",
+                )
+    except Exception:
+        pass
     return ok({"rejected": True, "ride_code": ride.ride_code})
 
 
@@ -7344,6 +7470,105 @@ def ride_vendor_arrived(request, user, ride_code):
                 message=(f"Read out this OTP to start your ride: {otp}"),
                 route="ride")
     return ok({"ride": _ride_public(ride, viewer="rider"), "otp": otp})
+
+
+@csrf_exempt
+@student_required
+@throttle("rideblocks", 60, 600)
+def ride_vendor_blocks(request, user):
+    """⭐ v73: the rider's "I am not available" slots.
+
+    GET  -> list   POST -> add one
+    body: {kind: "daily"|"date", weekday, start_min, end_min, date, label}
+
+    Anything added here is skipped when rides are offered, and a student
+    booking inside the slot is told to pick another time.
+    """
+    from ride.models import RiderBlock
+
+    _u, profile, rv = _ride_rider_or_none(request)
+    if profile is None or rv is None:
+        return fail("Vendor account not found.", status=401)
+
+    def _slot(b):
+        return {
+            "id": b.id,
+            "kind": b.kind,
+            "weekday": b.weekday,
+            "weekday_name": b.weekday_name,
+            "start_min": b.start_min,
+            "end_min": b.end_min,
+            "start": f"{b.start_min // 60:02d}:{b.start_min % 60:02d}",
+            "end": f"{b.end_min // 60:02d}:{b.end_min % 60:02d}",
+            "date": b.date.isoformat() if b.date else "",
+            "label": b.label,
+        }
+
+    if request.method == "GET":
+        return ok({"blocks": [_slot(b) for b in
+                              RiderBlock.objects.filter(rider_id=rv.id)]})
+
+    if request.method != "POST":
+        return fail("POST required.", status=405)
+
+    b = json_body(request)
+    kind = str(b.get("kind", "date")).strip().lower()
+    if kind not in ("daily", "date"):
+        return fail("Pick either a repeating slot or a specific date.")
+
+    def _minutes(value, default):
+        raw = str(value or "").strip()
+        if ":" in raw:                      # "14:30"
+            try:
+                h, m = raw.split(":", 1)
+                return max(0, min(1439, int(h) * 60 + int(m)))
+            except ValueError:
+                return default
+        try:                                 # already minutes
+            return max(0, min(1439, int(float(raw))))
+        except (TypeError, ValueError):
+            return default
+
+    start = _minutes(b.get("start_min") or b.get("start"), 0)
+    end = _minutes(b.get("end_min") or b.get("end"), 1439)
+    if end < start:
+        start, end = end, start
+
+    block = RiderBlock(rider_id=rv.id, kind=kind, start_min=start,
+                       end_min=end,
+                       label=str(b.get("label", "")).strip()[:80])
+    if kind == "daily":
+        try:
+            block.weekday = max(0, min(6, int(b.get("weekday", 0))))
+        except (TypeError, ValueError):
+            block.weekday = 0
+        block.date = None
+    else:
+        from django.utils.dateparse import parse_date
+
+        day = parse_date(str(b.get("date", "")).strip())
+        if day is None:
+            return fail("Pick the date you are unavailable on.")
+        block.date = day
+    block.save()
+    return ok({"block": _slot(block)})
+
+
+@csrf_exempt
+@student_required
+@throttle("rideblocks", 60, 600)
+def ride_vendor_block_delete(request, user, block_id):
+    """⭐ v73: remove one unavailability slot."""
+    from ride.models import RiderBlock
+
+    if request.method != "POST":
+        return fail("POST required.", status=405)
+    _u, profile, rv = _ride_rider_or_none(request)
+    if profile is None or rv is None:
+        return fail("Vendor account not found.", status=401)
+    deleted, _ = RiderBlock.objects.filter(
+        id=block_id, rider_id=rv.id).delete()
+    return ok({"deleted": deleted > 0})
 
 
 @csrf_exempt
