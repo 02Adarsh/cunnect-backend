@@ -6829,6 +6829,13 @@ def _ride_public(ride, viewer="student"):
         "rider_lat": ride.rider_lat,
         "rider_lng": ride.rider_lng,
         "rider_at": (ride.rider_at.isoformat() if ride.rider_at else ""),
+        # ⭐ v72: the student may share their own live position — the
+        # rider only sees it while sharing is ON.
+        "share_location": bool(ride.share_location),
+        "student_lat": (ride.student_lat if ride.share_location else None),
+        "student_lng": (ride.student_lng if ride.share_location else None),
+        "student_at": (ride.student_at.isoformat() if ride.student_at
+                       else ""),
         "created_at": ride.created_at.isoformat() if ride.created_at else "",
     }
 
@@ -7337,6 +7344,48 @@ def ride_vendor_arrived(request, user, ride_code):
                 message=(f"Read out this OTP to start your ride: {otp}"),
                 route="ride")
     return ok({"ride": _ride_public(ride, viewer="rider"), "otp": otp})
+
+
+@csrf_exempt
+@student_required
+@throttle("ridestuloc", 120, 600)
+def ride_student_location(request, user, ride_code):
+    """⭐ v72: the student shares their live position with the rider.
+
+    Only stored while the ride is live, and the rider only ever sees it
+    when the student has the "share my live location" switch ON.
+    """
+    from ride.models import Ride
+
+    if request.method != "POST":
+        return fail("POST required.", status=405)
+    ride = Ride.objects.filter(
+        ride_code=str(ride_code).strip(), student_id=user.id).first()
+    if ride is None:
+        return fail("Ride not found.", status=404)
+    if ride.status not in ("accepted", "paid", "arrived", "ongoing"):
+        return ok({"sent": False})
+    b = json_body(request)
+    share = b.get("share")
+    if share is not None:
+        ride.share_location = bool(share)
+        ride.save(update_fields=["share_location"])
+    lat = b.get("lat")
+    lng = b.get("lng")
+    if lat is None or lng is None:
+        return ok({"sent": False})
+    try:
+        lat = float(lat)
+        lng = float(lng)
+    except (TypeError, ValueError):
+        return fail("Bad coordinates.")
+    if not (-90 <= lat <= 90 and -180 <= lng <= 180):
+        return fail("Bad coordinates.")
+    ride.student_lat = lat
+    ride.student_lng = lng
+    ride.student_at = timezone.now()
+    ride.save(update_fields=["student_lat", "student_lng", "student_at"])
+    return ok({"sent": True})
 
 
 @csrf_exempt

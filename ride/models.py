@@ -215,6 +215,12 @@ class Ride(models.Model):
     rider_lat = models.FloatField(null=True, blank=True)
     rider_lng = models.FloatField(null=True, blank=True)
     rider_at = models.DateTimeField(null=True, blank=True)
+    # ⭐ v72: the student can share their own live position too, so the
+    # rider sees exactly where to pick them up.
+    student_lat = models.FloatField(null=True, blank=True)
+    student_lng = models.FloatField(null=True, blank=True)
+    student_at = models.DateTimeField(null=True, blank=True)
+    share_location = models.BooleanField(default=False)
 
     status = models.CharField(
         max_length=16, choices=STATUS_CHOICES, default="requested", db_index=True

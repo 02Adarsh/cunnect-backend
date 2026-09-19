@@ -195,5 +195,8 @@ urlpatterns = [
     path("ride/vendor/start/<str:ride_code>/", views.ride_vendor_start),
     # ⭐ v68: rider app pushes GPS while the ride is live
     path("ride/vendor/location/<str:ride_code>/", views.ride_vendor_location),
+    # v72: student shares their live position with the rider
+    path("ride/student/location/<str:ride_code>/",
+         views.ride_student_location),
     path("ride/vendor/complete/<str:ride_code>/", views.ride_vendor_complete),
 ]
