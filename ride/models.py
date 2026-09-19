@@ -207,7 +207,14 @@ class Ride(models.Model):
     payment_done = models.BooleanField(default=False)
 
     # -- OTP (rider arrival -> ride start) ---------------------------
+    # ⭐ v68: the OTP is sent to the STUDENT; the student reads it out
+    # and the RIDER types it into his console to start the ride.
     otp = models.CharField(max_length=6, blank=True, default="")
+
+    # -- live rider position (student sees the rider move on the map) --
+    rider_lat = models.FloatField(null=True, blank=True)
+    rider_lng = models.FloatField(null=True, blank=True)
+    rider_at = models.DateTimeField(null=True, blank=True)
 
     status = models.CharField(
         max_length=16, choices=STATUS_CHOICES, default="requested", db_index=True

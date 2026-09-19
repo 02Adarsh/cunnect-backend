@@ -189,5 +189,9 @@ urlpatterns = [
     path("ride/vendor/accept/<str:ride_code>/", views.ride_vendor_accept),
     path("ride/vendor/reject/<str:ride_code>/", views.ride_vendor_reject),
     path("ride/vendor/arrived/<str:ride_code>/", views.ride_vendor_arrived),
+    # ⭐ v68: rider types the student's OTP here to start the ride
+    path("ride/vendor/start/<str:ride_code>/", views.ride_vendor_start),
+    # ⭐ v68: rider app pushes GPS while the ride is live
+    path("ride/vendor/location/<str:ride_code>/", views.ride_vendor_location),
     path("ride/vendor/complete/<str:ride_code>/", views.ride_vendor_complete),
 ]

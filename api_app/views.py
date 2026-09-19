@@ -6721,9 +6721,14 @@ def _ride_public(ride, viewer="student"):
         "student_phone": ride.student_phone if phone_visible else "",
         "phone_hidden": not phone_visible,
         "otp_required": ride.status == "arrived",
-        # ⭐ the OTP is shown to the RIDER only (and only once arrived)
-        "otp": ride.otp if (viewer == "rider" and ride.status == "arrived")
+        # ⭐ v68: the OTP goes to the STUDENT — he reads it out and the
+        # rider types it into his console. The rider never sees it.
+        "otp": ride.otp if (viewer != "rider" and ride.status == "arrived")
         else "",
+        # ⭐ v68: live rider position (the student watches him move)
+        "rider_lat": ride.rider_lat,
+        "rider_lng": ride.rider_lng,
+        "rider_at": (ride.rider_at.isoformat() if ride.rider_at else ""),
         "created_at": ride.created_at.isoformat() if ride.created_at else "",
     }
 
@@ -7229,9 +7234,83 @@ def ride_vendor_arrived(request, user, ride_code):
     ride.save(update_fields=["otp", "status", "arrived_at"])
     if ride.student_id:
         _notify(user=ride.student, title="Your rider has arrived 📍",
-                message=(f"Share this OTP to start your ride: {otp}"),
+                message=(f"Read out this OTP to start your ride: {otp}"),
                 route="ride")
     return ok({"ride": _ride_public(ride, viewer="rider"), "otp": otp})
+
+
+@csrf_exempt
+@student_required
+@throttle("rideact", 60, 600)
+def ride_vendor_start(request, user, ride_code):
+    """⭐ v68: the RIDER types the OTP the student read out to him.
+
+    Earlier the student entered it on his phone; now the OTP lives on
+    the student's screen and the rider confirms it on his."""
+    from ride.models import Ride
+
+    if request.method != "POST":
+        return fail("POST required.", status=405)
+    _u, profile, rv = _ride_rider_or_none(request)
+    if profile is None or rv is None:
+        return fail("Vendor account not found.", status=401)
+    ride = Ride.objects.filter(ride_code=str(ride_code).strip()).first()
+    if ride is None:
+        return fail("Ride not found.", status=404)
+    if ride.rider_id != rv.id:
+        return fail("You have not accepted this ride.", status=403)
+    if ride.status == "ongoing":
+        return ok({"ride": _ride_public(ride, viewer="rider"), "already": True})
+    if ride.status != "arrived":
+        return fail("Tap \"I'm on location\" first, then enter the OTP.")
+    entered = str(json_body(request).get("otp", "")).strip()
+    if not entered or entered != (ride.otp or ""):
+        return fail("That OTP is not right — ask the student to read it again.")
+    ride.status = "ongoing"
+    ride.started_at = timezone.now()
+    ride.otp = ""
+    ride.save(update_fields=["status", "started_at", "otp"])
+    if ride.student_id:
+        _notify(user=ride.student,
+                title="Your ride has started ▶️",
+                message=(f"{profile.business_name} verified the OTP — "
+                         f"have a safe trip!"),
+                route="ride")
+    return ok({"ride": _ride_public(ride, viewer="rider")})
+
+
+@csrf_exempt
+@student_required
+@throttle("rideloc", 600, 600)
+def ride_vendor_location(request, user, ride_code):
+    """⭐ v68: the rider app pushes its GPS position while a ride is
+    live, so the student sees the vehicle move on the map."""
+    from ride.models import Ride
+
+    if request.method != "POST":
+        return fail("POST required.", status=405)
+    _u, profile, rv = _ride_rider_or_none(request)
+    if profile is None or rv is None:
+        return fail("Vendor account not found.", status=401)
+    ride = Ride.objects.filter(
+        ride_code=str(ride_code).strip(), rider_id=rv.id).first()
+    if ride is None:
+        return fail("Ride not found.", status=404)
+    if ride.status not in ("accepted", "paid", "arrived", "ongoing"):
+        return ok({"sent": False})
+    b = json_body(request)
+    try:
+        lat = float(b.get("lat"))
+        lng = float(b.get("lng"))
+    except (TypeError, ValueError):
+        return fail("Bad coordinates.")
+    if not (-90 <= lat <= 90 and -180 <= lng <= 180):
+        return fail("Bad coordinates.")
+    ride.rider_lat = lat
+    ride.rider_lng = lng
+    ride.rider_at = timezone.now()
+    ride.save(update_fields=["rider_lat", "rider_lng", "rider_at"])
+    return ok({"sent": True})
 
 
 @csrf_exempt
