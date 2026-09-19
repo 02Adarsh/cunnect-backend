@@ -144,6 +144,76 @@ def _mark_seen(user):
         _record_traffic(user)
     except Exception:
         pass
+    # ⭐ v70: keep the single-device session alive (throttled — at most
+    # one DB write per user every 2 minutes).
+    try:
+        now = time.time()
+        last = _SESSION_SEEN.get(user.id, 0)
+        if now - last >= 120:
+            _SESSION_SEEN[user.id] = now
+            from myapp.models import LoginSession
+
+            LoginSession.objects.filter(user_id=user.id).update(
+                last_seen=timezone.now())
+    except Exception:
+        pass
+
+
+# ⭐ v70: single-device login -----------------------------------------
+_SESSION_SEEN = {}
+
+SESSION_BUSY_MSG = ("This UID is already logged in on another device. "
+                    "Log out there first, then sign in here.")
+
+
+def _device_id(request, body=None):
+    """Per-install id sent by the app (falls back to the token)."""
+    did = ""
+    try:
+        did = str((body or {}).get("device_id", "")).strip()
+    except Exception:
+        did = ""
+    if not did:
+        did = str(request.headers.get("X-Device-Id", "")).strip()
+    return did[:64]
+
+
+def _session_guard(user, device_id):
+    """Block a second phone while the account is live on another one.
+
+    Returns None when the login may proceed, else the error string.
+    """
+    from myapp.models import LoginSession
+
+    sess = LoginSession.objects.filter(user_id=user.id).first()
+    if sess is None:
+        return None
+    if device_id and sess.device_id and device_id == sess.device_id:
+        return None                      # same phone re-logging in
+    if sess.is_stale():                  # long inactivity -> release
+        sess.delete()
+        return None
+    return SESSION_BUSY_MSG
+
+
+def _session_start(user, device_id, token_key=""):
+    from myapp.models import LoginSession
+
+    LoginSession.objects.update_or_create(
+        user_id=user.id,
+        defaults={
+            "device_id": device_id or "",
+            "token_key": token_key or "",
+            "last_seen": timezone.now(),
+        },
+    )
+
+
+def _session_end(user):
+    """Logout: free the account so another phone can sign in."""
+    from myapp.models import LoginSession
+
+    LoginSession.objects.filter(user_id=user.id).delete()
 
 
 def user_from_token(request):
@@ -357,7 +427,13 @@ def api_login_step2(request):
         from .security import _BUCKETS, _LOCK
         with _LOCK:  # successful login clears the failed-attempt counter
             _BUCKETS.pop(f"login2:tgt:{uid.lower()[:80]}", None)
+        # ⭐ v70: one phone at a time
+        device_id = _device_id(request, body)
+        busy = _session_guard(user, device_id)
+        if busy:
+            return fail(busy)
         token, _ = Token.objects.get_or_create(user=user)
+        _session_start(user, device_id, token.key)
         profile, _ = UserProfile.objects.get_or_create(user=user)
         return ok({
             "token": token.key,
@@ -1149,7 +1225,13 @@ def student_login(request):
             return fail("Your account has been disabled by the CUnnect team.",
                         status=403)
         return fail("Invalid UID or password.", status=401)
+    # ⭐ v70: one phone at a time (same rule as the main login)
+    device_id = _device_id(request, body)
+    busy = _session_guard(user, device_id)
+    if busy:
+        return fail(busy)
     token, _ = Token.objects.get_or_create(user=user)
+    _session_start(user, device_id, token.key)
     profile = getattr(user, "userprofile", None)
     return ok({
         "token": token.key,
@@ -1162,6 +1244,24 @@ def student_login(request):
         "email": user.email or "",
         "photo_url": media_url(profile.profile_photo) if profile else "",
     })
+
+
+@csrf_exempt
+@student_required
+@throttle("logout", 60, 600)
+def auth_logout(request, user):
+    """⭐ v70: Logout — frees the account so another phone can sign in.
+
+    The auth token is deleted too, so the session cannot be replayed.
+    """
+    if request.method != "POST":
+        return fail("POST required.", status=405)
+    try:
+        Token.objects.filter(user_id=user.id).delete()
+    except Exception:
+        pass
+    _session_end(user)
+    return ok({"logged_out": True})
 
 
 @student_required

@@ -391,6 +391,37 @@ class DeviceToken(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
 
+class LoginSession(models.Model):
+    """⭐ v70: ONE phone per account.
+
+    While a row exists for a user, no other device can log in with
+    that UID — the second phone is told "This UID is logged in on some
+    other device". The row is removed when the user taps Logout (or
+    automatically after a long inactivity window, so nobody is locked
+    out forever by a lost phone).
+    """
+
+    user = models.OneToOneField(
+        User, on_delete=models.CASCADE, related_name="login_session")
+    device_id = models.CharField(max_length=64, blank=True, default="")
+    token_key = models.CharField(max_length=64, blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_seen = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Login session"
+        verbose_name_plural = "Login sessions"
+
+    def __str__(self):
+        return f"{self.user.username} @ {(self.device_id or 'unknown')[:12]}"
+
+    def is_stale(self, hours=24 * 7):
+        """Auto-release after a week of no activity (safety valve)."""
+        from django.utils import timezone
+
+        return (timezone.now() - self.last_seen).total_seconds() > hours * 3600
+
+
 class OrderCounter(models.Model):
     """⭐ Sequential order-number counter (single row)."""
     value = models.IntegerField(default=0)

@@ -98,6 +98,8 @@ urlpatterns = [
     path("auth/forgot-link/", views.api_forgot_link),
     path("auth/reset/<str:uidb64>/<str:token>/", views.api_reset_page),
     path("auth/reset-link-password/", views.api_reset_link_password),
+    # ⭐ v70: logout frees the single-device lock
+    path("auth/logout/", views.auth_logout),
     path("auth/reset-password/", views.api_reset_password),
     path("auth/complete-profile/", views.api_complete_profile),
     path("ums/stage1/", views.ums_stage1),
