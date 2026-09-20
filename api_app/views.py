@@ -1982,15 +1982,19 @@ def _notify(*args, **kwargs):
     kwargs.setdefault("audience", "student")
     # ⭐ v53: deep-link route for the push (default: student order flow)
     route = kwargs.pop("route", "orders")
+    # ⭐ v74: extra push payload — lets the app raise the right POPUP
+    # (ride accepted / rejected / paid / arrived / started / completed).
+    extra = kwargs.pop("push_data", None)
     n = Notification.objects.create(*args, **kwargs)
     try:
-        _push_user(n.user_id, n.title, n.message, route=route)
+        _push_user(n.user_id, n.title, n.message, route=route, data=extra)
     except Exception:
         pass
     return n
 
 
-def _notify_vendor(vendor_profile, title, message, order=None):
+def _notify_vendor(vendor_profile, title, message, order=None, route=None,
+                   push_data=None):
     """⭐ Separate notification row for the vendor (audience=vendor) + push."""
     n = None
     try:
@@ -2004,7 +2008,8 @@ def _notify_vendor(vendor_profile, title, message, order=None):
     except Exception:
         pass
     try:
-        _vendor_push(vendor_profile, title, message)
+        _vendor_push(vendor_profile, title, message, route=route,
+                     data=push_data)
     except Exception:
         pass
     return n
@@ -2047,14 +2052,14 @@ def debug_fcm(request):
 
 
 def _push_tokens(tokens, title, message, high=False, _direct=False,
-                 route=None):
+                 route=None, data=None):
     # ⭐ Celery: push in the background, return the request instantly
     if not _direct:
         try:
             from api_app.tasks import push_tokens_task, redis_ok
             if redis_ok():
                 push_tokens_task.delay(list(tokens or []), title, message,
-                                       high, route)
+                                       high, route, data)
                 return
         except Exception:
             pass
@@ -2077,10 +2082,20 @@ def _push_tokens(tokens, title, message, high=False, _direct=False,
                 messaging.MulticastMessage(
                     notification=messaging.Notification(
                         title=title, body=message),
+                    # ⭐ v53: route -> tapping the notification opens the
+                    # matching section of the app directly.
+                    # ⭐ v74: "event" + "ride_code" let the app raise the
+                    # matching POPUP the moment the push lands.
+                    data=dict(
+                        {"kind": "vendor" if high else "user",
+                         "route": str(route or "")},
+                        **{str(k): str(v) for k, v in (data or {}).items()
+                           if v is not None}),
                     android=messaging.AndroidConfig(
                         priority="high",
                         notification=messaging.AndroidNotification(
-                            channel_id="cunnect_alert_v5" if high else "cunnect_ping_v5",
+                            channel_id=("cunnect_alert_v5" if high
+                                        else "cunnect_ping_v5"),
                             sound="cunnect_alert" if high else "cunnect_ping",
                             icon="cu_notif",
                             priority="high",
@@ -2088,10 +2103,6 @@ def _push_tokens(tokens, title, message, high=False, _direct=False,
                             default_sound=False,
                         ),
                     ),
-                    # ⭐ v53: route -> tapping the notification opens the
-                    # matching section of the app directly.
-                    data={"kind": "vendor" if high else "user",
-                          "route": str(route or "")},
                     tokens=batch,
                 ),
                 app=app,
@@ -2374,7 +2385,7 @@ def health(request):
     return ok({"status": "ok"})
 
 
-def _push_user(user_id, title, message, route=None):
+def _push_user(user_id, title, message, route=None, data=None):
     try:
         from myapp.models import DeviceToken
 
@@ -2382,12 +2393,13 @@ def _push_user(user_id, title, message, route=None):
             DeviceToken.objects.filter(user_id=user_id)
             .order_by("-id").values_list("token", flat=True)
         )
-        _push_tokens(tokens, title, message, high=False, route=route)
+        _push_tokens(tokens, title, message, high=False, route=route,
+                     data=data)
     except Exception:
         pass
 
 
-def _vendor_push(vendor_profile, title, message):
+def _vendor_push(vendor_profile, title, message, route=None, data=None):
     from myapp.models import DeviceToken
 
     tokens = list(
@@ -2395,7 +2407,9 @@ def _vendor_push(vendor_profile, title, message):
         .order_by("-id").values_list("token", flat=True)
     )
     # ⭐ tapping a vendor alert opens the vendor portal directly
-    _push_tokens(tokens, title, message, high=True, route="vendor")
+    # ⭐ v74: ride events ride along with route="ride" + the event name
+    _push_tokens(tokens, title, message, high=True,
+                 route=route or "vendor", data=data)
 
 
 def _order_alert_loop(order_id):
@@ -6883,6 +6897,10 @@ def _ride_public(ride, viewer="student"):
         else "",
         "booking_for_other": bool(ride.booking_for_other),
         "other_name": ride.other_name or "",
+        # ⭐ v74: fare split between the people travelling together
+        "pax": [{"id": x.id, "name": x.name, "phone": x.phone,
+                 "amount": float(x.amount or 0), "paid": bool(x.paid)}
+                for x in ride.pax.all()],
         "otp_required": ride.status == "arrived",
         # ⭐ v68: the OTP goes to the STUDENT — he reads it out and the
         # rider types it into his console. The rider never sees it.
@@ -6901,6 +6919,35 @@ def _ride_public(ride, viewer="student"):
                        else ""),
         "created_at": ride.created_at.isoformat() if ride.created_at else "",
     }
+
+
+def _ride_push_data(ride, event, **extra):
+    """⭐ v74: every ride push carries the event + ride code so the app
+    can raise the matching POPUP (accepted / rejected / paid / arrived
+    with the OTP / started / completed)."""
+    data = {"event": event, "ride_code": ride.ride_code,
+            "status": ride.status}
+    for k, v in extra.items():
+        if v is not None:
+            data[k] = str(v)
+    return data
+
+
+def _ride_notify_student(ride, title, message, event, **extra):
+    """⭐ v74: in-app row + push for the student on every ride event."""
+    if not ride.student_id:
+        return None
+    return _notify(user_id=ride.student_id, title=title, message=message,
+                   route="ride",
+                   push_data=_ride_push_data(ride, event, **extra))
+
+
+def _ride_notify_rider(ride, title, message, event, **extra):
+    """⭐ v74: in-app row + push for the ride partner on every event."""
+    if not ride.rider_id or ride.rider is None:
+        return None
+    return _notify_vendor(ride.rider.vendor, title, message, route="ride",
+                          push_data=_ride_push_data(ride, event, **extra))
 
 
 def _ride_notify_riders(ride):
@@ -6927,7 +6974,9 @@ def _ride_notify_riders(ride):
     for rv in riders:
         if rider_is_blocked(rv, when):
             continue
-        _notify_vendor(rv.vendor, title, message)
+        _notify_vendor(rv.vendor, title, message, route="ride",
+                       push_data=_ride_push_data(ride, "new_request",
+                                                 pickup=ride.pickup_text[:40]))
         count += 1
     return count
 
@@ -7049,13 +7098,27 @@ def ride_book(request, user):
     )
     riders = _ride_notify_riders(ride)
     if riders == 0:
-        # nobody free at that slot -> say it plainly
+        # ⭐ v74: nobody free at that slot -> say it plainly AND close the
+        # ride, so the student's history shows it instead of hanging.
+        ride.status = "rejected"
+        ride.save(update_fields=["status"])
+        _ride_notify_student(
+            ride, "No rider available right now 🚫",
+            ("Every ride partner is busy at that time. Please book "
+             "the ride for another time slot."), "no_rider")
         return ok({
             "ride": _ride_public(ride),
             "riders_notified": 0,
             "message": ("No ride partner is available at that time. "
                         "Please book for another time slot."),
         })
+    # ⭐ v74: the student hears straight away that the search started
+    _ride_notify_student(
+        ride,
+        "Looking for your rider 🔎",
+        (f"{ride.vehicle_label} · {ride.pickup_text[:26]} → "
+         f"{ride.drop_text[:26]} · ₹{ride.fare}"),
+        "booked")
     return ok({"ride": _ride_public(ride), "riders_notified": riders})
 
 
@@ -7065,14 +7128,18 @@ def ride_list(request, user):
     """My rides — active first, then history."""
     from ride.models import Ride
 
+    try:
+        limit = max(10, min(200, int(request.GET.get("limit", 100))))
+    except (TypeError, ValueError):
+        limit = 100
     rides = Ride.objects.filter(student_id=user.id).select_related(
-        "rider", "rider__vendor")[:40]
+        "rider", "rider__vendor").order_by("-created_at")[:limit]
     data = [_ride_public(r) for r in rides]
     active = [r for r in data
               if r["status"] in ("requested", "accepted", "paid",
                                  "arrived", "ongoing")]
     past = [r for r in data if r not in active]
-    return ok({"active": active, "past": past})
+    return ok({"active": active, "past": past, "history": past})
 
 
 @csrf_exempt
@@ -7106,9 +7173,13 @@ def ride_cancel(request, user, ride_code):
     ride.status = "cancelled"
     ride.cancel_reason = "Cancelled by student"
     ride.save(update_fields=["status", "cancel_reason"])
-    if ride.rider_id:
-        _notify_vendor(ride.rider.vendor, "Ride cancelled ❌",
-                       f"{ride.ride_code} was cancelled by the student.")
+    _ride_notify_rider(ride, "Ride cancelled ❌",
+                       f"{ride.ride_code} was cancelled by the student.",
+                       "cancelled")
+    _ride_notify_student(ride, "Ride cancelled",
+                         (f"{ride.ride_code} has been cancelled. "
+                          f"You can book a new ride any time."),
+                         "cancelled")
     return ok({"ride": _ride_public(ride)})
 
 
@@ -7159,9 +7230,22 @@ def ride_pay(request, user, ride_code):
     if not ride.accepted_at:
         ride.accepted_at = timezone.now()
     ride.save()
-    _notify_vendor(ride.rider.vendor, "Payment received 💸",
-                   f"{ride.ride_code} · ₹{pay_now} paid "
-                   f"({'full' if mode == 'full' else 'first half'}).")
+    _ride_notify_rider(
+        ride, "Payment received 💸",
+        (f"{ride.ride_code} · ₹{pay_now} received "
+         f"({'FULL payment' if mode == 'full' else 'FIRST HALF'})."
+         + ("" if mode == "full"
+            else f" Balance ₹{ride.balance_due} to collect at the end.")),
+        "paid", amount=pay_now, mode=mode,
+        balance=ride.balance_due, txn=txn)
+    _ride_notify_student(
+        ride,
+        "Payment recorded ✅" if mode == "full" else "First half paid ✅",
+        (f"₹{pay_now} received for {ride.ride_code}."
+         + ("" if mode == "full"
+            else f" Pay the remaining ₹{ride.balance_due} after the ride.")),
+        "payment_done", amount=pay_now, mode=mode,
+        balance=ride.balance_due)
     return ok({"ride": _ride_public(ride), "paid": pay_now})
 
 
@@ -7190,9 +7274,13 @@ def ride_pay_balance(request, user, ride_code):
     ride.txn_second = txn
     ride.payment_done = True
     ride.save()
-    if ride.rider_id:
-        _notify_vendor(ride.rider.vendor, "Balance cleared ✅",
-                       f"{ride.ride_code} · full payment received.")
+    _ride_notify_rider(ride, "Balance cleared ✅",
+                       f"{ride.ride_code} · full payment received.",
+                       "balance_paid", amount=ride.amount_paid, txn=txn)
+    _ride_notify_student(ride, "Ride fully paid 🎉",
+                         (f"₹{ride.amount_paid} received for "
+                          f"{ride.ride_code}. Nothing left to pay."),
+                         "balance_done", amount=ride.amount_paid)
     return ok({"ride": _ride_public(ride), "paid": float(ride.amount_paid)})
 
 
@@ -7327,13 +7415,45 @@ def ride_vendor_rides(request, user):
         return fail("Vendor account not found.", status=401)
     if rv is None:
         return ok({"active": [], "past": []})
+    try:
+        limit = max(10, min(300, int(request.GET.get("limit", 200))))
+    except (TypeError, ValueError):
+        limit = 200
     rides = Ride.objects.filter(rider_id=rv.id).select_related(
-        "student").order_by("-created_at")[:50]
+        "student").order_by("-created_at")[:limit]
     data = [_ride_public(r, viewer="rider") for r in rides]
     active = [r for r in data
               if r["status"] in ("accepted", "paid", "arrived", "ongoing")]
     past = [r for r in data if r not in active]
-    return ok({"active": active, "past": past})
+    # ⭐ v74: earnings summary for the rider portal dashboard
+    stats = {"rides": 0, "earnings": 0.0, "today": 0.0, "today_rides": 0,
+             "month": 0.0, "pending": 0.0, "km": 0.0}
+    try:
+        from django.utils import timezone as _tzn
+
+        today = _tzn.localdate()
+        month_start = today.replace(day=1)
+        done = Ride.objects.filter(rider_id=rv.id, status="completed")
+        stats["rides"] = done.count()
+        stats["earnings"] = round(sum(float(r.amount_paid or 0)
+                                      for r in done), 2)
+        stats["km"] = round(sum(float(r.distance_km or 0) for r in done), 2)
+        todays = [r for r in done if r.completed_at
+                  and _tzn.localtime(r.completed_at).date() == today]
+        stats["today"] = round(sum(float(r.amount_paid or 0)
+                                   for r in todays), 2)
+        stats["today_rides"] = len(todays)
+        months = [r for r in done if r.completed_at
+                  and _tzn.localtime(r.completed_at).date() >= month_start]
+        stats["month"] = round(sum(float(r.amount_paid or 0)
+                                   for r in months), 2)
+        stats["pending"] = round(sum(
+            float(r.balance_due or 0) for r in Ride.objects.filter(
+                rider_id=rv.id, payment_done=False)), 2)
+    except Exception:
+        pass
+    return ok({"active": active, "past": past, "history": past,
+               "stats": stats})
 
 
 @csrf_exempt
@@ -7367,12 +7487,12 @@ def ride_vendor_accept(request, user, ride_code):
     ride.split_fee = 0
     ride.balance_due = 0
     ride.save(update_fields=["fare", "total", "split_fee", "balance_due"])
-    if ride.student_id:
-        _notify(user=ride.student,
-                title="Rider accepted your ride 🚗",
-                message=(f"{profile.business_name} is on the way — "
-                         f"complete the payment to confirm."),
-                route="ride")
+    _ride_notify_student(
+        ride,
+        "Rider accepted your ride 🚗",
+        (f"{profile.business_name} is on the way — complete the payment "
+         f"of ₹{ride.fare} to confirm."),
+        "accepted", amount=ride.fare, rider=profile.business_name)
     return ok({"ride": _ride_public(ride, viewer="rider")})
 
 
@@ -7394,14 +7514,12 @@ def ride_vendor_reject(request, user, ride_code):
 
     RideRejection.objects.get_or_create(ride=ride, vendor=rv)
     # ⭐ v73: the student hears about it immediately.
-    if ride.student_id:
-        _notify(
-            user_id=ride.student_id,
-            title="Rider unavailable 🚫",
-            message=("The ride partner cannot take this ride right now. "
-                     "Please book for another time slot."),
-            route="ride",
-        )
+    _ride_notify_student(
+        ride,
+        "Rider unavailable 🚫",
+        ("The ride partner cannot take this ride right now. Please book "
+         "for another time slot."),
+        "rejected")
     # ⭐ v73: if NO partner is left who could still take it, the ride is
     # over — the student's app then says "book for another time"
     # instead of spinning on "finding your rider" forever.
@@ -7419,14 +7537,12 @@ def ride_vendor_reject(request, user, ride_code):
         if left == 0:
             ride.status = "rejected"
             ride.save(update_fields=["status"])
-            if ride.student_id:
-                _notify(
-                    user_id=ride.student_id,
-                    title="No rider available right now 🚫",
-                    message=("Every ride partner is busy at that time. "
-                             "Please book the ride for another time slot."),
-                    route="ride",
-                )
+            _ride_notify_student(
+                ride,
+                "No rider available right now 🚫",
+                ("Every ride partner is busy at that time. Please book "
+                 "the ride for another time slot."),
+                "no_rider")
     except Exception:
         pass
     return ok({"rejected": True, "ride_code": ride.ride_code})
@@ -7465,10 +7581,11 @@ def ride_vendor_arrived(request, user, ride_code):
     ride.status = "arrived"
     ride.arrived_at = timezone.now()
     ride.save(update_fields=["otp", "status", "arrived_at"])
-    if ride.student_id:
-        _notify(user=ride.student, title="Your rider has arrived 📍",
-                message=(f"Read out this OTP to start your ride: {otp}"),
-                route="ride")
+    _ride_notify_student(
+        ride, "Your rider has arrived 📍",
+        (f"{profile.business_name} is at the pickup point. "
+         f"Share this OTP to start the ride: {otp}"),
+        "arrived", otp=otp, rider=profile.business_name)
     return ok({"ride": _ride_public(ride, viewer="rider"), "otp": otp})
 
 
@@ -7593,8 +7710,16 @@ def ride_student_location(request, user, ride_code):
     b = json_body(request)
     share = b.get("share")
     if share is not None:
+        was = bool(ride.share_location)
         ride.share_location = bool(share)
         ride.save(update_fields=["share_location"])
+        # ⭐ v74: the rider is told the moment the pin is switched on
+        if ride.share_location and not was:
+            _ride_notify_rider(
+                ride, "Student shared their live location 📍",
+                (f"{ride.student_name or 'The student'} is now sharing "
+                 f"their exact position for {ride.ride_code}."),
+                "location_shared")
     lat = b.get("lat")
     lng = b.get("lng")
     if lat is None or lng is None:
@@ -7644,12 +7769,12 @@ def ride_vendor_start(request, user, ride_code):
     ride.started_at = timezone.now()
     ride.otp = ""
     ride.save(update_fields=["status", "started_at", "otp"])
-    if ride.student_id:
-        _notify(user=ride.student,
-                title="Your ride has started ▶️",
-                message=(f"{profile.business_name} verified the OTP — "
-                         f"have a safe trip!"),
-                route="ride")
+    _ride_notify_student(
+        ride, "Your ride has started ▶️",
+        (f"{profile.business_name} verified the OTP — have a safe trip!"),
+        "started", rider=profile.business_name)
+    _ride_notify_rider(ride, "Ride started ▶️",
+                       f"{ride.ride_code} · OTP verified.", "started")
     return ok({"ride": _ride_public(ride, viewer="rider")})
 
 
@@ -7713,13 +7838,216 @@ def ride_vendor_complete(request, user, ride_code):
     rv.total_rides = (rv.total_rides or 0) + 1
     rv.total_earnings = float(rv.total_earnings or 0) + float(ride.amount_paid or 0)
     rv.save(update_fields=["total_rides", "total_earnings"])
-    if ride.student_id:
-        extra = ""
-        if not ride.payment_done and float(ride.balance_due or 0) > 0:
-            extra = f" Please clear the remaining ₹{ride.balance_due}."
-        _notify(user=ride.student,
-                title="Your ride has been completed successfully 🏁",
-                message=(f"{ride.pickup_text[:28]} → "
-                         f"{ride.drop_text[:28]} · ₹{ride.total}.{extra}"),
-                route="ride")
+    extra = ""
+    if not ride.payment_done and float(ride.balance_due or 0) > 0:
+        extra = f" Please clear the remaining ₹{ride.balance_due}."
+    _ride_notify_student(
+        ride, "Your ride has been completed successfully 🏁",
+        (f"{ride.pickup_text[:28]} → {ride.drop_text[:28]} · "
+         f"₹{ride.total}.{extra}"),
+        "completed", amount=ride.total, balance=ride.balance_due)
+    _ride_notify_rider(
+        ride, "Ride completed 🏁",
+        (f"{ride.ride_code} · ₹{ride.amount_paid} collected."
+         + ("" if ride.payment_done
+            else f" Collect the balance ₹{ride.balance_due} from the "
+                 f"student.")),
+        "completed", amount=ride.amount_paid, balance=ride.balance_due)
     return ok({"ride": _ride_public(ride, viewer="rider")})
+
+
+# ---------------------- v74: safety, split fare, stats ----------------
+
+@csrf_exempt
+@student_required
+@throttle("ridesos", 20, 600)
+def ride_sos(request, user, ride_code):
+    """⭐ v74: SOS — the passenger's rider and every online partner are
+    alerted at once with the live location link."""
+    from ride.models import Ride
+
+    if request.method != "POST":
+        return fail("POST required.", status=405)
+    ride = Ride.objects.filter(
+        ride_code=str(ride_code).strip(), student_id=user.id).first()
+    if ride is None:
+        return fail("Ride not found.", status=404)
+    b = json_body(request)
+    try:
+        lat = float(b.get("lat") or ride.pickup_lat or 0)
+        lng = float(b.get("lng") or ride.pickup_lng or 0)
+    except (TypeError, ValueError):
+        lat, lng = 0.0, 0.0
+    link = f"https://maps.google.com/?q={lat},{lng}"
+    who = (ride.student_name or user.username or "A student").strip()
+    _ride_notify_rider(ride, "🚨 SOS FROM YOUR PASSENGER",
+                       (f"{who} pressed SOS on {ride.ride_code}. "
+                        f"Location: {link}"),
+                       "sos", lat=lat, lng=lng)
+    # every other online partner hears it too — somebody will respond
+    try:
+        from ride.models import RideVendor
+
+        for rv in RideVendor.objects.filter(
+                is_online=True).select_related("vendor"):
+            if ride.rider_id and rv.id == ride.rider_id:
+                continue
+            _notify_vendor(
+                rv.vendor, "🚨 SOS on campus",
+                (f"{who} needs help on {ride.ride_code}. {link}"),
+                route="ride",
+                push_data={"event": "sos", "ride_code": ride.ride_code,
+                           "lat": lat, "lng": lng})
+    except Exception:
+        pass
+    return ok({"sent": True, "link": link, "lat": lat, "lng": lng})
+
+
+@csrf_exempt
+@student_required
+@throttle("rideact", 60, 600)
+def ride_vendor_collect_balance(request, user, ride_code):
+    """⭐ v74: the rider confirms he took the remaining cash."""
+    from ride.models import Ride
+
+    if request.method != "POST":
+        return fail("POST required.", status=405)
+    _u, profile, rv = _ride_rider_or_none(request)
+    if profile is None or rv is None:
+        return fail("Vendor account not found.", status=401)
+    ride = Ride.objects.filter(ride_code=str(ride_code).strip()).first()
+    if ride is None:
+        return fail("Ride not found.", status=404)
+    if ride.rider_id != rv.id:
+        return fail("You have not accepted this ride.", status=403)
+    if ride.payment_done:
+        return ok({"ride": _ride_public(ride, viewer="rider"),
+                   "collected": 0})
+    if float(ride.balance_due or 0) <= 0:
+        return fail("Nothing left to collect on this ride.")
+    got = float(ride.balance_due)
+    ride.amount_paid = float(ride.amount_paid or 0) + got
+    ride.balance_due = 0
+    ride.payment_done = True
+    ride.txn_second = (ride.txn_second or "CASH")[:120]
+    ride.save(update_fields=["amount_paid", "balance_due", "payment_done",
+                             "txn_second"])
+    _ride_notify_student(
+        ride, "Balance received by the rider 💵",
+        (f"₹{got} collected in cash — {ride.ride_code} is fully paid. "
+         f"Thanks for riding with CUnnect!"),
+        "balance_cleared", amount=got)
+    return ok({"ride": _ride_public(ride, viewer="rider"),
+               "collected": got})
+
+
+@csrf_exempt
+@student_required
+@throttle("ridepax", 60, 600)
+def ride_pax(request, user, ride_code):
+    """⭐ v74: split the fare with the people travelling along.
+
+    GET  -> the co-passengers on this ride
+    POST -> add one {name, phone, amount}
+    """
+    from ride.models import Ride, RidePax
+
+    ride = Ride.objects.filter(
+        ride_code=str(ride_code).strip(), student_id=user.id).first()
+    if ride is None:
+        return fail("Ride not found.", status=404)
+
+    def _row(p):
+        return {"id": p.id, "name": p.name, "phone": p.phone,
+                "amount": float(p.amount or 0), "paid": bool(p.paid)}
+
+    if request.method == "GET":
+        rows = [_row(p) for p in RidePax.objects.filter(ride_id=ride.id)]
+        return ok({"pax": rows, "fare": float(ride.fare or 0),
+                   "assigned": round(sum(r["amount"] for r in rows), 2)})
+
+    if request.method != "POST":
+        return fail("POST required.", status=405)
+    if ride.status in ("completed", "cancelled"):
+        return fail("This ride is already closed.")
+    b = json_body(request)
+    try:
+        amount = round(float(b.get("amount") or 0), 2)
+    except (TypeError, ValueError):
+        amount = 0.0
+    if amount <= 0:
+        return fail("Enter how much this person pays.")
+    # never let the split run away past the fare
+    used = sum(float(p.amount or 0)
+               for p in RidePax.objects.filter(ride_id=ride.id))
+    if used + amount > float(ride.fare or 0) + 0.01:
+        return fail("That is more than the fare — check the amounts.")
+    p = RidePax.objects.create(
+        ride_id=ride.id,
+        name=str(b.get("name", "")).strip()[:80],
+        phone=str(b.get("phone", "")).strip()[:20],
+        amount=amount,
+    )
+    return ok({"pax": _row(p)})
+
+
+@csrf_exempt
+@student_required
+@throttle("ridepax", 60, 600)
+def ride_pax_action(request, user, ride_code, pax_id):
+    """⭐ v74: mark a co-passenger paid, or remove them."""
+    from ride.models import Ride, RidePax
+
+    if request.method != "POST":
+        return fail("POST required.", status=405)
+    ride = Ride.objects.filter(
+        ride_code=str(ride_code).strip(), student_id=user.id).first()
+    if ride is None:
+        return fail("Ride not found.", status=404)
+    p = RidePax.objects.filter(id=pax_id, ride_id=ride.id).first()
+    if p is None:
+        return fail("Not found.", status=404)
+    b = json_body(request)
+    if b.get("delete"):
+        p.delete()
+        return ok({"deleted": True})
+    p.name = str(b.get("name", p.name)).strip()[:80] or p.name
+    p.phone = str(b.get("phone", p.phone)).strip()[:20]
+    if "amount" in b:
+        try:
+            p.amount = round(float(b.get("amount") or 0), 2)
+        except (TypeError, ValueError):
+            pass
+    if "paid" in b:
+        p.paid = bool(b.get("paid"))
+    p.save()
+    return ok({"pax": {"id": p.id, "name": p.name, "phone": p.phone,
+                       "amount": float(p.amount or 0),
+                       "paid": bool(p.paid)}})
+
+
+@csrf_exempt
+@student_required
+def ride_stats(request, user):
+    """⭐ v74: the student's own ride statistics + favourite routes."""
+    from ride.models import Ride
+
+    qs = Ride.objects.filter(student_id=user.id)
+    done = [r for r in qs if r.status == "completed"]
+    rides = len(done)
+    km = round(sum(float(r.distance_km or 0) for r in done), 2)
+    spent = round(sum(float(r.amount_paid or 0) for r in done), 2)
+    routes = {}
+    for r in done:
+        key = f"{str(r.pickup_text)[:22]} → {str(r.drop_text)[:22]}"
+        routes[key] = routes.get(key, 0) + 1
+    top = [{"route": k, "times": v}
+           for k, v in sorted(routes.items(), key=lambda kv: -kv[1])[:3]]
+    return ok({"stats": {
+        "rides": rides,
+        "km": km,
+        "spent": spent,
+        "cancelled": sum(1 for r in qs if r.status == "cancelled"),
+        # an average auto/bus comparison is guesswork — we show what is real
+        "favourites": top,
+    }})

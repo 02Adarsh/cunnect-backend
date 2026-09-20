@@ -357,6 +357,38 @@ class RiderBlock(models.Model):
         return self.start_min <= minutes <= self.end_min
 
 
+class RidePax(models.Model):
+    """⭐ v74: splitting a ride fare with the people travelling along.
+
+    The student adds each co-passenger and how much of the fare is
+    theirs; the app then shows exactly who has paid and who still owes,
+    which no other campus app does.
+    """
+
+    ride = models.ForeignKey(
+        "Ride", on_delete=models.CASCADE, related_name="pax")
+    name = models.CharField(max_length=80, blank=True, default="")
+    phone = models.CharField(max_length=20, blank=True, default="")
+    amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    paid = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["id"]
+        verbose_name = "Ride co-passenger"
+        verbose_name_plural = "Ride co-passengers"
+
+    def __str__(self):
+        return f"{self.ride_id} · {self.name or 'co-passenger'} ₹{self.amount}"
+
+    @property
+    def amount_f(self):
+        try:
+            return float(self.amount or 0)
+        except (TypeError, ValueError):
+            return 0.0
+
+
 def _hhmm(minutes):
     minutes = int(minutes or 0)
     return f"{minutes // 60:02d}:{minutes % 60:02d}"

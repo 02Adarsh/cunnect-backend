@@ -178,6 +178,8 @@ urlpatterns = [
     path("ride/estimate/", views.ride_estimate),
     path("ride/book/", views.ride_book),
     path("ride/list/", views.ride_list),
+    # ⭐ v74: literal paths must stay ABOVE the ride/<code>/ catch-all
+    path("ride/stats/", views.ride_stats),
     path("ride/<str:ride_code>/", views.ride_detail),
     path("ride/<str:ride_code>/cancel/", views.ride_cancel),
     path("ride/<str:ride_code>/pay/", views.ride_pay),
@@ -203,4 +205,10 @@ urlpatterns = [
     path("ride/student/location/<str:ride_code>/",
          views.ride_student_location),
     path("ride/vendor/complete/<str:ride_code>/", views.ride_vendor_complete),
+    # ⭐ v74: safety, cash collection, fare split, statistics
+    path("ride/<str:ride_code>/sos/", views.ride_sos),
+    path("ride/vendor/collect-balance/<str:ride_code>/",
+         views.ride_vendor_collect_balance),
+    path("ride/<str:ride_code>/pax/", views.ride_pax),
+    path("ride/<str:ride_code>/pax/<int:pax_id>/", views.ride_pax_action),
 ]
