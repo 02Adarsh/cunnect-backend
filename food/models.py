@@ -419,6 +419,19 @@ class Notification(models.Model):
         default="student", db_index=True,
     )
 
+    # ⭐ v75: which part of the app this row belongs to. The food screen
+    # shows only food rows — print and ride notifications stay out.
+    CATEGORY_CHOICES = (
+        ("food", "Food"),
+        ("print", "Printout"),
+        ("ride", "Ride"),
+        ("general", "General"),
+    )
+    category = models.CharField(
+        max_length=20, choices=CATEGORY_CHOICES,
+        default="food", db_index=True,
+    )
+
     is_read = models.BooleanField(default=False)
 
     created_at = models.DateTimeField(auto_now_add=True)

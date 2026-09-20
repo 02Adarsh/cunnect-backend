@@ -205,6 +205,9 @@ class Ride(models.Model):
     txn_first = models.CharField(max_length=120, blank=True, default="")
     txn_second = models.CharField(max_length=120, blank=True, default="")
     payment_done = models.BooleanField(default=False)
+    # ⭐ v75: the rider must CONFIRM the payment himself. Nothing
+    # advances automatically once the student has paid.
+    payment_confirmed = models.BooleanField(default=False)
 
     # -- OTP (rider arrival -> ride start) ---------------------------
     # ⭐ v68: the OTP is sent to the STUDENT; the student reads it out

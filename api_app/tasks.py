@@ -38,7 +38,10 @@ def order_alert_task(self, order_id, round_no=1):
         if o is None or o.status != "pending" or o.vendor is None:
             return
         _vendor_push(o.vendor, "Order pending - alert",
-                     f"{o.order_number} still waiting. Accept or reject now.")
+                     f"{o.order_number} still waiting. Accept or reject now.",
+                     route="orders",
+                     data={"event": "order_pending", "portal": "vendor",
+                           "order_id": o.id})
         if round_no < 12:
             order_alert_task.apply_async(
                 args=[order_id, round_no + 1], countdown=45)

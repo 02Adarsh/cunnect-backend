@@ -1852,8 +1852,12 @@ def food_place_order(request, user):
         if _vp is None or _vp.id in _seen_vendors:
             continue
         _seen_vendors.add(_vp.id)
-        _notify_vendor(_vp, "New order received",
-                       f"{_o.order_number} - accept or reject now", order=_o)
+        _notify_vendor(
+            _vp, "New order received",
+            f"{_o.order_number} - accept or reject now", order=_o,
+            push_data={"event": "new_order", "portal": "vendor",
+                       "order_id": _o.id,
+                       "order_number": _o.order_number})
         try:
             from api_app.tasks import order_alert_task, redis_ok
             if redis_ok():
@@ -1985,17 +1989,26 @@ def _notify(*args, **kwargs):
     # ⭐ v74: extra push payload — lets the app raise the right POPUP
     # (ride accepted / rejected / paid / arrived / started / completed).
     extra = kwargs.pop("push_data", None)
+    # ⭐ v75: which portal this push belongs to (student / rider / vendor).
+    # The app uses it so a RIDER push never pops up inside the student
+    # Ride screen and vice-versa.
+    portal = kwargs.pop("portal", "student")
     n = Notification.objects.create(*args, **kwargs)
     try:
-        _push_user(n.user_id, n.title, n.message, route=route, data=extra)
+        data = dict(extra or {})
+        data.setdefault("portal", portal)
+        _push_user(n.user_id, n.title, n.message, route=route, data=data)
     except Exception:
         pass
     return n
 
 
 def _notify_vendor(vendor_profile, title, message, order=None, route=None,
-                   push_data=None):
-    """⭐ Separate notification row for the vendor (audience=vendor) + push."""
+                   push_data=None, portal="vendor"):
+    """⭐ Separate notification row for the vendor (audience=vendor) + push.
+
+    ⭐ v75: `portal` = "rider" for ride partners, "vendor" for food/print.
+    """
     n = None
     try:
         n = Notification.objects.create(
@@ -2008,8 +2021,9 @@ def _notify_vendor(vendor_profile, title, message, order=None, route=None,
     except Exception:
         pass
     try:
-        _vendor_push(vendor_profile, title, message, route=route,
-                     data=push_data)
+        data = dict(push_data or {})
+        data.setdefault("portal", portal)
+        _vendor_push(vendor_profile, title, message, route=route, data=data)
     except Exception:
         pass
     return n
@@ -2490,7 +2504,10 @@ def food_notifications(request, user):
     audience = str(request.GET.get("audience", "student")).strip().lower()
     if audience not in ("student", "vendor"):
         audience = "student"
-    base_qs = Notification.objects.filter(user=user, audience=audience)
+    # ⭐ v75: the food screen shows food rows only — print and ride
+    # notifications have their own screens/history.
+    base_qs = Notification.objects.filter(
+        user=user, audience=audience).exclude(category="print")
     notifications = base_qs.order_by("-created_at")[:30]
     return ok({
         "notifications": [
@@ -3305,6 +3322,17 @@ def print_place_order(request, user):
         final_amount=total,
         status="pending",
     )
+    # ⭐ v75: the printout portal rings the moment a job lands
+    try:
+        _notify_vendor(
+            vendor, "New printout order 🖨",
+            (f"{order.document.name.split('/')[-1]} · {pages} pages "
+             f"x {copies} — accept or reject now"),
+            push_data={"event": "new_print_order", "portal": "vendor",
+                       "order_id": order.id},
+        )
+    except Exception:
+        pass
     return ok({"order": serialize_print_order(order)})
 
 
@@ -3435,6 +3463,7 @@ def print_order_action(request, user, order_id, action):
             user_id=order.student_id,
             title=f"Print order {new_status}",
             message=f"{order.document.name.split('/')[-1]} is now {new_status}.",
+            category="print",
         )
     return ok({"order": serialize_print_order(order)})
 
@@ -6878,6 +6907,12 @@ def _ride_public(ride, viewer="student"):
         "amount_paid": float(ride.amount_paid or 0),
         "balance_due": float(ride.balance_due or 0),
         "payment_done": ride.payment_done,
+        "payment_confirmed": bool(ride.payment_confirmed),
+        # ⭐ v75: the rider must still confirm the payment himself
+        "can_confirm": bool(viewer == "rider" and ride.amount_paid > 0
+                            and not ride.payment_confirmed
+                            and ride.status in ("paid", "arrived",
+                                                "ongoing")),
         "amount_now": float(ride.amount_now() or 0),
         "txn_first": ride.txn_first,
         "txn_second": ride.txn_second,
@@ -6938,7 +6973,7 @@ def _ride_notify_student(ride, title, message, event, **extra):
     if not ride.student_id:
         return None
     return _notify(user_id=ride.student_id, title=title, message=message,
-                   route="ride",
+                   route="ride", category="ride", portal="student",
                    push_data=_ride_push_data(ride, event, **extra))
 
 
@@ -6947,6 +6982,7 @@ def _ride_notify_rider(ride, title, message, event, **extra):
     if not ride.rider_id or ride.rider is None:
         return None
     return _notify_vendor(ride.rider.vendor, title, message, route="ride",
+                          portal="rider",
                           push_data=_ride_push_data(ride, event, **extra))
 
 
@@ -6975,6 +7011,7 @@ def _ride_notify_riders(ride):
         if rider_is_blocked(rv, when):
             continue
         _notify_vendor(rv.vendor, title, message, route="ride",
+                       portal="rider",
                        push_data=_ride_push_data(ride, "new_request",
                                                  pickup=ride.pickup_text[:40]))
         count += 1
@@ -7227,16 +7264,20 @@ def ride_pay(request, user, ride_code):
     ride.amount_paid = pay_now
     ride.txn_first = txn
     ride.status = "paid"
+    # ⭐ v75: NOTHING moves on by itself. The rider has to open the ride
+    # portal and tap CONFIRM PAYMENT before he can go any further.
+    ride.payment_confirmed = False
     if not ride.accepted_at:
         ride.accepted_at = timezone.now()
     ride.save()
     _ride_notify_rider(
-        ride, "Payment received 💸",
+        ride, "Payment received — confirm it 💸",
         (f"{ride.ride_code} · ₹{pay_now} received "
          f"({'FULL payment' if mode == 'full' else 'FIRST HALF'})."
          + ("" if mode == "full"
-            else f" Balance ₹{ride.balance_due} to collect at the end.")),
-        "paid", amount=pay_now, mode=mode,
+            else f" Balance ₹{ride.balance_due} to collect at the end.")
+         + " Open My Rides and tap CONFIRM PAYMENT to continue."),
+        "payment_received", amount=pay_now, mode=mode,
         balance=ride.balance_due, txn=txn)
     _ride_notify_student(
         ride,
@@ -7247,6 +7288,70 @@ def ride_pay(request, user, ride_code):
         "payment_done", amount=pay_now, mode=mode,
         balance=ride.balance_due)
     return ok({"ride": _ride_public(ride), "paid": pay_now})
+
+
+@csrf_exempt
+@student_required
+@throttle("rideqr", 60, 600)
+def ride_upi(request, user, ride_code):
+    """⭐ v75: payment QR for a ride.
+
+    The QR is built from the RIDER's own UPI id (or the platform account
+    as a fallback) with the EXACT amount baked in — scanning it fills the
+    amount in the UPI app, and the fare can never be edited by the app.
+    """
+    import base64
+    import io
+    from urllib.parse import quote
+
+    import qrcode
+    from ride.models import Ride
+
+    ride = Ride.objects.filter(
+        ride_code=str(ride_code).strip(), student_id=user.id).first()
+    if ride is None:
+        return fail("Ride not found.", status=404)
+    try:
+        amount = float(request.GET.get("amount") or 0)
+    except (TypeError, ValueError):
+        amount = 0
+    if amount <= 0:
+        amount = float(ride.amount_now() or 0)
+    if amount <= 0:
+        return fail("The fare for this ride is not decided yet.")
+
+    payee = ""
+    name = "CUnnect Ride"
+    if ride.rider_id and ride.rider is not None:
+        vp = ride.rider.vendor
+        payee = (vp.upi_id or "").strip()
+        if payee:
+            name = (vp.business_name or "").strip() or name
+    if not payee:
+        # ⭐ fallback so a ride can always be paid for
+        payee = os.environ.get("CUNNECT_RIDE_UPI", "").strip()
+        name = "CUnnect Ride"
+    if not payee:
+        return fail("Your rider has not added a UPI ID yet. Ask them to add "
+                    "it in the ride portal, or pay them in cash.")
+
+    params = [("pa", payee), ("pn", name), ("am", f"{amount:.2f}"),
+              ("cu", "INR"), ("tn", ride.ride_code)]
+    upi = "upi://pay?" + "&".join(
+        f"{k}={quote(str(v), safe='@' if k == 'pa' else '')}"
+        for k, v in params)
+    img = qrcode.make(upi)
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    return ok({
+        "qr_b64": base64.b64encode(buf.getvalue()).decode(),
+        "qr_url": "data:image/png;base64," + base64.b64encode(
+            buf.getvalue()).decode(),
+        "upi_id": payee,
+        "upi_link": upi,
+        "name": name,
+        "amount": round(amount, 2),
+    })
 
 
 @csrf_exempt
@@ -7497,6 +7602,41 @@ def ride_vendor_accept(request, user, ride_code):
 
 
 @csrf_exempt
+@throttle("rideact", 60, 600)
+def ride_vendor_confirm(request, ride_code):
+    """⭐ v75: the RIDER confirms that the payment actually reached him.
+
+    Nothing is automatic after the student pays — the ride only moves
+    forward once the rider taps CONFIRM PAYMENT in his portal.
+    """
+    from ride.models import Ride
+
+    _u, profile, rv = _ride_rider_or_none(request)
+    if profile is None or rv is None:
+        return fail("Ride partner account not found.", status=401)
+    ride = Ride.objects.filter(ride_code=str(ride_code).strip()).first()
+    if ride is None:
+        return fail("Ride not found.", status=404)
+    if ride.rider_id != rv.id:
+        return fail("You have not accepted this ride.", status=403)
+    if ride.status in ("completed", "cancelled"):
+        return fail("This ride is closed.")
+    if ride.amount_paid <= 0:
+        return fail("The student has not paid yet.")
+    if ride.payment_confirmed:
+        return ok({"ride": _ride_public(ride, viewer="rider"),
+                   "already": True})
+    ride.payment_confirmed = True
+    ride.save(update_fields=["payment_confirmed"])
+    _ride_notify_student(
+        ride, "Rider confirmed your payment ✅",
+        (f"{profile.business_name} has confirmed your payment of "
+         f"₹{ride.amount_paid} for {ride.ride_code}."),
+        "confirmed", amount=ride.amount_paid, rider=profile.business_name)
+    return ok({"ride": _ride_public(ride, viewer="rider")})
+
+
+@csrf_exempt
 @student_required
 @throttle("rideact", 60, 600)
 def ride_vendor_reject(request, user, ride_code):
@@ -7574,6 +7714,9 @@ def ride_vendor_arrived(request, user, ride_code):
                     "as soon as the payment comes in.")
     if ride.amount_paid <= 0:
         return fail("Payment is not recorded for this ride yet.")
+    if not ride.payment_confirmed:
+        return fail("Confirm the payment first — open My Rides and tap "
+                    "CONFIRM PAYMENT.")
     import random
 
     otp = "".join(random.choice("0123456789") for _ in range(4))
@@ -7895,7 +8038,7 @@ def ride_sos(request, user, ride_code):
             _notify_vendor(
                 rv.vendor, "🚨 SOS on campus",
                 (f"{who} needs help on {ride.ride_code}. {link}"),
-                route="ride",
+                route="ride", portal="rider",
                 push_data={"event": "sos", "ride_code": ride.ride_code,
                            "lat": lat, "lng": lng})
     except Exception:

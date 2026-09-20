@@ -183,6 +183,8 @@ urlpatterns = [
     path("ride/<str:ride_code>/", views.ride_detail),
     path("ride/<str:ride_code>/cancel/", views.ride_cancel),
     path("ride/<str:ride_code>/pay/", views.ride_pay),
+    # ⭐ v75: payment QR with the amount locked (rider UPI / platform fallback)
+    path("ride/upi/<str:ride_code>/", views.ride_upi),
     path("ride/<str:ride_code>/pay-balance/", views.ride_pay_balance),
     path("ride/<str:ride_code>/verify-otp/", views.ride_verify_otp),
 
@@ -196,6 +198,8 @@ urlpatterns = [
     path("ride/vendor/rides/", views.ride_vendor_rides),
     path("ride/vendor/accept/<str:ride_code>/", views.ride_vendor_accept),
     path("ride/vendor/reject/<str:ride_code>/", views.ride_vendor_reject),
+    # ⭐ v75: rider confirms the payment himself — nothing is automatic
+    path("ride/vendor/confirm/<str:ride_code>/", views.ride_vendor_confirm),
     path("ride/vendor/arrived/<str:ride_code>/", views.ride_vendor_arrived),
     # ⭐ v68: rider types the student's OTP here to start the ride
     path("ride/vendor/start/<str:ride_code>/", views.ride_vendor_start),
