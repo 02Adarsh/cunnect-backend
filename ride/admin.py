@@ -8,7 +8,7 @@ class RideVendorAdmin(admin.ModelAdmin):
     list_display = ("vendor", "vehicle_number", "is_online",
                     "total_rides", "total_earnings")
     list_filter = ("is_online", "auto_active", "mini_active",
-                   "sedan_active", "xl_active")
+                   "sedan_active", "suv_active")
     search_fields = ("vendor__business_name", "vehicle_number")
 
 

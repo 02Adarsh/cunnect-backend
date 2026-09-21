@@ -21,18 +21,22 @@ from django.utils import timezone
 
 # ---------------------------------------------------------------------
 # Vehicle catalogue (Uber-like, but NO bike — the owner asked for
-# Auto / Mini / Sedan / XL only).
+# Mini / Sedan / SUV).
 # ---------------------------------------------------------------------
 # ⭐ v73: the Auto rickshaw option has been removed from CUnnect Ride.
+# ⭐ v77: "Car XL" is now called SUV everywhere.
 VEHICLE_TYPES = [
     ("mini", "Mini", "🚗", 4, 30.0, 14.0),
     ("sedan", "Sedan", "🚙", 4, 45.0, 18.0),
-    ("xl", "Car XL", "🚐", 6, 60.0, 23.0),
+    ("suv", "SUV", "🚐", 6, 60.0, 23.0),
 ]
 
 VEHICLE_KEYS = [v[0] for v in VEHICLE_TYPES]
 VEHICLE_LABEL = {v[0]: v[1] for v in VEHICLE_TYPES}
 VEHICLE_ICON = {v[0]: v[2] for v in VEHICLE_TYPES}
+# ⭐ v77: rides booked before the rename still carry "xl" in the DB
+VEHICLE_LABEL["xl"] = "SUV"
+VEHICLE_ICON["xl"] = "🚐"
 VEHICLE_SEATS = {v[0]: v[3] for v in VEHICLE_TYPES}
 # Platform fallback rates (used only when no ride partner has set one).
 VEHICLE_DEFAULT_BASE = {v[0]: v[4] for v in VEHICLE_TYPES}
@@ -75,9 +79,10 @@ class RideVendor(models.Model):
     sedan_base = models.DecimalField(max_digits=8, decimal_places=2, default=45.0)
     sedan_per_km = models.DecimalField(max_digits=8, decimal_places=2, default=18.0)
 
-    xl_active = models.BooleanField(default=False)
-    xl_base = models.DecimalField(max_digits=8, decimal_places=2, default=60.0)
-    xl_per_km = models.DecimalField(max_digits=8, decimal_places=2, default=23.0)
+    # ⭐ v77: "xl" is SUV now (the columns were renamed in migration 0009)
+    suv_active = models.BooleanField(default=False)
+    suv_base = models.DecimalField(max_digits=8, decimal_places=2, default=60.0)
+    suv_per_km = models.DecimalField(max_digits=8, decimal_places=2, default=23.0)
 
     # ⭐ online = receiving ride alerts right now
     is_online = models.BooleanField(default=False)
@@ -104,8 +109,8 @@ class RideVendor(models.Model):
             return self.mini_active, self.mini_base, self.mini_per_km
         if vehicle_type == "sedan":
             return self.sedan_active, self.sedan_base, self.sedan_per_km
-        if vehicle_type == "xl":
-            return self.xl_active, self.xl_base, self.xl_per_km
+        if vehicle_type in ("suv", "xl"):
+            return self.suv_active, self.suv_base, self.suv_per_km
         return False, 0, 0
 
     def set_rate(self, vehicle_type, active, base, per_km):
@@ -115,8 +120,8 @@ class RideVendor(models.Model):
             self.mini_active, self.mini_base, self.mini_per_km = active, base, per_km
         elif vehicle_type == "sedan":
             self.sedan_active, self.sedan_base, self.sedan_per_km = active, base, per_km
-        elif vehicle_type == "xl":
-            self.xl_active, self.xl_base, self.xl_per_km = active, base, per_km
+        elif vehicle_type in ("suv", "xl"):
+            self.suv_active, self.suv_base, self.suv_per_km = active, base, per_km
 
     def active_vehicles(self):
         return [v for v in VEHICLE_KEYS if self.rate_for(v)[0]]
@@ -125,6 +130,39 @@ class RideVendor(models.Model):
         """Vehicle offered AND partner online."""
         active, _b, _p = self.rate_for(vehicle_type)
         return bool(active)
+
+
+class RideVehicle(models.Model):
+    """⭐ v77: one of the ride partner's saved vehicles.
+
+    A partner can keep several cars — a Mini, a Sedan, an SUV — each
+    with its own name and number plate. While accepting a request he
+    picks which one he is driving for that ride.
+    """
+
+    rider = models.ForeignKey(
+        RideVendor, on_delete=models.CASCADE, related_name="vehicles")
+    vehicle_type = models.CharField(max_length=12, default="mini")
+    name = models.CharField(max_length=80, blank=True, default="")
+    plate = models.CharField(max_length=24, blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["vehicle_type", "name"]
+
+    def __str__(self):
+        return f"{self.name or self.vehicle_type} · {self.plate}"
+
+    def as_dict(self):
+        return {
+            "id": self.id,
+            "vehicle_type": self.vehicle_type,
+            "vehicle_label": VEHICLE_LABEL.get(self.vehicle_type,
+                                               self.vehicle_type.title()),
+            "vehicle_icon": VEHICLE_ICON.get(self.vehicle_type, "🚗"),
+            "name": self.name,
+            "plate": self.plate,
+        }
 
 
 class RideRejection(models.Model):
@@ -208,6 +246,12 @@ class Ride(models.Model):
     # ⭐ v75: the rider must CONFIRM the payment himself. Nothing
     # advances automatically once the student has paid.
     payment_confirmed = models.BooleanField(default=False)
+
+    # ⭐ v77: which car the rider is driving for THIS ride (chosen while
+    # accepting). The plate stays hidden from the student until the
+    # payment has been verified.
+    vehicle_name = models.CharField(max_length=80, blank=True, default="")
+    vehicle_plate = models.CharField(max_length=24, blank=True, default="")
 
     # -- OTP (rider arrival -> ride start) ---------------------------
     # ⭐ v68: the OTP is sent to the STUDENT; the student reads it out

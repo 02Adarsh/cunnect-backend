@@ -6760,7 +6760,7 @@ def _ride_rate_pool(vehicle_type):
     from ride.models import RideVendor
 
     field = f"{vehicle_type}_active"
-    if vehicle_type not in ("auto", "mini", "sedan", "xl"):
+    if vehicle_type not in ("auto", "mini", "sedan", "suv", "xl"):
         return []
     qs = RideVendor.objects.filter(**{field: True}).select_related("vendor")
     pool = list(qs)
@@ -6839,7 +6839,7 @@ def _ride_has_free_rider(vehicle_type, when):
     from ride.models import RideVendor, rider_is_blocked
 
     field = f"{vehicle_type}_active"
-    if vehicle_type not in ("mini", "sedan", "xl"):
+    if vehicle_type not in ("mini", "sedan", "suv", "xl"):
         return False
     riders = RideVendor.objects.filter(**{field: True}, is_online=True)
     return any(not rider_is_blocked(rv, when) for rv in riders)
@@ -6861,6 +6861,15 @@ def _ride_split_amounts(fare):
     }
 
 
+def _mask_phone(value):
+    """⭐ v77: 9876543210 -> 98XXXXX210 (shown on screen; the real number
+    only ever reaches the phone's dialer through the CALL button)."""
+    p = (value or "").strip()
+    if len(p) < 6:
+        return p
+    return f"{p[:2]}{'X' * (len(p) - 5)}{p[-3:]}"
+
+
 def _ride_public(ride, viewer="student"):
     """Serialize a ride.
 
@@ -6877,9 +6886,16 @@ def _ride_public(ride, viewer="student"):
         vendor_id = ride.rider.vendor_id
         rider_phone = ride.rider.vendor.phone or ""
 
-    # ⭐ v76: the rider sees a phone number only AFTER he has CONFIRMED
-    # the payment himself — the student paying is not enough any more.
-    phone_visible = (viewer != "rider") or bool(ride.payment_confirmed)
+    # ⭐ v77: NOTHING is shared before the rider accepts AND verifies the
+    # payment. After that:
+    #   * the RIDER may call the student — but only a MASKED number is
+    #     ever painted on screen (the digits go to the dialer only)
+    #   * the STUDENT sees the rider's number, car model and plate
+    confirmed = bool(ride.payment_confirmed)
+    is_rider = viewer == "rider"
+    phone_visible = (not is_rider) or confirmed      # student's -> rider
+    rider_phone_visible = is_rider or confirmed      # rider's -> student
+    plate_visible = is_rider or confirmed            # plate -> student
     return {
         "ride_code": ride.ride_code,
         "status": ride.status,
@@ -6916,16 +6932,28 @@ def _ride_public(ride, viewer="student"):
         "txn_first": ride.txn_first,
         "txn_second": ride.txn_second,
         "rider_name": rider_name,
-        "rider_phone": rider_phone,
+        # ⭐ v77: the rider's number reaches the student only after the
+        # payment has been verified by the rider.
+        "rider_phone": rider_phone if rider_phone_visible else "",
+        "rider_phone_masked": _mask_phone(rider_phone),
+        "rider_phone_hidden": not rider_phone_visible,
+        # ⭐ v77: this ride's car — the model/category is public, the
+        # plate appears only after the payment is verified.
+        "vehicle_name": ride.vehicle_name or "",
+        "vehicle_plate": ride.vehicle_plate if plate_visible else "",
+        "plate_hidden": not plate_visible,
         "rider_vehicle": (ride.rider.vehicle_number if ride.rider_id else ""),
         "rider_model": (ride.rider.vehicle_model if ride.rider_id else ""),
         "vendor_id": vendor_id,
         "student_name": ride.student_name,
-        # ⭐ hidden from the rider until the ride is paid for
+        # ⭐ hidden from the rider until he verifies the payment
         "student_phone": ride.student_phone if phone_visible else "",
+        "student_phone_masked": _mask_phone(
+            ride.contact_phone or ride.student_phone),
         "phone_hidden": not phone_visible,
         # ⭐ v73: the number to dial = the student's own number, or the
-        # "booking for someone else" contact.
+        # "booking for someone else" contact. The RIDER never sees the
+        # digits on screen — only the dialer gets them.
         "contact_phone": (ride.contact_phone or ride.student_phone)
         if phone_visible
         else "",
@@ -6990,7 +7018,7 @@ def _ride_notify_riders(ride):
     from ride.models import RideVendor, rider_is_blocked
 
     field = f"{ride.vehicle_type}_active"
-    if ride.vehicle_type not in ("mini", "sedan", "xl"):
+    if ride.vehicle_type not in ("mini", "sedan", "suv", "xl"):
         return 0
     # ⭐ v73: partners who blocked this slot are not disturbed at all.
     when = ride.scheduled_at or timezone.now()
@@ -7321,18 +7349,35 @@ def ride_upi(request, user, ride_code):
 
     payee = ""
     name = "CUnnect Ride"
+    uploaded_qr = ""
     if ride.rider_id and ride.rider is not None:
         vp = ride.rider.vendor
         payee = (vp.upi_id or "").strip()
         if payee:
             name = (vp.business_name or "").strip() or name
+        try:
+            if vp.upi_qr_image:
+                uploaded_qr = vp.upi_qr_image.url
+        except Exception:
+            uploaded_qr = ""
+    # ⭐ v77: a rider who only UPLOADED his QR (no UPI id typed in) used to
+    # get no QR at all — his uploaded image is used instead. The platform
+    # account is the last resort so a ride can always be paid for.
+    if not payee and uploaded_qr:
+        return ok({
+            "qr_url": uploaded_qr,
+            "upi_id": "",
+            "upi_link": "",
+            "name": name,
+            "amount": round(amount, 2),
+            "source": "uploaded",
+        })
     if not payee:
-        # ⭐ fallback so a ride can always be paid for
         payee = os.environ.get("CUNNECT_RIDE_UPI", "").strip()
         name = "CUnnect Ride"
     if not payee:
-        return fail("Your rider has not added a UPI ID yet. Ask them to add "
-                    "it in the ride portal, or pay them in cash.")
+        return fail("Your rider has not added a UPI ID or QR yet. Ask them "
+                    "to add it in the ride portal, or pay them in cash.")
 
     params = [("pa", payee), ("pn", name), ("am", f"{amount:.2f}"),
               ("cu", "INR"), ("tn", ride.ride_code)]
@@ -7424,8 +7469,8 @@ def ride_verify_otp(request, user, ride_code):
 @student_required
 def ride_vendor_profile(request, user):
     """GET/POST the ride partner's vehicles + own pricing."""
-    from ride.models import (RideVendor, VEHICLE_ICON, VEHICLE_KEYS,
-                             VEHICLE_LABEL, VEHICLE_SEATS)
+    from ride.models import (RideVehicle, RideVendor, VEHICLE_ICON,
+                             VEHICLE_KEYS, VEHICLE_LABEL, VEHICLE_SEATS)
 
     _u, profile, rv = _ride_rider_or_none(request)
     if profile is None:
@@ -7457,6 +7502,10 @@ def ride_vendor_profile(request, user):
                 "total_earnings": float(rv.total_earnings or 0),
             },
             "vehicles": vehicles,
+            # ⭐ v77: the partner's own cars (name + plate) — these are the
+            # options he picks from while accepting a request.
+            "garage": [c.as_dict() for c in RideVehicle.objects.filter(
+                rider_id=rv.id)] if rv.pk else [],
         })
 
     b = json_body(request)
@@ -7590,7 +7639,29 @@ def ride_vendor_accept(request, user, ride_code):
     ride.total = ride.fare
     ride.split_fee = 0
     ride.balance_due = 0
-    ride.save(update_fields=["fare", "total", "split_fee", "balance_due"])
+    # ⭐ v77: the car for THIS ride — one of the partner's saved vehicles
+    # (id) or a one-off (name + plate) that is NOT added to his garage.
+    body = {}
+    try:
+        body = json_body(request) or {}
+    except Exception:
+        body = {}
+    v_name = str(body.get("vehicle_name", "")).strip()[:80]
+    v_plate = str(body.get("vehicle_plate", "")).strip()[:24]
+    v_id = str(body.get("vehicle_id", "")).strip()
+    if v_id.isdigit():
+        from ride.models import RideVehicle
+
+        car = RideVehicle.objects.filter(
+            id=int(v_id), rider_id=rv.id).first()
+        if car is not None:
+            v_name = v_name or car.name
+            v_plate = v_plate or car.plate
+    if v_name or v_plate:
+        ride.vehicle_name = v_name
+        ride.vehicle_plate = v_plate
+    ride.save(update_fields=["fare", "total", "split_fee", "balance_due",
+                             "vehicle_name", "vehicle_plate"])
     _ride_notify_student(
         ride,
         "Rider accepted your ride 🚗",
@@ -7633,6 +7704,48 @@ def ride_vendor_confirm(request, ride_code):
          f"₹{ride.amount_paid} for {ride.ride_code}."),
         "confirmed", amount=ride.amount_paid, rider=profile.business_name)
     return ok({"ride": _ride_public(ride, viewer="rider")})
+
+
+@csrf_exempt
+@throttle("ridegarage", 60, 600)
+def ride_vendor_vehicles(request):
+    """⭐ v77: the ride partner's garage — every car he owns, per category.
+
+    GET  -> the list (mini / sedan / SUV, each with its number plate)
+    POST -> add one {vehicle_type, name, plate}
+    """
+    from ride.models import VEHICLE_KEYS, RideVehicle
+
+    _u, profile, rv = _ride_rider_or_none(request)
+    if profile is None or rv is None:
+        return fail("Ride partner account not found.", status=401)
+    if request.method == "POST":
+        b = json_body(request) or {}
+        vtype = str(b.get("vehicle_type", "")).strip().lower()
+        if vtype not in VEHICLE_KEYS:
+            return fail("Choose Mini, Sedan or SUV.")
+        name = str(b.get("name", "")).strip()[:80]
+        plate = str(b.get("plate", "")).strip().upper()[:24]
+        if not name and not plate:
+            return fail("Give the car a name and its number plate.")
+        car = RideVehicle.objects.create(
+            rider=rv, vehicle_type=vtype, name=name, plate=plate)
+        return ok({"vehicle": car.as_dict()})
+    return ok({"vehicles": [c.as_dict() for c in
+                            RideVehicle.objects.filter(rider_id=rv.id)]})
+
+
+@csrf_exempt
+@throttle("ridegarage", 60, 600)
+def ride_vendor_vehicle_delete(request, vehicle_id):
+    """⭐ v77: remove a car from the garage."""
+    from ride.models import RideVehicle
+
+    _u, profile, rv = _ride_rider_or_none(request)
+    if profile is None or rv is None:
+        return fail("Ride partner account not found.", status=401)
+    RideVehicle.objects.filter(id=vehicle_id, rider_id=rv.id).delete()
+    return ok({"deleted": True})
 
 
 @csrf_exempt

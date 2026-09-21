@@ -191,6 +191,10 @@ urlpatterns = [
     # ⭐ v66: CUnnect Ride — ride partner portal
     path("ride/vendor/profile/", views.ride_vendor_profile),
     # ⭐ v73: rider "I am not available" slots (daily + specific dates)
+    # ⭐ v77: the partner's garage (several cars, each with a plate)
+    path("ride/vendor/vehicles/", views.ride_vendor_vehicles),
+    path("ride/vendor/vehicles/<int:vehicle_id>/delete/",
+         views.ride_vendor_vehicle_delete),
     path("ride/vendor/blocks/", views.ride_vendor_blocks),
     path("ride/vendor/blocks/<int:block_id>/delete/",
          views.ride_vendor_block_delete),
