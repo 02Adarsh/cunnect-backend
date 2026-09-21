@@ -6877,10 +6877,9 @@ def _ride_public(ride, viewer="student"):
         vendor_id = ride.rider.vendor_id
         rider_phone = ride.rider.vendor.phone or ""
 
-    # ⭐ v73: the rider only sees a phone number once the ride is PAID
-    # (accepted is not enough any more — same privacy rule as food).
-    paid_statuses = ("paid", "arrived", "ongoing", "completed")
-    phone_visible = (viewer != "rider") or (ride.status in paid_statuses)
+    # ⭐ v76: the rider sees a phone number only AFTER he has CONFIRMED
+    # the payment himself — the student paying is not enough any more.
+    phone_visible = (viewer != "rider") or bool(ride.payment_confirmed)
     return {
         "ride_code": ride.ride_code,
         "status": ride.status,
