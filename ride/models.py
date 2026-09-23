@@ -87,6 +87,12 @@ class RideVendor(models.Model):
     # ⭐ online = receiving ride alerts right now
     is_online = models.BooleanField(default=False)
 
+    # ⭐ v79: an AUTO partner. He is not part of the car booking flow at
+    # all — the student taps the AUTO button on the Ride screen and every
+    # auto partner is alerted at once. No fare, no payment, no OTP, no
+    # ride record: it is a plain "come to the main gate" call.
+    is_auto = models.BooleanField(default=False)
+
     total_rides = models.PositiveIntegerField(default=0)
     total_earnings = models.DecimalField(max_digits=12, decimal_places=2, default=0)
 

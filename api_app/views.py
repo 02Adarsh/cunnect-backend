@@ -7547,6 +7547,9 @@ def ride_vendor_profile(request, user):
                 "vehicle_number": rv.vehicle_number,
                 "vehicle_model": rv.vehicle_model,
                 "is_online": rv.is_online,
+                # ⭐ v79: "I drive an auto" — these partners receive the
+                # one-tap AUTO calls from the student Ride screen.
+                "is_auto": bool(rv.is_auto),
                 "upi_id": profile.upi_id or "",
                 "total_rides": rv.total_rides,
                 "total_earnings": float(rv.total_earnings or 0),
@@ -7565,6 +7568,8 @@ def ride_vendor_profile(request, user):
     rv.vehicle_model = str(b.get("vehicle_model", ""))[:80].strip()
     if "is_online" in b:
         rv.is_online = bool(b.get("is_online"))
+    if "is_auto" in b:
+        rv.is_auto = bool(b.get("is_auto"))
     for key in VEHICLE_KEYS:
         spec = b.get(key)
         if not isinstance(spec, dict):
@@ -7578,7 +7583,45 @@ def ride_vendor_profile(request, user):
             continue
         rv.set_rate(key, bool(spec.get("active")), base, per_km)
     rv.save()
-    return ok({"saved": True, "is_online": rv.is_online})
+    return ok({"saved": True, "is_online": rv.is_online,
+               "is_auto": rv.is_auto})
+
+
+@csrf_exempt
+@student_required
+@throttle("rideauto", 30, 600)
+def ride_auto_call(request, user):
+    """⭐ v79: ONE TAP -> every auto partner is alerted at the same time.
+
+    There is no booking behind this: no pickup or drop to type, no fare,
+    no payment, no OTP and no ride record. The pickup is always the
+    campus main gate — the partners know it, so it is never spelled out
+    to the student.
+    """
+    from ride.models import RideVendor
+
+    if request.method != "POST":
+        return fail("POST required.", status=405)
+    # ⭐ the pickup for an auto is ALWAYS the campus main gate — the
+    # partners know it, so the student never has to type or see it.
+    lat, lng = 26.621884, 80.687916
+    who = (getattr(user, "first_name", "") or user.username or
+           "A student").strip()
+    title = "Auto needed at the main gate 🛺"
+    message = f"{who} is waiting at the campus main gate for an auto."
+    sent = 0
+    for rv in RideVendor.objects.filter(
+            is_auto=True).select_related("vendor"):
+        _notify_vendor(
+            rv.vendor, title, message, route="ride", portal="rider",
+            push_data={"event": "auto_call", "ride_code": "",
+                       "lat": str(lat), "lng": str(lng)})
+        sent += 1
+    return ok({"sent": sent,
+               "message": (f"{sent} auto partner"
+                           f"{'' if sent == 1 else 's'} alerted."
+                           if sent else
+                           "No auto partner has joined CUnnect yet.")})
 
 
 @csrf_exempt

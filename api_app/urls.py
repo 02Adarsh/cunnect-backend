@@ -198,6 +198,8 @@ urlpatterns = [
     path("ride/vendor/blocks/", views.ride_vendor_blocks),
     path("ride/vendor/blocks/<int:block_id>/delete/",
          views.ride_vendor_block_delete),
+    # ⭐ v79: one tap -> every auto partner is alerted at once
+    path("ride/auto/call/", views.ride_auto_call),
     path("ride/vendor/requests/", views.ride_vendor_requests),
     path("ride/vendor/rides/", views.ride_vendor_rides),
     path("ride/vendor/accept/<str:ride_code>/", views.ride_vendor_accept),

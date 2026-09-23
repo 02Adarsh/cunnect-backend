@@ -5,9 +5,9 @@ from .models import Ride, RideVendor
 
 @admin.register(RideVendor)
 class RideVendorAdmin(admin.ModelAdmin):
-    list_display = ("vendor", "vehicle_number", "is_online",
+    list_display = ("vendor", "vehicle_number", "is_online", "is_auto",
                     "total_rides", "total_earnings")
-    list_filter = ("is_online", "auto_active", "mini_active",
+    list_filter = ("is_online", "is_auto", "auto_active", "mini_active",
                    "sedan_active", "suv_active")
     search_fields = ("vendor__business_name", "vehicle_number")
 
