@@ -3424,12 +3424,59 @@ def print_vendor_dashboard(request, user):
         serialize_print_order(order, for_vendor=True) for order in orders]})
 
 
+def _doc_content_type(name, fallback="application/octet-stream"):
+    """Content type from the file name — the viewer sniffs the bytes too."""
+    ext = (name or "").rsplit(".", 1)[-1].lower() if "." in (name or "") else ""
+    return {
+        "pdf": "application/pdf",
+        "png": "image/png",
+        "jpg": "image/jpeg",
+        "jpeg": "image/jpeg",
+        "webp": "image/webp",
+        "gif": "image/gif",
+        "bmp": "image/bmp",
+        "txt": "text/plain",
+        "doc": "application/msword",
+        "docx": "application/vnd.openxmlformats-officedocument"
+               ".wordprocessingml.document",
+    }.get(ext, fallback)
+
+
+def _cloudinary_signed_download(public_id, resource_type="raw"):
+    """Signed api.cloudinary.com download URL — the route that still works
+    when public raw delivery is blocked on free plans."""
+    import hashlib
+    from urllib.parse import urlencode
+
+    cloud = os.environ.get("CLOUDINARY_CLOUD_NAME", "").strip()
+    params = {
+        "public_id": public_id,
+        "timestamp": str(int(time.time())),
+        "attachment": "true",
+    }
+    to_sign = "&".join(f"{k}={params[k]}" for k in sorted(params))
+    signature = hashlib.sha1(
+        (to_sign + os.environ.get("CLOUDINARY_API_SECRET", "")).encode()
+    ).hexdigest()
+    query = urlencode({
+        **params,
+        "api_key": os.environ.get("CLOUDINARY_API_KEY", ""),
+        "signature": signature,
+    })
+    return (f"https://api.cloudinary.com/v1_1/{cloud}/{resource_type}"
+            f"/download?{query}")
+
+
 @csrf_exempt
 def print_order_file(request, order_id):
-    """Secure document download. Cloudinary free accounts block public
-    PDF/raw delivery (401 deny/ACL), so this endpoint hands out a signed
-    API download link instead. Token via header or ?token= (so the link
-    can open in an external browser)."""
+    """Secure document download.
+
+    The bytes are always handed back by THIS endpoint. The app's PDF
+    viewer needs a plain 200 with the file in the body — the old redirect
+    to Cloudinary dropped the auth header on the hop and free-plan raw
+    delivery answered 401/404. Every storage candidate is tried here,
+    server-side. Add ?debug=1 to see which one answered.
+    """
     user = user_from_token(request)
     if user is None:
         key = request.GET.get("token", "").strip()
@@ -3456,42 +3503,110 @@ def print_order_file(request, order_id):
                     status=403)
     if not order.document:
         return fail("No file attached to this order.", status=404)
+
+    name = order.document.name or ""
+    base = name.split("/")[-1] or "document"
+    debug = str(request.GET.get("debug", "")).strip() == "1"
+    attempts = []
+
+    def _serve(content, ctype):
+        resp = HttpResponse(content, content_type=ctype)
+        resp["Content-Disposition"] = f'inline; filename="{base}"'
+        resp["Content-Length"] = str(len(content))
+        resp["Access-Control-Expose-Headers"] = "Content-Disposition"
+        return resp
+
+    def _fetch(url, auth=None):
+        import requests
+        return requests.get(url, timeout=60, auth=auth)
+
     cloud = os.environ.get("CLOUDINARY_CLOUD_NAME", "").strip()
-    if cloud:
-        import hashlib
-        from urllib.parse import urlencode
 
-        name = order.document.name
-        public_id = name if name.startswith("cunnect/") else f"cunnect/{name}"
-        params = {
-            "public_id": public_id,
-            "timestamp": str(int(time.time())),
-            "attachment": "true",
-        }
-        to_sign = "&".join(f"{k}={params[k]}" for k in sorted(params))
-        secret = os.environ.get("CLOUDINARY_API_SECRET", "")
-        signature = hashlib.sha1((to_sign + secret).encode()).hexdigest()
-        query = urlencode({
-            **params,
-            "api_key": os.environ.get("CLOUDINARY_API_KEY", ""),
-            "signature": signature,
-        })
-        from django.shortcuts import redirect
-        return redirect(
-            f"https://api.cloudinary.com/v1_1/{cloud}/raw/download?{query}")
-    # Local-disk fallback (development).
-    from django.conf import settings
-    from django.http import FileResponse
-    try:
-        path = os.path.join(str(settings.MEDIA_ROOT), order.document.name)
-        return FileResponse(
-            open(path, "rb"),
-            as_attachment=True,
-            filename=order.document.name.split("/")[-1],
-        )
-    except Exception:
-        return fail("File missing on the server.", status=404)
+    # ---- 1) local disk (development, or a file stored on this box) -------
+    if not cloud:
+        from django.conf import settings
+        path = os.path.join(str(settings.MEDIA_ROOT), name)
+        try:
+            with open(path, "rb") as fh:
+                return _serve(fh.read(), _doc_content_type(name))
+        except Exception as exc:
+            attempts.append({"where": "local", "path": path, "error": str(exc)})
+            if debug:
+                return JsonResponse({"ok": False, "document": name,
+                                     "attempts": attempts}, status=404)
+            return fail("File missing on the server.", status=404)
 
+    # ---- 2) Cloudinary: ask the Admin API where the asset really is -----
+    pids = []
+    for pid in (name, f"cunnect/{name}"):
+        pid = pid.lstrip("/")
+        if pid and pid not in pids:
+            pids.append(pid)
+
+    key = os.environ.get("CLOUDINARY_API_KEY", "")
+    secret = os.environ.get("CLOUDINARY_API_SECRET", "")
+    for pid in pids:
+        for rtype in ("raw", "image"):
+            admin_url = (f"https://api.cloudinary.com/v1_1/{cloud}/resources/"
+                         f"{rtype}/upload/{pid}")
+            try:
+                r = _fetch(admin_url, auth=(key, secret))
+            except Exception as exc:
+                attempts.append({"where": f"admin-{rtype}", "public_id": pid,
+                                 "error": str(exc)})
+                continue
+            attempts.append({"where": f"admin-{rtype}", "public_id": pid,
+                             "status": r.status_code})
+            if r.status_code != 200:
+                continue
+            try:
+                secure = (r.json() or {}).get("secure_url") or ""
+            except Exception:
+                secure = ""
+            if not secure:
+                continue
+            try:
+                fr = _fetch(secure)
+            except Exception as exc:
+                attempts.append({"where": f"admin-{rtype}-fetch",
+                                 "error": str(exc)})
+                continue
+            attempts.append({"where": f"admin-{rtype}-fetch",
+                             "status": fr.status_code,
+                             "bytes": len(fr.content)})
+            if fr.status_code == 200 and fr.content:
+                return _serve(fr.content, _doc_content_type(name))
+
+    # ---- 3) Cloudinary: signed download, then plain delivery URLs --------
+    for pid in pids:
+        for label, url in (
+            ("signed-raw", _cloudinary_signed_download(pid, "raw")),
+            ("public-raw",
+             f"https://res.cloudinary.com/{cloud}/raw/upload/{pid}"),
+            ("public-image",
+             f"https://res.cloudinary.com/{cloud}/image/upload/{pid}"),
+        ):
+            try:
+                r = _fetch(url)
+            except Exception as exc:
+                attempts.append({"where": label, "public_id": pid,
+                                 "error": str(exc)})
+                continue
+            attempts.append({"where": label, "public_id": pid,
+                             "status": r.status_code,
+                             "content_type": r.headers.get("content-type", ""),
+                             "bytes": len(r.content)})
+            if r.status_code == 200 and r.content:
+                ctype = (r.headers.get("content-type", "").split(";")[0].strip()
+                         or _doc_content_type(name))
+                return _serve(r.content, ctype)
+
+    if debug:
+        return JsonResponse({"ok": False, "document": name,
+                             "public_ids_tried": pids,
+                             "attempts": attempts}, status=404)
+    return fail("The file could not be fetched from storage. "
+                "Open this URL with ?debug=1 to see why.", status=404)
 
 PRINT_ACTIONS = {
     "accept": ("pending", "accepted"),
@@ -5500,13 +5615,14 @@ def admin_vendors(request, user):
         phone = str(body.get("phone", "")).strip()
         password = str(body.get("password", ""))
         vtype = str(body.get("vendor_type", "food")).strip().lower()[:30]
-        # Built-in types (⭐ v66 adds "ride") OR a custom store section key.
-        if vtype not in ("food", "printout", "hostel", "ride"):
+        # Built-in types (⭐ v66 adds "ride", ⭐ v81 adds "auto")
+        # OR a custom store section key.
+        if vtype not in ("food", "printout", "hostel", "ride", "auto"):
             from myapp.models import StoreSection
             if not StoreSection.objects.filter(key=vtype).exists():
                 return fail(
-                    "vendor_type must be food, printout, hostel, ride or "
-                    "the key of a store section you created.")
+                    "vendor_type must be food, printout, hostel, ride, auto "
+                    "or the key of a store section you created.")
         if not name or not phone or not password:
             return fail("business_name, phone and password are required.")
         if VendorProfile.objects.filter(phone=phone).exists():
@@ -5517,6 +5633,12 @@ def admin_vendors(request, user):
         vuser = User.objects.create_user(username=username, password=password)
         v = VendorProfile.objects.create(
             user=vuser, business_name=name, phone=phone, vendor_type=vtype)
+        # ⭐ v81: an AUTO account gets its partner row straight away —
+        # that is what the AUTO portal reads (duty switch + call log).
+        if vtype == "auto":
+            from ride.models import RideVendor
+            RideVendor.objects.get_or_create(
+                vendor=v, defaults={"is_auto": True, "auto_online": True})
         return ok({"vendor": _serialize_admin_vendor(v)})
     vendors = VendorProfile.objects.select_related("user").order_by("id")
     return ok({"vendors": [_serialize_admin_vendor(v) for v in vendors]})
@@ -7672,6 +7794,8 @@ def ride_vendor_profile(request, user):
                 # ⭐ v79: "I drive an auto" — these partners receive the
                 # one-tap AUTO calls from the student Ride screen.
                 "is_auto": bool(rv.is_auto),
+                # ⭐ v81: duty switch of the AUTO portal itself
+                "auto_online": bool(rv.auto_online),
                 "upi_id": profile.upi_id or "",
                 "total_rides": rv.total_rides,
                 "total_earnings": float(rv.total_earnings or 0),
@@ -7692,6 +7816,8 @@ def ride_vendor_profile(request, user):
         rv.is_online = bool(b.get("is_online"))
     if "is_auto" in b:
         rv.is_auto = bool(b.get("is_auto"))
+    if "auto_online" in b:
+        rv.auto_online = bool(b.get("auto_online"))
     for key in VEHICLE_KEYS:
         spec = b.get(key)
         if not isinstance(spec, dict):
@@ -7706,45 +7832,207 @@ def ride_vendor_profile(request, user):
         rv.set_rate(key, bool(spec.get("active")), base, per_km)
     rv.save()
     return ok({"saved": True, "is_online": rv.is_online,
-               "is_auto": rv.is_auto})
+               "is_auto": rv.is_auto, "auto_online": rv.auto_online})
 
 
 @csrf_exempt
 @student_required
 @throttle("rideauto", 30, 600)
 def ride_auto_call(request, user):
-    """⭐ v79: ONE TAP -> every auto partner is alerted at the same time.
+    """⭐ v81: ONE TAP -> every AUTO PARTNER is alerted at the same time.
 
-    There is no booking behind this: no pickup or drop to type, no fare,
-    no payment, no OTP and no ride record. The pickup is always the
-    campus main gate — the partners know it, so it is never spelled out
-    to the student.
+    Still no booking behind it: no pickup or drop to type, no fare, no
+    payment, no OTP and no Ride row. The pickup is always the campus main
+    gate. Every auto partner now gets his own AutoCall record — that is
+    what the AUTO portal rings for and answers. Car partners never see it.
     """
-    from ride.models import RideVendor
+    from django.db.models import Q
+    from ride.models import AutoCall, RideVendor
 
     if request.method != "POST":
         return fail("POST required.", status=405)
-    # ⭐ the pickup for an auto is ALWAYS the campus main gate — the
-    # partners know it, so the student never has to type or see it.
+    # ⭐ the pickup for an auto is ALWAYS the campus main gate.
     lat, lng = 26.621884, 80.687916
-    who = (getattr(user, "first_name", "") or user.username or
-           "A student").strip()
-    title = "Auto needed at the main gate 🛺"
-    message = f"{who} is waiting at the campus main gate for an auto."
+    profile = getattr(user, "userprofile", None)
+    who = ((profile.full_name if profile and profile.full_name else "")
+           or user.get_full_name() or user.username or "A student").strip()
+    phone = (profile.phone if profile and profile.phone else "")
+    # ⭐ v81: an AUTO partner is his own account type now. The old
+    # ride-partner toggle (is_auto) keeps working for existing partners.
+    partners = RideVendor.objects.filter(
+        auto_online=True).filter(
+        Q(vendor__vendor_type="auto") | Q(is_auto=True)
+    ).select_related("vendor")
     sent = 0
-    for rv in RideVendor.objects.filter(
-            is_auto=True).select_related("vendor"):
+    for rv in partners:
+        call = AutoCall.objects.create(
+            student=user,
+            student_name=who,
+            student_uid=user.username or "",
+            student_phone=phone,
+            rider=rv,
+            lat=lat,
+            lng=lng,
+        )
         _notify_vendor(
-            rv.vendor, title, message, route="ride", portal="rider",
-            push_data={"event": "auto_call", "ride_code": "",
-                       "lat": str(lat), "lng": str(lng)})
+            rv.vendor,
+            "Auto needed at the main gate 🛺",
+            f"{who} is waiting at the campus main gate for an auto.",
+            route="ride",
+            # ⭐ v81: portal "auto" — the CAR console never rings for
+            # this, only the AUTO portal does.
+            portal="auto",
+            push_data={"event": "auto_call", "call_id": str(call.id),
+                       "lat": str(lat), "lng": str(lng)},
+        )
         sent += 1
-    return ok({"sent": sent,
-               "message": (f"{sent} auto partner"
-                           f"{'' if sent == 1 else 's'} alerted."
-                           if sent else
-                           "No auto partner has joined CUnnect yet.")})
+    return ok({
+        "sent": sent,
+        "message": (f"{sent} auto partner{'' if sent == 1 else 's'} alerted."
+                    if sent else
+                    "No auto partner is on duty right now."),
+    })
 
+
+AUTO_CALL_TTL = 20  # minutes — an unanswered call stops being offered
+
+
+def _auto_rider(request):
+    """(user, profile, ride_vendor) for a logged-in partner, or an error."""
+    from ride.models import RideVendor
+
+    user = user_from_token(request)
+    if user is None:
+        return None, None, None, fail("Login required.", status=401)
+    profile = VendorProfile.objects.filter(user=user).first()
+    if profile is None:
+        return user, None, None, fail("Vendor account not found.", status=401)
+    is_auto = (profile.vendor_type == "auto")
+    rv = RideVendor.objects.filter(vendor_id=profile.id).first()
+    if rv is None and is_auto:
+        rv = RideVendor.objects.create(vendor=profile, is_auto=True,
+                                       auto_online=True)
+    if rv is not None and is_auto and not rv.is_auto:
+        rv.is_auto = True
+        rv.save(update_fields=["is_auto"])
+    return user, profile, rv, None
+
+
+@csrf_exempt
+@student_required
+def ride_auto_incoming(request, user):
+    """⭐ v81: what the AUTO portal shows — the live call, then his log."""
+    from ride.models import AutoCall
+
+    _u, profile, rv, err = _auto_rider(request)
+    if err is not None:
+        return err
+    if profile.vendor_type != "auto" and not (rv and rv.is_auto):
+        return fail("This account is not an AUTO partner.", status=403)
+
+    now = timezone.now()
+    # retire the ones nobody answered
+    AutoCall.objects.filter(
+        rider=rv, status=AutoCall.PENDING,
+        created_at__lt=now - timedelta(minutes=AUTO_CALL_TTL),
+    ).update(status=AutoCall.EXPIRED)
+
+    live = AutoCall.objects.filter(
+        rider=rv, status=AutoCall.PENDING,
+        created_at__gte=now - timedelta(minutes=AUTO_CALL_TTL),
+    ).order_by("-created_at")[:5]
+    recent = AutoCall.objects.filter(
+        rider=rv).exclude(status=AutoCall.PENDING).order_by("-created_at")[:20]
+
+    return ok({
+        "is_auto": True,
+        "auto_online": bool(rv.auto_online),
+        "calls": [c.as_dict(reveal=(c.status == AutoCall.ACCEPTED))
+                  for c in live],
+        "recent": [c.as_dict(reveal=(c.status == AutoCall.ACCEPTED))
+                   for c in recent],
+        "accepted_today": AutoCall.objects.filter(
+            rider=rv, status=AutoCall.ACCEPTED,
+            created_at__date=now.date()).count(),
+    })
+
+
+@csrf_exempt
+@student_required
+@require_http_methods(["POST"])
+def ride_auto_respond(request, user):
+    """⭐ v81: the auto partner accepts or declines a call."""
+    from ride.models import AutoCall
+
+    _u, profile, rv, err = _auto_rider(request)
+    if err is not None:
+        return err
+    if profile.vendor_type != "auto" and not (rv and rv.is_auto):
+        return fail("This account is not an AUTO partner.", status=403)
+
+    body = json_body(request)
+    try:
+        call_id = int(body.get("call_id"))
+    except (TypeError, ValueError):
+        return fail("Unknown call.")
+    action = str(body.get("action", "")).strip().lower()
+    if action not in ("accept", "decline"):
+        return fail("Say accept or decline.")
+
+    call = AutoCall.objects.filter(id=call_id, rider=rv).first()
+    if call is None:
+        return fail("That call is no longer available.", status=404)
+    if call.status != AutoCall.PENDING:
+        return ok({"call": call.as_dict(
+            reveal=(call.status == AutoCall.ACCEPTED)), "already": True})
+
+    call.status = (AutoCall.ACCEPTED if action == "accept"
+                   else AutoCall.DECLINED)
+    call.responded_at = timezone.now()
+    call.save(update_fields=["status", "responded_at"])
+
+    who = (rv.vendor.business_name or "").strip() or "An auto partner"
+    if action == "accept" and call.student_id:
+        _notify(
+            user_id=call.student_id,
+            title="Auto on the way 🛺",
+            message=(f"{who} accepted your call and is heading to the "
+                     f"campus main gate."),
+            category="ride",
+        )
+    return ok({"call": call.as_dict(reveal=(action == "accept"))})
+
+
+@csrf_exempt
+@student_required
+def ride_auto_history(request, user):
+    """⭐ v81: the auto partner's own call log."""
+    from ride.models import AutoCall
+
+    _u, profile, rv, err = _auto_rider(request)
+    if err is not None:
+        return err
+    if rv is None:
+        return ok({"calls": []})
+    rows = AutoCall.objects.filter(rider=rv).order_by("-created_at")[:60]
+    return ok({"calls": [c.as_dict(
+        reveal=(c.status == AutoCall.ACCEPTED)) for c in rows]})
+
+
+@csrf_exempt
+@student_required
+@require_http_methods(["POST"])
+def ride_auto_status(request, user):
+    """⭐ v81: the AUTO portal duty switch (on duty / off duty)."""
+    _u, profile, rv, err = _auto_rider(request)
+    if err is not None:
+        return err
+    if profile.vendor_type != "auto" and not (rv and rv.is_auto):
+        return fail("This account is not an AUTO partner.", status=403)
+    body = json_body(request)
+    rv.auto_online = bool(body.get("auto_online", rv.auto_online))
+    rv.save(update_fields=["auto_online"])
+    return ok({"saved": True, "auto_online": rv.auto_online})
 
 @csrf_exempt
 @student_required
@@ -8551,3 +8839,117 @@ def ride_stats(request, user):
         # an average auto/bus comparison is guesswork — we show what is real
         "favourites": top,
     }})
+
+
+# ---------------------------------------------------------------------------
+# ⭐ v81: admin — the AUTO portal, reachable from the admin panel
+# ---------------------------------------------------------------------------
+
+@csrf_exempt
+@admin_required
+def admin_auto_partners(request, user):
+    """Every AUTO partner: duty state, contact and how many calls he took."""
+    from django.db.models import Q
+    from ride.models import AutoCall, RideVendor
+
+    rows = []
+    auto_qs = RideVendor.objects.filter(
+        Q(vendor__vendor_type="auto") | Q(is_auto=True)
+    ).select_related("vendor").order_by("vendor__business_name")
+    for rv in auto_qs:
+        rows.append({
+            "vendor_id": rv.vendor_id,
+            "name": rv.vendor.business_name or "",
+            "phone": rv.vendor.phone or "",
+            "vehicle_number": rv.vehicle_number or "",
+            "vehicle_model": rv.vehicle_model or "",
+            "is_auto": True,
+            "auto_online": bool(rv.auto_online),
+            "car_online": bool(rv.is_online),
+            "total_calls": AutoCall.objects.filter(rider=rv).count(),
+            "accepted": AutoCall.objects.filter(
+                rider=rv, status=AutoCall.ACCEPTED).count(),
+        })
+    # partners who could drive an auto but have the switch off
+    others = []
+    for rv in RideVendor.objects.exclude(
+            Q(vendor__vendor_type="auto") |
+            Q(is_auto=True)).select_related(
+            "vendor").order_by("vendor__business_name")[:100]:
+        others.append({
+            "vendor_id": rv.vendor_id,
+            "name": rv.vendor.business_name or "",
+            "phone": rv.vendor.phone or "",
+            "vehicle_number": rv.vehicle_number or "",
+            "is_auto": False,
+            "auto_online": bool(rv.auto_online),
+            "car_online": bool(rv.is_online),
+            "total_calls": 0,
+            "accepted": 0,
+        })
+    return ok({"partners": rows, "others": others})
+
+
+@csrf_exempt
+@admin_required
+@require_http_methods(["POST"])
+def admin_auto_partner_create(request, user):
+    """⭐ v81: the admin adds an AUTO partner — one screen, no detour."""
+    from ride.models import RideVendor
+
+    body = json_body(request)
+    name = str(body.get("business_name", "")).strip()
+    phone = str(body.get("phone", "")).strip()
+    password = str(body.get("password", "")).strip()
+    if not name or not phone or not password:
+        return fail("Name, phone and password are required.")
+    if VendorProfile.objects.filter(phone=phone).exists():
+        return fail("A partner with this phone already exists.")
+    username = f"auto_{phone}"
+    if User.objects.filter(username=username).exists():
+        username = f"auto_{phone}_{int(time.time())}"
+    vuser = User.objects.create_user(username=username, password=password)
+    v = VendorProfile.objects.create(user=vuser, business_name=name,
+                                     phone=phone, vendor_type="auto")
+    RideVendor.objects.get_or_create(
+        vendor=v, defaults={"is_auto": True, "auto_online": True})
+    return ok({"vendor_id": v.id, "business_name": name, "phone": phone})
+
+
+@csrf_exempt
+@admin_required
+@require_http_methods(["POST"])
+def admin_auto_partner_detail(request, user, vendor_id):
+    """Turn a partner into an AUTO partner (or back), set his duty state."""
+    from ride.models import AutoCall, RideVendor
+
+    rv = RideVendor.objects.filter(vendor_id=vendor_id).first()
+    if rv is None:
+        return fail("That ride partner does not exist.", status=404)
+    body = json_body(request)
+    if "is_auto" in body:
+        rv.is_auto = bool(body.get("is_auto"))
+    if "auto_online" in body:
+        rv.auto_online = bool(body.get("auto_online"))
+    rv.save(update_fields=["is_auto", "auto_online"])
+    # keep the call log honest: a partner switched off stops being offered
+    if not rv.is_auto:
+        AutoCall.objects.filter(
+            rider=rv, status=AutoCall.PENDING).update(
+            status=AutoCall.EXPIRED)
+    return ok({"saved": True, "is_auto": rv.is_auto,
+               "auto_online": rv.auto_online})
+
+
+@csrf_exempt
+@admin_required
+def admin_auto_calls(request, user):
+    """The AUTO call log — who called, who answered, when."""
+    from ride.models import AutoCall
+
+    rows = []
+    for c in AutoCall.objects.all().order_by("-created_at")[:100]:
+        d = c.as_dict(reveal=True)
+        rows.append(d)
+    pending = AutoCall.objects.filter(status=AutoCall.PENDING).count()
+    return ok({"calls": rows, "pending": pending})

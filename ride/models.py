@@ -87,6 +87,10 @@ class RideVendor(models.Model):
     # ⭐ online = receiving ride alerts right now
     is_online = models.BooleanField(default=False)
 
+    # ⭐ v81: the AUTO portal has its own duty switch — going off duty
+    # here stops the auto calls without touching his car bookings.
+    auto_online = models.BooleanField(default=True)
+
     # ⭐ v79: an AUTO partner. He is not part of the car booking flow at
     # all — the student taps the AUTO button on the Ride screen and every
     # auto partner is alerted at once. No fare, no payment, no OTP, no
@@ -465,3 +469,87 @@ def rider_is_blocked(rider, when):
         if block.covers(local):
             return True
     return False
+
+
+# ---------------------------------------------------------------------------
+# ⭐ v81: AUTO calls
+# ---------------------------------------------------------------------------
+
+class AutoCall(models.Model):
+    """One tap of the AUTO button = one call row per auto partner.
+
+    Still NOT a booking: no pickup or drop to type, no fare, no payment,
+    no OTP and no Ride record. The pickup is always the campus main gate.
+    The row exists so the AUTO portal has something to ring about, to
+    accept or decline, and so the admin can see the log.
+    """
+
+    PENDING = "pending"
+    ACCEPTED = "accepted"
+    DECLINED = "declined"
+    EXPIRED = "expired"
+    STATUS_CHOICES = [
+        (PENDING, "Pending"),
+        (ACCEPTED, "Accepted"),
+        (DECLINED, "Declined"),
+        (EXPIRED, "Expired"),
+    ]
+
+    student = models.ForeignKey(
+        "auth.User", null=True, blank=True, on_delete=models.SET_NULL,
+        related_name="auto_calls")
+    student_name = models.CharField(max_length=120, blank=True, default="")
+    student_uid = models.CharField(max_length=64, blank=True, default="")
+    student_phone = models.CharField(max_length=15, blank=True, default="")
+
+    rider = models.ForeignKey(
+        "RideVendor", null=True, blank=True, on_delete=models.SET_NULL,
+        related_name="auto_calls")
+
+    # always the campus main gate — never typed, never shown to the student
+    lat = models.FloatField(default=26.621884)
+    lng = models.FloatField(default=80.687916)
+
+    status = models.CharField(
+        max_length=12, choices=STATUS_CHOICES, default=PENDING)
+    created_at = models.DateTimeField(auto_now_add=True)
+    responded_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"auto call #{self.id} ({self.status})"
+
+    def as_dict(self, reveal=False):
+        from django.utils import timezone as _tz
+
+        created = self.created_at
+        if _tz.is_naive(created):
+            created = _tz.make_aware(created)
+        resp = self.responded_at
+        if resp is not None and _tz.is_naive(resp):
+            resp = _tz.make_aware(resp)
+        rider_name = ""
+        rider_phone = ""
+        try:
+            if self.rider_id and self.rider.vendor_id:
+                rider_name = self.rider.vendor.business_name or ""
+                rider_phone = self.rider.vendor.phone or ""
+        except Exception:
+            pass
+        return {
+            "id": self.id,
+            "status": self.status,
+            "student_name": self.student_name
+            or self.student_uid or "A student",
+            "student_uid": self.student_uid,
+            # phone only travels once the partner has accepted
+            "student_phone": (self.student_phone if reveal else ""),
+            "lat": self.lat,
+            "lng": self.lng,
+            "rider_name": rider_name,
+            "rider_phone": rider_phone,
+            "created_at_iso": created.isoformat(),
+            "responded_at_iso": resp.isoformat() if resp else "",
+        }

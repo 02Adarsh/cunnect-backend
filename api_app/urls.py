@@ -142,6 +142,12 @@ urlpatterns = [
     path("admin/live-users/", views.admin_live_users),
     path("admin/vendors/", views.admin_vendors),
     path("admin/vendors/<int:vendor_id>/", views.admin_vendor_detail),
+    # ⭐ v81: admin reaches the AUTO portal from the panel
+    path("admin/auto-partners/", views.admin_auto_partners),
+    path("admin/auto-partners/add/", views.admin_auto_partner_create),
+    path("admin/auto-partners/<int:vendor_id>/",
+         views.admin_auto_partner_detail),
+    path("admin/auto-calls/", views.admin_auto_calls),
     path("admin/students/", views.admin_students),
     path("admin/students/<int:user_id>/<str:action>/",
          views.admin_student_action),
@@ -204,8 +210,13 @@ urlpatterns = [
     path("ride/vendor/blocks/", views.ride_vendor_blocks),
     path("ride/vendor/blocks/<int:block_id>/delete/",
          views.ride_vendor_block_delete),
-    # ⭐ v79: one tap -> every auto partner is alerted at once
+    # ⭐ v79/v81: one tap -> every auto partner is alerted at once
     path("ride/auto/call/", views.ride_auto_call),
+    # ⭐ v81: the AUTO partner's own portal
+    path("ride/auto/incoming/", views.ride_auto_incoming),
+    path("ride/auto/respond/", views.ride_auto_respond),
+    path("ride/auto/history/", views.ride_auto_history),
+    path("ride/auto/status/", views.ride_auto_status),
     path("ride/vendor/requests/", views.ride_vendor_requests),
     path("ride/vendor/rides/", views.ride_vendor_rides),
     path("ride/vendor/accept/<str:ride_code>/", views.ride_vendor_accept),
