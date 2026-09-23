@@ -6314,9 +6314,9 @@ def admin_stats(request, user):
 
 # ⭐ v60: built-in store sections are now DB rows too, so the admin
 # portal has full control (title/subtitle/icon/hide/coming-soon) over
-# Food Court, Printout Services and Hostel Essentials as well.
+# CUnnect Food, Printout Services and Hostel Essentials as well.
 BUILTIN_SECTIONS = [
-    ("food", "🍔", "Food Court",
+    ("food", "🍔", "CUnnect Food",
      "Order from campus food partners."),
     ("printout", "🖨", "Printout Services",
      "PDF print, color print, photocopy, binding and lamination."),
@@ -6923,6 +6923,13 @@ def _ride_public(ride, viewer="student"):
         "balance_due": float(ride.balance_due or 0),
         "payment_done": ride.payment_done,
         "payment_confirmed": bool(ride.payment_confirmed),
+        # ⭐ v78: a 50-50 ride is NOT closed until the second half lands.
+        # The STUDENT pays it (never the rider) and the ride completes
+        # the moment it does.
+        "awaiting_balance": bool(ride.awaiting_balance),
+        "can_pay_balance": bool(
+            viewer != "rider" and not ride.payment_done
+            and float(ride.balance_due or 0) > 0),
         # ⭐ v75: the rider must still confirm the payment himself
         "can_confirm": bool(viewer == "rider" and ride.amount_paid > 0
                             and not ride.payment_confirmed
@@ -7054,6 +7061,25 @@ def _ride_rider_or_none(request):
         return None, None, None
     rv = RideVendor.objects.filter(vendor_id=profile.id).first()
     return user, profile, rv
+
+
+def _ride_credit_vendor(ride, amount=None, count_ride=False):
+    """⭐ v78: move the ride partner's totals.
+
+    A 50-50 ride only *closes* once the second half has been paid, so
+    this runs at that moment (or at a normal completion) and never twice
+    for the same ride.
+    """
+    rv = ride.rider
+    if rv is None:
+        return
+    if count_ride:
+        rv.total_rides = (rv.total_rides or 0) + 1
+    if amount:
+        rv.total_earnings = float(rv.total_earnings or 0) + float(
+            amount or 0)
+    rv.save(update_fields=["total_rides", "total_earnings"])
+
 
 
 @csrf_exempt
@@ -7418,19 +7444,43 @@ def ride_pay_balance(request, user, ride_code):
     if ride.balance_due <= 0:
         return fail("Nothing left to pay on this ride.")
     txn = str(json_body(request).get("txn_id", "")).strip()[:120]
-    ride.amount_paid = float(ride.amount_paid or 0) + float(ride.balance_due)
+    due = float(ride.balance_due or 0)
+    was_awaiting = bool(ride.awaiting_balance)
+    ride.amount_paid = float(ride.amount_paid or 0) + due
     ride.balance_due = 0
     ride.txn_second = txn
     ride.payment_done = True
+    # ⭐ v78: if the rider had already ended the trip, THIS payment is what
+    # closes the ride (and what moves the partner's totals).
+    if was_awaiting:
+        ride.awaiting_balance = False
+        ride.status = "completed"
+        if not ride.completed_at:
+            ride.completed_at = timezone.now()
+        ride.otp = ""
     ride.save()
-    _ride_notify_rider(ride, "Balance cleared ✅",
-                       f"{ride.ride_code} · full payment received.",
-                       "balance_paid", amount=ride.amount_paid, txn=txn)
-    _ride_notify_student(ride, "Ride fully paid 🎉",
-                         (f"₹{ride.amount_paid} received for "
-                          f"{ride.ride_code}. Nothing left to pay."),
-                         "balance_done", amount=ride.amount_paid)
-    return ok({"ride": _ride_public(ride), "paid": float(ride.amount_paid)})
+    if was_awaiting:
+        _ride_credit_vendor(ride, amount=ride.amount_paid, count_ride=True)
+        _ride_notify_rider(
+            ride, "Balance cleared — ride completed 🏁",
+            (f"{ride.ride_code} · ₹{ride.amount_paid} received in full. "
+             f"Transaction ID: {txn or '—'}"),
+            "balance_paid", amount=due, txn=txn)
+        _ride_notify_student(
+            ride, "Ride completed 🏁",
+            (f"₹{ride.amount_paid} received for {ride.ride_code}. "
+             f"Nothing left to pay — thanks for riding with CUnnect!"),
+            "balance_done", amount=ride.amount_paid)
+    else:
+        _ride_notify_rider(ride, "Balance cleared ✅",
+                           f"{ride.ride_code} · full payment received.",
+                           "balance_paid", amount=ride.amount_paid, txn=txn)
+        _ride_notify_student(ride, "Ride fully paid 🎉",
+                             (f"₹{ride.amount_paid} received for "
+                              f"{ride.ride_code}. Nothing left to pay."),
+                             "balance_done", amount=ride.amount_paid)
+    return ok({"ride": _ride_public(ride), "paid": float(ride.amount_paid),
+               "completed": was_awaiting})
 
 
 @csrf_exempt
@@ -8086,16 +8136,36 @@ def ride_vendor_complete(request, user, ride_code):
         return ok({"ride": _ride_public(ride, viewer="rider")})
     if ride.status != "ongoing":
         return fail("The ride has not started yet (OTP pending).")
+    # ⭐ v78: a 50-50 ride CANNOT be closed while the second half is
+    # unpaid. It parks here until the student pays the balance (with its
+    # own transaction id) — only then does the ride complete.
+    if not ride.payment_done and float(ride.balance_due or 0) > 0:
+        if not ride.awaiting_balance:
+            ride.awaiting_balance = True
+            ride.save(update_fields=["awaiting_balance"])
+        _ride_notify_student(
+            ride, "Pay the balance to close this ride 💸",
+            (f"{ride.ride_code} · ₹{ride.balance_due} is still due. "
+             f"Pay it in the app and your ride is complete."),
+            "balance_pending", amount=ride.balance_due,
+            balance=ride.balance_due)
+        _ride_notify_rider(
+            ride, "Waiting for the balance ⏳",
+            (f"{ride.ride_code} · the student has to pay the remaining "
+             f"₹{ride.balance_due} before this ride can be closed."),
+            "balance_pending", amount=ride.balance_due,
+            balance=ride.balance_due)
+        return ok({"ride": _ride_public(ride, viewer="rider"),
+                   "awaiting_balance": True,
+                   "balance": float(ride.balance_due)})
     ride.status = "completed"
     ride.completed_at = timezone.now()
     ride.otp = ""
-    ride.save(update_fields=["status", "completed_at", "otp"])
-    rv.total_rides = (rv.total_rides or 0) + 1
-    rv.total_earnings = float(rv.total_earnings or 0) + float(ride.amount_paid or 0)
-    rv.save(update_fields=["total_rides", "total_earnings"])
+    ride.awaiting_balance = False
+    ride.save(update_fields=["status", "completed_at", "otp",
+                             "awaiting_balance"])
+    _ride_credit_vendor(ride, amount=ride.amount_paid, count_ride=True)
     extra = ""
-    if not ride.payment_done and float(ride.balance_due or 0) > 0:
-        extra = f" Please clear the remaining ₹{ride.balance_due}."
     _ride_notify_student(
         ride, "Your ride has been completed successfully 🏁",
         (f"{ride.pickup_text[:28]} → {ride.drop_text[:28]} · "
@@ -8181,12 +8251,22 @@ def ride_vendor_collect_balance(request, user, ride_code):
     if float(ride.balance_due or 0) <= 0:
         return fail("Nothing left to collect on this ride.")
     got = float(ride.balance_due)
+    was_awaiting = bool(ride.awaiting_balance)
     ride.amount_paid = float(ride.amount_paid or 0) + got
     ride.balance_due = 0
     ride.payment_done = True
     ride.txn_second = (ride.txn_second or "CASH")[:120]
+    if was_awaiting:
+        ride.awaiting_balance = False
+        ride.status = "completed"
+        if not ride.completed_at:
+            ride.completed_at = timezone.now()
+        ride.otp = ""
     ride.save(update_fields=["amount_paid", "balance_due", "payment_done",
-                             "txn_second"])
+                             "txn_second", "awaiting_balance", "status",
+                             "completed_at", "otp"])
+    if was_awaiting:
+        _ride_credit_vendor(ride, amount=ride.amount_paid, count_ride=True)
     _ride_notify_student(
         ride, "Balance received by the rider 💵",
         (f"₹{got} collected in cash — {ride.ride_code} is fully paid. "

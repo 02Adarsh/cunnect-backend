@@ -246,6 +246,10 @@ class Ride(models.Model):
     # ⭐ v75: the rider must CONFIRM the payment himself. Nothing
     # advances automatically once the student has paid.
     payment_confirmed = models.BooleanField(default=False)
+    # ⭐ v78: a 50-50 ride CANNOT be closed while the second half is
+    # unpaid. The rider taps COMPLETE RIDE and the ride parks here until
+    # the student pays the balance (with its own transaction id).
+    awaiting_balance = models.BooleanField(default=False)
 
     # ⭐ v77: which car the rider is driving for THIS ride (chosen while
     # accepting). The plate stays hidden from the student until the
