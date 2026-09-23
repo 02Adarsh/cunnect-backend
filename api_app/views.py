@@ -476,8 +476,12 @@ def _hostel_vendor():
         vendor_type="hostel", is_active=True).first()
 
 
-def _serialize_hostel_order(o, reveal_mobile=False):
-    """The student's number stays hidden from the vendor until reveal_mobile=True."""
+def _serialize_hostel_order(o, reveal_mobile=False, for_vendor=False):
+    """The student's number stays hidden from the vendor until reveal_mobile=True.
+
+    ⭐ v80: the hand-over OTP belongs to the STUDENT (he reads it out at
+    the door) — the vendor only ever types it in, never sees it.
+    """
     return {
         "id": o.id,
         "order_no": o.order_no,
@@ -496,6 +500,13 @@ def _serialize_hostel_order(o, reveal_mobile=False):
         "total": float(o.total),
         "items": o.items or [],
         "created_at": o.created_at.strftime("%d %b, %I:%M %p"),
+        # ⭐ v80: OTP verification before delivery
+        "otp_verified": bool(o.otp_verified),
+        "delivery_otp": (
+            o.delivery_otp
+            if (not for_vendor and o.status == "accepted"
+                and not o.otp_verified)
+            else ""),
     }
 
 
@@ -702,7 +713,8 @@ def vendor_hostel_orders(request):
     orders = HostelOrder.objects.order_by("-created_at")[:200]
     return ok({"orders": [
         _serialize_hostel_order(
-            o, reveal_mobile=o.status in ("accepted", "delivered"))
+            o, reveal_mobile=o.status in ("accepted", "delivered"),
+            for_vendor=True)
         for o in orders]})
 
 
@@ -722,15 +734,63 @@ def vendor_hostel_order_status(request):
     order = HostelOrder.objects.filter(id=oid).first()
     if order is None:
         return fail("Order not found.")
+    # ⭐ v80: NO order is delivered without the student's OTP.
+    if status == "delivered" and not order.otp_verified:
+        return fail("Enter the student's delivery OTP first — an order "
+                    "cannot be marked delivered without it.")
     order.status = status
-    order.save(update_fields=["status"])
-    if order.user_id:
+    if status == "delivered" and order.delivered_at is None:
+        order.delivered_at = timezone.now()
+    order.save(update_fields=["status", "delivered_at"])
+    # fixed: HostelOrder points at the student (order.user_id never existed,
+    # so every status change was crashing with a 500).
+    if order.student_id:
         _notify(
-            user_id=order.user_id,
+            user_id=order.student_id,
             title=f"Hostel order {status}",
             message=f"Your hostel essentials order is now {status}.",
         )
-    return ok({"order": _serialize_hostel_order(order)})
+    return ok({"order": _serialize_hostel_order(
+        order, for_vendor=True)})
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+@throttle("otpverify", 120, 600)
+def vendor_hostel_verify_otp(request, order_id):
+    """⭐ v80: the hostel vendor types the OTP the student reads out."""
+    from myapp.models import HostelOrder
+
+    user, profile = vendor_user(request)
+    if profile is None or profile.vendor_type != "hostel":
+        return fail("Login with a hostel vendor account.", status=403)
+    order = HostelOrder.objects.filter(id=order_id).first()
+    if order is None:
+        return fail("Order not found.", status=404)
+    if order.otp_verified:
+        return ok({"order": _serialize_hostel_order(order, for_vendor=True),
+                   "already": True})
+    otp = str(json_body(request).get("otp", "")).strip()
+    if not order.delivery_otp:
+        import random
+
+        order.delivery_otp = str(random.randint(1000, 9999))
+        order.save(update_fields=["delivery_otp"])
+    if otp != order.delivery_otp:
+        return fail("That OTP is not right — ask the student to read it "
+                    "again.")
+    order.otp_verified = True
+    order.status = "delivered"
+    order.delivered_at = timezone.now()
+    order.save(update_fields=["otp_verified", "status", "delivered_at"])
+    if order.student_id:
+        _notify(
+            user_id=order.student_id,
+            title="Delivered \U0001f6cd",
+            message=f"{order.order_no} has been delivered — OTP verified.",
+        )
+    return ok({"order": _serialize_hostel_order(order, for_vendor=True),
+               "delivered": True})
 
 
 @csrf_exempt
@@ -3236,6 +3296,14 @@ def serialize_print_order(order, for_vendor=False):
         "status": order.status,
         "total_price": float(order.final_amount),
         "created_at_iso": iso(order.created_at),
+        # ⭐ v80: the hand-over OTP is the student's to share — the
+        # print vendor types it in before the job can be completed.
+        "otp_verified": bool(order.otp_verified),
+        "delivery_otp": (
+            order.delivery_otp
+            if (not for_vendor and order.status == "ready"
+                and not order.otp_verified)
+            else ""),
     }
     if for_vendor:
         student = order.student
@@ -3456,16 +3524,70 @@ def print_order_action(request, user, order_id, action):
         # also allow jumping straight from 'ready' to complete (vendor shortcut).
         if not (action == "complete" and order.status == "ready"):
             return fail(f"Order is currently '{order.status}'.")
+    # ⭐ v80: NO print job is completed without the student's OTP.
+    if new_status == "completed" and not order.otp_verified:
+        return fail("Enter the student's OTP first — a print job cannot "
+                    "be completed without it.")
     order.status = new_status
-    order.save(update_fields=["status", "updated_at"])
+    if new_status == "completed" and order.completed_at is None:
+        order.completed_at = timezone.now()
+        order.save(update_fields=["status", "completed_at", "updated_at"])
+    else:
+        order.save(update_fields=["status", "updated_at"])
     if order.student_id:
+        message = f"{order.document.name.split('/')[-1]} is now {new_status}."
+        if new_status == "ready":
+            message = (f"{order.document.name.split('/')[-1]} is ready for "
+                       f"pickup. Show this OTP at the counter: "
+                       f"{order.delivery_otp}")
         _notify(
             user_id=order.student_id,
             title=f"Print order {new_status}",
-            message=f"{order.document.name.split('/')[-1]} is now {new_status}.",
+            message=message,
             category="print",
         )
     return ok({"order": serialize_print_order(order)})
+
+
+@csrf_exempt
+@student_required
+@throttle("otpverify", 120, 600)
+def print_order_verify_otp(request, user, order_id):
+    """⭐ v80: the print vendor types the OTP the student shows."""
+    _, profile = vendor_user(request)
+    if profile is None:
+        return fail("Vendor account not found.", status=401)
+    try:
+        order = PrintOrder.objects.get(id=order_id, vendor_id=profile.id)
+    except PrintOrder.DoesNotExist:
+        return fail("Print order not found.", status=404)
+    if order.otp_verified:
+        return ok({"order": serialize_print_order(order), "already": True})
+    if request.method != "POST":
+        return fail("POST required.", status=405)
+    otp = str(json_body(request).get("otp", "")).strip()
+    if not order.delivery_otp:
+        import random
+
+        order.delivery_otp = str(random.randint(1000, 9999))
+        order.save(update_fields=["delivery_otp"])
+    if otp != order.delivery_otp:
+        return fail("That OTP is not right — ask the student to read it "
+                    "again.")
+    order.otp_verified = True
+    order.status = "completed"
+    order.completed_at = timezone.now()
+    order.save(update_fields=["otp_verified", "status", "completed_at",
+                              "updated_at"])
+    if order.student_id:
+        _notify(
+            user_id=order.student_id,
+            title="Print job completed \u2705",
+            message=(f"{order.document.name.split('/')[-1]} collected — "
+                     f"OTP verified."),
+            category="print",
+        )
+    return ok({"order": serialize_print_order(order), "completed": True})
 
 
 @csrf_exempt

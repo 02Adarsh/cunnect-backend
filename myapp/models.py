@@ -317,11 +317,25 @@ class PrintOrder(models.Model):
         default="pending"
     )
 
+    # ⭐ v80: hand-over OTP. The student shows it at the counter and the
+    # print vendor has to type it in — the job cannot be marked COMPLETED
+    # until the OTP matches. Same rule the food section already follows.
+    delivery_otp = models.CharField(max_length=4, blank=True, default="")
+    otp_verified = models.BooleanField(default=False)
+    completed_at = models.DateTimeField(null=True, blank=True)
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         ordering = ["-created_at"]
+
+    def save(self, *args, **kwargs):
+        import random
+
+        if not self.delivery_otp:
+            self.delivery_otp = str(random.randint(1000, 9999))
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"Print #{self.id} - {self.student.username}"
@@ -377,6 +391,20 @@ class HostelOrder(models.Model):
     # ⭐ v60: ordered products — list of {"name": str, "mrp": float, "qty": int}
     items = models.JSONField(default=list, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+
+    # ⭐ v80: delivery OTP — the student reads it out at the door and the
+    # hostel vendor types it in. The order cannot be marked DELIVERED
+    # without it.
+    delivery_otp = models.CharField(max_length=4, blank=True, default="")
+    otp_verified = models.BooleanField(default=False)
+    delivered_at = models.DateTimeField(null=True, blank=True)
+
+    def save(self, *args, **kwargs):
+        import random
+
+        if not self.delivery_otp:
+            self.delivery_otp = str(random.randint(1000, 9999))
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.order_no} ({self.recipient_name})"

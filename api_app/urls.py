@@ -72,6 +72,9 @@ urlpatterns = [
     path("print/vendor/dashboard/", views.print_vendor_dashboard),
     path("print/vendor/prices/", views.print_vendor_prices),
     path("print/orders/<int:order_id>/file/", views.print_order_file),
+    # ⭐ v80: OTP verify — a print job can only be completed with it
+    path("print/orders/<int:order_id>/verify-otp/",
+         views.print_order_verify_otp),
     path("print/orders/<int:order_id>/<str:action>/", views.print_order_action),
 
     # ---- chat (network app) ----
@@ -111,6 +114,9 @@ urlpatterns = [
     path("store/hostel/order/", views.store_hostel_order),
     path("store/hostel/my-orders/", views.store_hostel_my_orders),
     path("vendor/hostel-orders/", views.vendor_hostel_orders),
+    # ⭐ v80: OTP verify — a hostel order can only be delivered with it
+    path("vendor/hostel-orders/<int:order_id>/verify-otp/",
+         views.vendor_hostel_verify_otp),
     path("vendor/hostel-order-status/", views.vendor_hostel_order_status),
     # ⭐ v61: hostel vendor manages the catalogue from their own portal
     path("vendor/hostel-products/", views.vendor_hostel_products),
