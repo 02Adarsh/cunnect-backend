@@ -1,6 +1,6 @@
 {
-  "version": 87,
+  "version": 88,
   "apk_url": "",
   "url": "",
-  "notes": "v87 — My Orders ALL hardened (preload + safe parse); lock keeps original icons, hides name; Profile My Orders lockable"
+  "notes": "v88 — sticky update popup; lock icon size 24; lock flags cached for instant paint on cold start"
 }
