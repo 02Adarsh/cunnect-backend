@@ -11,6 +11,7 @@ reuses the existing models/logic — no duplicated data.
 import base64
 import json
 import os
+from pathlib import Path
 import random
 import re
 import string
@@ -2382,65 +2383,85 @@ _GH_RELEASE_CACHE = {"at": 0.0, "version": 0, "url": "", "err": ""}
 
 
 def _gh_latest_release():
-    """⭐ GitHub repo ki latest release (tag + APK asset) — 10 min cache."""
+    """⭐ Latest APK release — prefers the APP repo (where the APK lives),
+    falls back to the backend repo. 30 min cache. Hard 3s timeout so a
+    slow GitHub never stalls the in-app update check (v85)."""
     import urllib.request
 
     now = time.time()
-    ttl = 600 if _GH_RELEASE_CACHE["version"] else 60
+    ttl = 1800 if _GH_RELEASE_CACHE["version"] else 30
     if now - _GH_RELEASE_CACHE["at"] < ttl:
         return _GH_RELEASE_CACHE
     _GH_RELEASE_CACHE["at"] = now
     _GH_RELEASE_CACHE["err"] = ""
-    try:
+
+    repos = (
+        "02Adarsh/cunnect-full-app",   # ⭐ APKs are released here
+        "02Adarsh/cunnect-backend",    # legacy fallback
+    )
+
+    def _probe(repo):
         req = urllib.request.Request(
-            "https://api.github.com/repos/02Adarsh/cunnect-backend/"
-            "releases/latest",
+            f"https://api.github.com/repos/{repo}/releases/latest",
             headers={"User-Agent": "cunnect-app",
                      "Accept": "application/vnd.github+json"})
-        with urllib.request.urlopen(req, timeout=8) as r:
+        with urllib.request.urlopen(req, timeout=3) as r:
             j = json.loads(r.read().decode())
         tag = re.sub(r"[^0-9]", "", str(j.get("tag_name") or ""))
         ver = int(tag) if tag else 0
         url = ""
+        # Prefer a direct browser_download_url on an .apk asset.
         for a in (j.get("assets") or []):
             name = str(a.get("name") or "").lower()
             if name.endswith(".apk"):
                 url = str(a.get("browser_download_url") or "")
-                break
-        if ver and url:
-            _GH_RELEASE_CACHE["version"] = ver
-            _GH_RELEASE_CACHE["url"] = url
-    except Exception as exc:
-        # ⭐ on API rate-limit (403), parse the releases HTML page instead
+                if url:
+                    break
+        return ver, url
+
+    last_err = ""
+    for repo in repos:
         try:
-            req2 = urllib.request.Request(
-                "https://github.com/02Adarsh/cunnect-backend/"
-                "releases/latest",
+            ver, url = _probe(repo)
+            if ver and url:
+                _GH_RELEASE_CACHE["version"] = ver
+                _GH_RELEASE_CACHE["url"] = url
+                _GH_RELEASE_CACHE["err"] = ""
+                return _GH_RELEASE_CACHE
+        except Exception as exc:
+            last_err = str(exc)
+            continue
+
+    # HTML fallback (rate-limit) — one quick shot at the app repo only.
+    try:
+        req2 = urllib.request.Request(
+            "https://github.com/02Adarsh/cunnect-full-app/releases/latest",
+            headers={"User-Agent": "cunnect-app"})
+        with urllib.request.urlopen(req2, timeout=3) as r2:
+            html = r2.read().decode()
+        mt = re.search(r"releases/tag/v(\d+)", html)
+        if mt:
+            req3 = urllib.request.Request(
+                "https://github.com/02Adarsh/cunnect-full-app/"
+                f"releases/expanded_assets/v{mt.group(1)}",
                 headers={"User-Agent": "cunnect-app"})
-            with urllib.request.urlopen(req2, timeout=8) as r2:
-                html = r2.read().decode()
-            mt = re.search(r"releases/tag/v(\d+)", html)
-            m = None
-            if mt:
-                req3 = urllib.request.Request(
-                    "https://github.com/02Adarsh/cunnect-backend/"
-                    f"releases/expanded_assets/v{mt.group(1)}",
-                    headers={"User-Agent": "cunnect-app"})
-                with urllib.request.urlopen(req3, timeout=8) as r3:
-                    m = re.search(
-                        r"releases/download/(v\d+)/([A-Za-z0-9._-]+\.apk)",
-                        r3.read().decode())
-            if mt and m:
+            with urllib.request.urlopen(req3, timeout=3) as r3:
+                m = re.search(
+                    r"releases/download/(v\d+)/([A-Za-z0-9._-]+\.apk)",
+                    r3.read().decode())
+            if m:
                 _GH_RELEASE_CACHE["version"] = int(mt.group(1))
                 _GH_RELEASE_CACHE["url"] = (
-                    "https://github.com/02Adarsh/cunnect-backend/"
+                    "https://github.com/02Adarsh/cunnect-full-app/"
                     f"releases/download/{m.group(1)}/{m.group(2)}")
                 _GH_RELEASE_CACHE["err"] = ""
-            else:
-                _GH_RELEASE_CACHE["err"] = str(exc)
-        except Exception as exc2:
-            _GH_RELEASE_CACHE["err"] = f"{exc} | {exc2}"
-        print(f"[APP-VERSION] github check failed: {exc}")
+                return _GH_RELEASE_CACHE
+    except Exception as exc2:
+        last_err = f"{last_err} | {exc2}"
+
+    _GH_RELEASE_CACHE["err"] = last_err
+    if last_err:
+        print(f"[APP-VERSION] github check failed: {last_err}")
     return _GH_RELEASE_CACHE
 
 
@@ -2454,25 +2475,37 @@ def debug_gh(request):
 
 @csrf_exempt
 def app_version(request):
-    """⭐ In-app update check: app_version.json + GitHub latest release."""
+    """⭐ In-app update check: app_version.json + GitHub latest release.
+
+    v85: if deploy/app_version.json has a direct apk_url (or url) the
+    GitHub hop is skipped entirely — that is the fast path. Put the
+    APK on any CDN / Drive / Render static and point apk_url at it.
+    """
     from django.conf import settings as _st
+    from pathlib import Path as _Path
 
     data = {"version": 1, "url": "", "notes": ""}
     override_url = ""
     try:
-        p = Path(_st.BASE_DIR) / "deploy" / "app_version.json"
+        p = _Path(_st.BASE_DIR) / "deploy" / "app_version.json"
         raw = json.loads(p.read_text(encoding="utf8"))
         data.update(raw)
-        override_url = (raw.get("apk_url") or "").strip()
+        override_url = (raw.get("apk_url") or raw.get("url") or "").strip()
     except Exception:
         pass
-    if override_url:
-        # ⭐ custom hosting — GitHub bilkul ignore
+    if override_url and int(data.get("version") or 0) > 0:
+        # ⭐ custom hosting — GitHub bilkul ignore (fast)
         data["url"] = override_url
         return ok(data)
     gh = _gh_latest_release()
-    if gh["version"] > int(data.get("version") or 0) and gh["url"]:
-        data["version"] = gh["version"]
+    local_ver = int(data.get("version") or 0)
+    gh_ver = int(gh.get("version") or 0)
+    # Only take GitHub when it is NEWER than the local json.
+    if gh_ver > local_ver and gh.get("url"):
+        data["version"] = gh_ver
+        data["url"] = gh["url"]
+    elif not data.get("url") and gh.get("url") and gh_ver >= local_ver:
+        # local has a version but no URL yet — fill the URL only.
         data["url"] = gh["url"]
     return ok(data)
 

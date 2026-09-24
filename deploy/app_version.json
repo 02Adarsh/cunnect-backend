@@ -1,5 +1,6 @@
 {
-  "version": 2,
+  "version": 85,
+  "apk_url": "",
   "url": "",
-  "notes": "First in-app-update build"
+  "notes": "v85 — set apk_url to a DIRECT APK link (Drive/CDN/Render static) for the fastest in-app update. Leave empty to fall back to the latest GitHub release on 02Adarsh/cunnect-full-app."
 }
