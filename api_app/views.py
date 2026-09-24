@@ -502,9 +502,11 @@ def _serialize_hostel_order(o, reveal_mobile=False, for_vendor=False):
         "created_at": o.created_at.strftime("%d %b, %I:%M %p"),
         # ⭐ v80: OTP verification before delivery
         "otp_verified": bool(o.otp_verified),
+        # ⭐ v84: the OTP is live from ACCEPTED through OUT FOR DELIVERY
         "delivery_otp": (
             o.delivery_otp
-            if (not for_vendor and o.status == "accepted"
+            if (not for_vendor
+                and o.status in ("accepted", "out_for_delivery")
                 and not o.otp_verified)
             else ""),
     }
@@ -690,6 +692,15 @@ def store_hostel_order(request, user):
         total=round(total, 2),
         items=items,
     )
+    # ⭐ v84: every order announces itself, exactly like a food order.
+    _notify(
+        user_id=user.id,
+        title="Hostel order placed 🛒",
+        message=(f"{order.order_no} placed successfully — "
+                 f"₹{round(float(order.total), 2)}. We will tell you the "
+                 f"moment the vendor accepts it."),
+        category="hostel",
+    )
     return ok({"order": _serialize_hostel_order(order)})
 
 
@@ -727,10 +738,11 @@ def vendor_hostel_order_status(request):
     body = json_body(request)
     oid = body.get("id")
     status = str(body.get("status", "")).strip()
-    if status not in ("pending", "accepted", "delivered", "cancelled"):
-        return fail("Invalid status.")
     from myapp.models import HostelOrder
 
+    # ⭐ v84: read the choices off the model, so OUT FOR DELIVERY works too
+    if status not in [c for c, _ in HostelOrder.STATUS_CHOICES]:
+        return fail("Invalid status.")
     order = HostelOrder.objects.filter(id=oid).first()
     if order is None:
         return fail("Order not found.")
@@ -738,17 +750,25 @@ def vendor_hostel_order_status(request):
     if status == "delivered" and not order.otp_verified:
         return fail("Enter the student's delivery OTP first — an order "
                     "cannot be marked delivered without it.")
+    # ⭐ v84: starting the delivery hands the student his OTP
+    if status in ("accepted", "out_for_delivery") and not order.delivery_otp:
+        order.delivery_otp = str(random.randint(1000, 9999))
     order.status = status
     if status == "delivered" and order.delivered_at is None:
         order.delivered_at = timezone.now()
-    order.save(update_fields=["status", "delivered_at"])
+    order.save(update_fields=["status", "delivery_otp", "delivered_at"])
     # fixed: HostelOrder points at the student (order.user_id never existed,
     # so every status change was crashing with a 500).
     if order.student_id:
         _notify(
             user_id=order.student_id,
             title=f"Hostel order {status}",
-            message=f"Your hostel essentials order is now {status}.",
+            message=(f"Your hostel essentials order is now {status}."
+                     + (f" Delivery OTP: {order.delivery_otp}"
+                        if status == "out_for_delivery"
+                        and order.delivery_otp and not order.otp_verified
+                        else "")),
+            category="hostel",
         )
     return ok({"order": _serialize_hostel_order(
         order, for_vendor=True)})
@@ -786,8 +806,9 @@ def vendor_hostel_verify_otp(request, order_id):
     if order.student_id:
         _notify(
             user_id=order.student_id,
-            title="Delivered \U0001f6cd",
+            title="Delivered 🛍",
             message=f"{order.order_no} has been delivered — OTP verified.",
+            category="hostel",
         )
     return ok({"order": _serialize_hostel_order(order, for_vendor=True),
                "delivered": True})
@@ -2577,6 +2598,8 @@ def food_notifications(request, user):
                 "message": notification.message,
                 "is_read": notification.is_read,
                 "created_at_iso": iso(notification.created_at),
+                # ⭐ v84: the app filters by this (food bell = food only)
+                "category": notification.category,
             }
             for notification in notifications
         ],
@@ -3398,6 +3421,20 @@ def print_place_order(request, user):
              f"x {copies} — accept or reject now"),
             push_data={"event": "new_print_order", "portal": "vendor",
                        "order_id": order.id},
+        )
+    except Exception:
+        pass
+    # ⭐ v84: the student gets his own "placed" row too — every
+    # order announces itself, exactly like a food order does.
+    try:
+        _notify(
+            user_id=user.id,
+            title="Print order placed 🖨",
+            message=(f"{order.document.name.split('/')[-1]} · "
+                     f"{pages} pages x {copies} — "
+                     f"₹{round(float(total), 2)}. We will tell you "
+                     f"the moment it is accepted."),
+            category="print",
         )
     except Exception:
         pass
@@ -5771,6 +5808,29 @@ def admin_orders(request, user):
             "vendor", "student").order_by("-created_at")[:100]
         return ok({"orders": [
             serialize_print_order(o, for_vendor=True) for o in orders]})
+    if kind == "ride":
+        # ⭐ v84: rides sit in the admin Orders tabs like everything else
+        from ride.models import Ride
+        rows = []
+        for r in Ride.objects.select_related(
+                "rider", "rider__vendor").order_by("-created_at")[:100]:
+            d = _ride_public(r)
+            rider = (d.get("rider_name") or "").strip()
+            rows.append({
+                "id": r.id,
+                "order_no": d.get("ride_code") or f"RIDE-{r.id}",
+                "order_number": d.get("ride_code") or f"RIDE-{r.id}",
+                "customer_name": d.get("student_name") or "",
+                "recipient_name": rider,
+                "vendor_name": rider,
+                "status": d.get("status") or "",
+                "total": float(d.get("total") or 0),
+                "items": [{"name": "%s → %s" % (
+                    d.get("pickup_text") or "", d.get("drop_text") or ""),
+                    "qty": 1}],
+                "created_at_iso": d.get("created_at") or "",
+            })
+        return ok({"orders": rows})
     if kind == "hostel":
         from myapp.models import HostelOrder
         hostel_vendor = _hostel_vendor()
@@ -5821,6 +5881,8 @@ def admin_order_status(request, user, kind, order_id):
     if request.method != "POST":
         return fail("POST only.", status=405)
     status_new = str(json_body(request).get("status", "")).strip()
+    if kind == "ride":
+        return fail("Change a ride from the Ride screen.", status=400)
     if kind == "print":
         valid = [s for s, _ in PrintOrder.STATUS_CHOICES]
         obj = PrintOrder.objects.filter(id=order_id).first()
@@ -6578,6 +6640,9 @@ BUILTIN_SECTIONS = [
      "PDF print, color print, photocopy, binding and lamination."),
     ("hostel", "🛏", "Hostel Essentials",
      "Everything your hostel room needs, delivered on campus."),
+    # ⭐ v84: rides get their own Orders tab
+    ("ride", "🚕", "CUnnect Ride",
+     "Every ride booked on campus."),
 ]
 BUILTIN_KEYS = {k for k, _, _, _ in BUILTIN_SECTIONS}
 
@@ -6625,6 +6690,32 @@ def store_sections(request, user):
     })
 
 
+def _ensure_section_vendor(key, title):
+    """⭐ v84: one placeholder vendor per store section (created once).
+
+    The admin sees it in the Vendors swipe, the type shows up in
+    "Add vendor", and the Orders tab for that store works immediately.
+    """
+    existing = VendorProfile.objects.filter(vendor_type=key).first()
+    if existing is not None:
+        return existing
+    try:
+        uname = f"store_{key}"[:28]
+        base, n = uname, 1
+        while User.objects.filter(username=uname).exists():
+            n += 1
+            uname = f"{base[:24]}{n}"
+        from django.utils.crypto import get_random_string
+
+        vuser = User.objects.create_user(
+            uname, f"{uname}@cunnect.local", get_random_string(24))
+        return VendorProfile.objects.create(
+            user=vuser, business_name=title or key,
+            vendor_type=key, kitchen_open=True)
+    except Exception:
+        return None
+
+
 @csrf_exempt
 @admin_required
 def admin_store_sections(request, user):
@@ -6651,7 +6742,11 @@ def admin_store_sections(request, user):
             icon=str(body.get("icon", "🛍")).strip()[:8] or "🛍",
             coming_soon=bool(body.get("coming_soon", False)),
         )
-        return ok({"section": _serialize_section(sec)})
+        # ⭐ v84: a new store gets its own vendor straight away, so it
+        # appears in the Vendors swipe, in "Add vendor" and in Orders.
+        vendor = _ensure_section_vendor(key, title)
+        return ok({"section": _serialize_section(sec),
+                   "vendor_id": (vendor.id if vendor else None)})
     return ok({"sections": [
         _serialize_section(s) for s in StoreSection.objects.all()]})
 
@@ -8010,7 +8105,7 @@ def ride_auto_respond(request, user):
             title="Auto on the way 🛺",
             message=(f"{who} accepted your call and is heading to the "
                      f"campus main gate."),
-            category="ride",
+            category="auto",
         )
     return ok({"call": call.as_dict(reveal=(action == "accept"))})
 

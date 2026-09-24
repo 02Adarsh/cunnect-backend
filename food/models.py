@@ -425,6 +425,9 @@ class Notification(models.Model):
         ("food", "Food"),
         ("print", "Printout"),
         ("ride", "Ride"),
+        # ⭐ v84: hostel and auto rows no longer fall back to "food"
+        ("hostel", "Hostel"),
+        ("auto", "Auto"),
         ("general", "General"),
     )
     category = models.CharField(

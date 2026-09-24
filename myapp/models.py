@@ -360,6 +360,8 @@ class HostelOrder(models.Model):
     STATUS_CHOICES = [
         ("pending", "Pending"),
         ("accepted", "Accepted"),
+        # ⭐ v84: the vendor starts the delivery -> the student gets the OTP
+        ("out_for_delivery", "Out for delivery"),
         ("delivered", "Delivered"),
         ("cancelled", "Cancelled"),
     ]
