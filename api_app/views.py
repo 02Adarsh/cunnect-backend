@@ -6691,6 +6691,9 @@ BUILTIN_SECTIONS = [
     # ⭐ v84: rides get their own Orders tab
     ("ride", "🚕", "CUnnect Ride",
      "Every ride booked on campus."),
+    # ⭐ v86: Profile → My Orders can be locked from admin
+    ("my_orders", "🧾", "My Orders",
+     "Student profile → My Orders (food, print, hostel, ride)."),
 ]
 BUILTIN_KEYS = {k for k, _, _, _ in BUILTIN_SECTIONS}
 

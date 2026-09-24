@@ -1,6 +1,6 @@
 {
-  "version": 85,
+  "version": 86,
   "apk_url": "",
   "url": "",
-  "notes": "v85 — set apk_url to a DIRECT APK link (Drive/CDN/Render static) for the fastest in-app update. Leave empty to fall back to the latest GitHub release on 02Adarsh/cunnect-full-app."
+  "notes": "v86 — lock keeps original icons, hides label; Profile My Orders lockable; My Orders ALL fixed"
 }
