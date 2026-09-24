@@ -216,6 +216,8 @@ urlpatterns = [
     path("ride/auto/incoming/", views.ride_auto_incoming),
     path("ride/auto/respond/", views.ride_auto_respond),
     path("ride/auto/history/", views.ride_auto_history),
+    # ⭐ v83: the student’s own AUTO calls (My Orders → RIDE tab)
+    path("ride/auto/my-calls/", views.ride_auto_my_calls),
     path("ride/auto/status/", views.ride_auto_status),
     path("ride/vendor/requests/", views.ride_vendor_requests),
     path("ride/vendor/rides/", views.ride_vendor_rides),

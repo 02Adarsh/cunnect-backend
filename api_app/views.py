@@ -2564,10 +2564,10 @@ def food_notifications(request, user):
     audience = str(request.GET.get("audience", "student")).strip().lower()
     if audience not in ("student", "vendor"):
         audience = "student"
-    # ⭐ v75: the food screen shows food rows only — print and ride
-    # notifications have their own screens/history.
+    # ⭐ v83: the FOOD screen shows FOOD rows only. Print, ride and
+    # auto notifications stay out — they have their own screens.
     base_qs = Notification.objects.filter(
-        user=user, audience=audience).exclude(category="print")
+        user=user, audience=audience, category="food")
     notifications = base_qs.order_by("-created_at")[:30]
     return ok({
         "notifications": [
@@ -5591,7 +5591,7 @@ def admin_live_users(request, user):
 
 
 def _serialize_admin_vendor(v):
-    return {
+    data = {
         "id": v.id,
         "business_name": v.business_name,
         "vendor_type": v.vendor_type,
@@ -5603,6 +5603,18 @@ def _serialize_admin_vendor(v):
         "bw_price_per_page": float(v.bw_price_per_page),
         "color_price_per_page": float(v.color_price_per_page),
     }
+    # ⭐ v81: AUTO partners show their duty state + call tally right on
+    # the vendor card, so the Vendors page tells the whole story.
+    if v.vendor_type == "auto":
+        from ride.models import AutoCall, RideVendor
+
+        rv = RideVendor.objects.filter(vendor_id=v.id).first()
+        data["auto_online"] = bool(rv.auto_online) if rv else True
+        data["auto_calls"] = AutoCall.objects.filter(rider=rv).count() if rv else 0
+        data["auto_accepted"] = (
+            AutoCall.objects.filter(rider=rv, status=AutoCall.ACCEPTED).count()
+            if rv else 0)
+    return data
 
 
 @csrf_exempt
@@ -8017,6 +8029,19 @@ def ride_auto_history(request, user):
     rows = AutoCall.objects.filter(rider=rv).order_by("-created_at")[:60]
     return ok({"calls": [c.as_dict(
         reveal=(c.status == AutoCall.ACCEPTED)) for c in rows]})
+
+
+@student_required
+def ride_auto_my_calls(request, user):
+    """⭐ v83: the student's own AUTO calls — the RIDE tab of My Orders.
+
+    The student sees his own calls; once an auto partner has accepted, the
+    partner's name and phone come along with it.
+    """
+    from ride.models import AutoCall
+
+    rows = AutoCall.objects.filter(student=user).order_by("-created_at")[:60]
+    return ok({"calls": [c.as_dict(reveal=True) for c in rows]})
 
 
 @csrf_exempt
