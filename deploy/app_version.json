@@ -1,6 +1,6 @@
 {
-  "version": 86,
+  "version": 87,
   "apk_url": "",
   "url": "",
-  "notes": "v86 — lock keeps original icons, hides label; Profile My Orders lockable; My Orders ALL fixed"
+  "notes": "v87 — My Orders ALL hardened (preload + safe parse); lock keeps original icons, hides name; Profile My Orders lockable"
 }
