@@ -2189,9 +2189,12 @@ def _push_tokens(tokens, title, message, high=False, _direct=False,
                     android=messaging.AndroidConfig(
                         priority="high",
                         notification=messaging.AndroidNotification(
-                            channel_id=("cunnect_alert_v5" if high
-                                        else "cunnect_ping_v5"),
-                            sound="cunnect_alert" if high else "cunnect_ping",
+                            # ⭐ v85: same tone the vendor ring uses
+                            # (universfield… in res/raw). Channel v7 so
+                            # phones recreate the channel with the new sound.
+                            channel_id=("cunnect_alert_v7" if high
+                                        else "cunnect_ping_v7"),
+                            sound="universfield_new_notification_066_494545",
                             icon="cu_notif",
                             priority="high",
                             visibility="public",
@@ -5687,7 +5690,15 @@ def admin_vendors(request, user):
         if vtype == "auto":
             from ride.models import RideVendor
             RideVendor.objects.get_or_create(
-                vendor=v, defaults={"is_auto": True, "auto_online": True})
+                vendor=v,
+                defaults={
+                    "is_auto": True,
+                    "auto_online": True,
+                    "mini_active": False,
+                    "sedan_active": False,
+                    "suv_active": False,
+                    "auto_active": False,
+                })
         return ok({"vendor": _serialize_admin_vendor(v)})
     vendors = VendorProfile.objects.select_related("user").order_by("id")
     return ok({"vendors": [_serialize_admin_vendor(v) for v in vendors]})
@@ -6636,6 +6647,10 @@ def admin_stats(request, user):
 BUILTIN_SECTIONS = [
     ("food", "🍔", "CUnnect Food",
      "Order from campus food partners."),
+    ("store", "🛍", "CUnnect Store",
+     "Everything you need around campus, in one place."),
+    ("feed", "📰", "CUnnect Feed",
+     "Campus notices, polls and updates."),
     ("printout", "🖨", "Printout Services",
      "PDF print, color print, photocopy, binding and lamination."),
     ("hostel", "🛏", "Hostel Essentials",
@@ -6666,6 +6681,7 @@ def _serialize_section(sec):
         "icon": sec.icon,
         "is_active": sec.is_active,
         "coming_soon": sec.coming_soon,
+        "is_locked": bool(getattr(sec, "is_locked", False)),
         "order": sec.order,
         "builtin": sec.key in BUILTIN_KEYS,
     }
@@ -6741,6 +6757,7 @@ def admin_store_sections(request, user):
             subtitle=str(body.get("subtitle", "")).strip()[:200],
             icon=str(body.get("icon", "🛍")).strip()[:8] or "🛍",
             coming_soon=bool(body.get("coming_soon", False)),
+            is_locked=bool(body.get("is_locked", False)),
         )
         # ⭐ v84: a new store gets its own vendor straight away, so it
         # appears in the Vendors swipe, in "Add vendor" and in Orders.
@@ -6780,6 +6797,8 @@ def admin_store_section_detail(request, user, section_id):
         sec.is_active = bool(body.get("is_active"))
     if "coming_soon" in body:
         sec.coming_soon = bool(body.get("coming_soon"))
+    if "is_locked" in body:
+        sec.is_locked = bool(body.get("is_locked"))
     sec.save()
     return ok({"section": _serialize_section(sec)})
 
@@ -8165,6 +8184,10 @@ def ride_vendor_requests(request, user):
         return fail("Vendor account not found.", status=401)
     if rv is None:
         return ok({"requests": [], "setup_required": True})
+    # ⭐ v85 / v81 carry-forward: an AUTO account is NEVER mixed with
+    # cars — the car console stays empty for vendor_type=auto.
+    if profile.vendor_type == "auto":
+        return ok({"requests": [], "active_vehicles": []})
     from ride.models import RideRejection
 
     mine = rv.active_vehicles()
@@ -9032,7 +9055,16 @@ def admin_auto_partner_create(request, user):
     v = VendorProfile.objects.create(user=vuser, business_name=name,
                                      phone=phone, vendor_type="auto")
     RideVendor.objects.get_or_create(
-        vendor=v, defaults={"is_auto": True, "auto_online": True})
+        vendor=v,
+        defaults={
+            "is_auto": True,
+            "auto_online": True,
+            # ⭐ v85: pure AUTO — no car types on this row
+            "mini_active": False,
+            "sedan_active": False,
+            "suv_active": False,
+            "auto_active": False,
+        })
     return ok({"vendor_id": v.id, "business_name": name, "phone": phone})
 
 

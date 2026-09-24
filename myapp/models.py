@@ -584,6 +584,9 @@ class StoreSection(models.Model):
     icon = models.CharField(max_length=8, default="🛍")
     is_active = models.BooleanField(default=True)
     coming_soon = models.BooleanField(default=False)
+    # ⭐ v85: when locked the hub tile / store card shows a lock and
+    # does nothing on tap (no toast, no open). Admin toggles this.
+    is_locked = models.BooleanField(default=False)
     order = models.IntegerField(default=100)
     created_at = models.DateTimeField(auto_now_add=True)
 
