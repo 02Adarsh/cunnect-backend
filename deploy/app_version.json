@@ -1,6 +1,6 @@
 {
-  "version": 90,
+  "version": 91,
   "apk_url": "",
   "url": "",
-  "notes": "v90 — Overlay sticky update (never vanishes); durable lock cache; hub waits for locks; lock icon size 24"
+  "notes": "v91 — old-style update popup back (shows on every app open), profile section red, UMS prediction MISS NEXT over 75% + month calendar view, releases read from cunnect-backend first"
 }

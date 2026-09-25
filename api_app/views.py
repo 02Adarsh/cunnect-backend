@@ -2396,8 +2396,8 @@ def _gh_latest_release():
     _GH_RELEASE_CACHE["err"] = ""
 
     repos = (
-        "02Adarsh/cunnect-full-app",   # ⭐ APKs are released here
-        "02Adarsh/cunnect-backend",    # legacy fallback
+        "02Adarsh/cunnect-backend",    # ⭐ APKs are released here (Render repo)
+        "02Adarsh/cunnect-full-app",   # backup-repo fallback
     )
 
     def _probe(repo):
@@ -2432,27 +2432,28 @@ def _gh_latest_release():
             last_err = str(exc)
             continue
 
-    # HTML fallback (rate-limit) — one quick shot at the app repo only.
+    # HTML fallback (rate-limit) — one quick shot at the backend repo only.
     try:
         req2 = urllib.request.Request(
-            "https://github.com/02Adarsh/cunnect-full-app/releases/latest",
+            "https://github.com/02Adarsh/cunnect-backend/releases/latest",
             headers={"User-Agent": "cunnect-app"})
         with urllib.request.urlopen(req2, timeout=3) as r2:
             html = r2.read().decode()
-        mt = re.search(r"releases/tag/v(\d+)", html)
+        mt = re.search(r"releases/tag/([vV]\d+|\d+)", html)
         if mt:
+            tag = mt.group(1)
             req3 = urllib.request.Request(
-                "https://github.com/02Adarsh/cunnect-full-app/"
-                f"releases/expanded_assets/v{mt.group(1)}",
+                "https://github.com/02Adarsh/cunnect-backend/"
+                f"releases/expanded_assets/{tag}",
                 headers={"User-Agent": "cunnect-app"})
             with urllib.request.urlopen(req3, timeout=3) as r3:
                 m = re.search(
-                    r"releases/download/(v\d+)/([A-Za-z0-9._-]+\.apk)",
+                    r"releases/download/([^/\"]+)/([A-Za-z0-9._-]+\.apk)",
                     r3.read().decode())
             if m:
-                _GH_RELEASE_CACHE["version"] = int(mt.group(1))
+                _GH_RELEASE_CACHE["version"] = int(re.sub(r"[^0-9]", "", tag))
                 _GH_RELEASE_CACHE["url"] = (
-                    "https://github.com/02Adarsh/cunnect-full-app/"
+                    "https://github.com/02Adarsh/cunnect-backend/"
                     f"releases/download/{m.group(1)}/{m.group(2)}")
                 _GH_RELEASE_CACHE["err"] = ""
                 return _GH_RELEASE_CACHE
