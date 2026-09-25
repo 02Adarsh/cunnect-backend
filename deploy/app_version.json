@@ -1,6 +1,6 @@
 {
-  "version": 92,
+  "version": 93,
   "apk_url": "",
   "url": "",
-  "notes": "v92 — update popup title line removed, profile section CUnnect logo red, UMS notice attachments open in-app, month calendar opens day-by-day with 3-letter days + month short"
+  "notes": "v93 — update popup: title 'Update available' with live % download inside the popup; My Orders ALL tab: one merged list newest-first (no section chips)"
 }
