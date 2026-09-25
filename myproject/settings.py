@@ -66,6 +66,11 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "api_app.middleware.SimpleCorsMiddleware",
+    # ⭐ v93 security audit: origin lock (Cloudflare bypass fix), admin
+    # login throttling and CSP/security headers.
+    "myapp.security_middleware.OriginVerifyMiddleware",
+    "myapp.security_middleware.AdminLoginThrottleMiddleware",
+    "myapp.security_middleware.SecurityHeadersMiddleware",
     # ⭐ v62: gzip every API response — payloads shrink 5-10x, so lists
     # (orders, students, feed) arrive in a fraction of the time on 4G.
     "django.middleware.gzip.GZipMiddleware",
@@ -180,8 +185,10 @@ CHANNEL_LAYERS = {
     },
 }
 
-# Persistent login session: one year while the user remains active.
-SESSION_COOKIE_AGE = 60 * 60 * 24 * 365
+# ⭐ v93 security audit: 2-week rolling session (was 1 year — a stolen
+# sessionid stayed valid far too long). SESSION_SAVE_EVERY_REQUEST keeps
+# it sliding, so active users never get logged out mid-use.
+SESSION_COOKIE_AGE = 60 * 60 * 24 * 14
 SESSION_SAVE_EVERY_REQUEST = True
 SESSION_EXPIRE_AT_BROWSER_CLOSE = False
 
@@ -193,8 +200,11 @@ SESSION_EXPIRE_AT_BROWSER_CLOSE = False
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 if not DEBUG:
     SECURE_SSL_REDIRECT = True          # force HTTPS everywhere
-    SECURE_HSTS_SECONDS = 60 * 60 * 24 * 30
-    SECURE_HSTS_INCLUDE_SUBDOMAINS = False
+    # ⭐ v93 security audit: HSTS 2 years + subdomains + preload
+    # (was 30 days, no subdomains).
+    SECURE_HSTS_SECONDS = 63072000
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
 

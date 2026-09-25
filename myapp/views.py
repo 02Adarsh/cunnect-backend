@@ -243,10 +243,11 @@ def login_step1(request):
         user_id = request.POST.get("user_id", "").strip()
 
         if user_id:
-            if not User.objects.filter(username=user_id).exists():
-                messages.error(request, "User not registered. Please register first.")
-                return redirect("register")
-
+            # ⭐ v93 security audit (L-01): an unknown UID used to be sent
+            # straight to /register/, which let anyone enumerate which
+            # campus IDs had accounts. Now every UID goes to the password
+            # step and a wrong/unknown UID fails there with the same
+            # generic error as a wrong password.
             request.session["user_id"] = user_id
             return redirect("login_step2")
 
@@ -285,7 +286,10 @@ def login_step2(request):
             error = "Invalid Password or Captcha"
 
         except User.DoesNotExist:
-            error = "User not found"
+            # ⭐ v93 security audit (L-01): same generic error for an
+            # unknown UID — no way to tell "not registered" from "wrong
+            # password".
+            error = "Invalid Password or Captcha"
 
         captcha = "".join(
             random.choices(string.ascii_letters + string.digits, k=4)
@@ -311,12 +315,41 @@ def login_step2(request):
 
 # ====================== REGISTER / OTP ======================
 
+def _client_ip(request):
+    """Best-effort client IP (Render proxy sets X-Forwarded-For)."""
+    xff = request.META.get("HTTP_X_FORWARDED_FOR", "")
+    if xff:
+        return xff.split(",")[0].strip()
+    return request.META.get("REMOTE_ADDR", "")
+
+
 def register(request):
     if request.method == "POST":
         full_name = request.POST.get("full_name", "").strip()
         user_id = request.POST.get("user_id", "").strip()
         email = request.POST.get("email", "").strip()
         password = request.POST.get("password", "")
+
+        # ⭐ v93 security audit (M-02): rate limits — 5 registrations per
+        # IP per hour and 3 per email per hour (stops mail-bombing and
+        # pending-account flooding).
+        from django.core.cache import cache as _cache
+        ip = _client_ip(request)
+        ip_key = f"reg:ip:{ip}"
+        if _cache.get(ip_key, 0) >= 5:
+            messages.error(
+                request,
+                "Too many registrations from this network. Please try again later.")
+            return render(request, "register.html")
+        mail_key = f"reg:mail:{email.lower()}"
+        if email and _cache.get(mail_key, 0) >= 3:
+            messages.error(
+                request,
+                "Too many attempts for this email. Please try again later.")
+            return render(request, "register.html")
+        _cache.set(ip_key, _cache.get(ip_key, 0) + 1, 3600)
+        if email:
+            _cache.set(mail_key, _cache.get(mail_key, 0) + 1, 3600)
 
         # Registration is allowed only with the official campus email domain.
         if not email.lower().endswith("@culkomail.in"):
@@ -335,6 +368,27 @@ def register(request):
             messages.error(request, "Email already registered!")
             return render(request, "register.html")
 
+        # ⭐ v93 security audit (H-02): a verified user can never be
+        # squatted (create_user below would fail on the unique username),
+        # but PENDING registrations lived only in the browser session —
+        # the same UID/email could sit pending many times over. A short
+        # cache marker now blocks a second pending registration of the
+        # same UID or email while the OTP is in flight.
+        from django.core.cache import cache as _cache
+        if _cache.get(f"pending_uid:{user_id.lower()}"):
+            messages.error(
+                request,
+                "This User ID is already awaiting verification. "
+                "Please log in.")
+            return render(request, "register.html")
+        if _cache.get(f"pending_mail:{email.lower()}"):
+            messages.error(
+                request,
+                "This email is already awaiting verification. Please log in.")
+            return render(request, "register.html")
+        _cache.set(f"pending_uid:{user_id.lower()}", 1, 900)   # 15 minutes
+        _cache.set(f"pending_mail:{email.lower()}", 1, 900)
+
         otp = UserProfile.generate_otp()
 
         request.session["temp_user_data"] = {
@@ -344,6 +398,9 @@ def register(request):
             "password": password,
             "otp": otp,
             "otp_created_at": time.time(),
+            "otp_fails": 0,
+            "resend_count": 0,
+            "otp_last_sent": time.time(),
         }
 
         try:
@@ -378,8 +435,41 @@ def otp_verify(request):
             messages.error(request, "OTP expired after 5 minutes. Please register again.")
             return redirect("register")
 
+        # ⭐ v93 security audit (H-01): a 6-digit OTP with unlimited tries
+        # was brute-forceable. Hard cap of 5 wrong attempts per
+        # registration — after that the OTP is invalidated and the user
+        # must register again. A per-IP budget stops session rotation.
+        from django.core.cache import cache as _cache
+        fails = int(temp_data.get("otp_fails", 0) or 0)
+        ip_fail_key = f"otpfail:ip:{_client_ip(request)}"
+        if fails >= 5:
+            request.session.pop("temp_user_data", None)
+            messages.error(
+                request,
+                "Too many wrong attempts. Please register again.")
+            return redirect("register")
+        if _cache.get(ip_fail_key, 0) >= 20:
+            request.session.pop("temp_user_data", None)
+            messages.error(
+                request,
+                "Too many attempts from this network. Try again later.")
+            return redirect("register")
+
         if temp_data["otp"] == entered_otp:
             try:
+                # ⭐ v93 (H-02): re-check right before the row is created —
+                # someone else may have verified this UID/email while this
+                # registration was pending.
+                if (User.objects.filter(
+                        username=temp_data["user_id"]).exists()
+                        or User.objects.filter(
+                            email=temp_data["email"]).exists()):
+                    request.session.pop("temp_user_data", None)
+                    messages.error(
+                        request,
+                        "This User ID is already registered. Please log in.")
+                    return redirect("login_step1")
+
                 user = User.objects.create_user(
                     username=temp_data["user_id"],
                     email=temp_data["email"],
@@ -392,6 +482,10 @@ def otp_verify(request):
                     is_verified=True
                 )
 
+                # Registration complete — clear the pending markers.
+                _cache.delete(f"pending_uid:{temp_data['user_id'].lower()}")
+                _cache.delete(f"pending_mail:{temp_data['email'].lower()}")
+
                 del request.session["temp_user_data"]
                 messages.success(
                     request,
@@ -403,6 +497,17 @@ def otp_verify(request):
                 messages.error(request, f"Database error: {error}")
 
         else:
+            # Count the miss (session + per-IP) and bounce at the cap.
+            temp_data["otp_fails"] = fails + 1
+            request.session["temp_user_data"] = temp_data
+            request.session.modified = True
+            _cache.set(ip_fail_key, _cache.get(ip_fail_key, 0) + 1, 3600)
+            if fails + 1 >= 5:
+                request.session.pop("temp_user_data", None)
+                messages.error(
+                    request,
+                    "Too many wrong attempts. Please register again.")
+                return redirect("register")
             messages.error(request, "Invalid OTP. Please try again.")
 
     return render(request, "otp_verify.html")
@@ -414,11 +519,40 @@ def resend_otp(request):
     if not temp_data:
         return redirect("register")
 
+    # ⭐ v93 security audit (M-02): resend was unlimited — anyone could
+    # mail-bomb a student's inbox. Now: 60-second cooldown, max 5 resends
+    # per registration, and 5 OTP emails per address per hour overall.
+    from django.core.cache import cache as _cache
+    now = time.time()
+    last_sent = float(temp_data.get("otp_last_sent", 0) or 0)
+    resends = int(temp_data.get("resend_count", 0) or 0)
+    mail_key = f"otpmail:{str(temp_data.get('email', '')).lower()}"
+    if now - last_sent < 60:
+        messages.error(
+            request,
+            "Please wait a minute before requesting a new OTP.")
+        return redirect("otp_verify")
+    if resends >= 5:
+        request.session.pop("temp_user_data", None)
+        messages.error(
+            request,
+            "Too many resends. Please register again.")
+        return redirect("register")
+    if _cache.get(mail_key, 0) >= 5:
+        messages.error(
+            request,
+            "Too many OTP emails sent to this address. Try again later.")
+        return redirect("register")
+
     new_otp = UserProfile.generate_otp()
     temp_data["otp"] = new_otp
     temp_data["otp_created_at"] = time.time()
+    temp_data["otp_fails"] = 0          # fresh OTP → fresh attempt budget
+    temp_data["resend_count"] = resends + 1
+    temp_data["otp_last_sent"] = now
     request.session["temp_user_data"] = temp_data
     request.session.modified = True
+    _cache.set(mail_key, _cache.get(mail_key, 0) + 1, 3600)
 
     try:
         send_cunnect_otp_email(

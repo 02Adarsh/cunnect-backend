@@ -19,15 +19,41 @@ from django.urls import path,include
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib.auth import views as auth_views
+from django.http import HttpResponse
 from network import views as network_views
 from myapp import views
+
+
+# ⭐ v93 security audit (L-04): basic well-known metadata files.
+_ROBOTS_TXT = """User-agent: *
+Disallow: /admin/
+Disallow: /ws/
+
+Sitemap: https://cunnect.online/
+"""
+
+_SECURITY_TXT = """Contact: mailto:security@culkomail.in
+Expires: 2027-12-31T23:59:59IST
+Preferred-Languages: en, hi
+Canonical: https://cunnect.online/.well-known/security.txt
+"""
+
+
+def robots_txt(request):
+    return HttpResponse(_ROBOTS_TXT, content_type="text/plain")
+
+
+def security_txt(request):
+    return HttpResponse(_SECURITY_TXT, content_type="text/plain")
 
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include('api_app.urls')),
+    path('robots.txt', robots_txt),
+    path('.well-known/security.txt', security_txt),
     path('', include('myapp.urls')),
-    path('food/', include('food.urls')), 
+    path('food/', include('food.urls')),
     #path('network/', include('network.urls')),
     path("chat/", include("network.urls")),
     path("vendor/login/", views.vendor_login, name="vendor_login"),
