@@ -2497,6 +2497,10 @@ def app_version(request):
     if override_url and int(data.get("version") or 0) > 0:
         # ⭐ custom hosting — GitHub bilkul ignore (fast)
         data["url"] = override_url
+        # ⭐ v91 FIX: old app builds (v85-v90) read "apk_url" FIRST and an
+        # empty "" shadowed the real url — the popup never showed. Mirror
+        # the final URL into apk_url so every old build gets it too.
+        data["apk_url"] = override_url
         return ok(data)
     gh = _gh_latest_release()
     local_ver = int(data.get("version") or 0)
@@ -2508,6 +2512,10 @@ def app_version(request):
     elif not data.get("url") and gh.get("url") and gh_ver >= local_ver:
         # local has a version but no URL yet — fill the URL only.
         data["url"] = gh["url"]
+    # ⭐ v91 FIX: mirror the final URL into apk_url — old builds read it
+    # first and an empty string used to kill the popup.
+    if data.get("url"):
+        data["apk_url"] = data["url"]
     return ok(data)
 
 
