@@ -1,6 +1,6 @@
 {
-  "version": 89,
+  "version": 90,
   "apk_url": "",
   "url": "",
-  "notes": "v89 — sticky update after route (no flash); locks refreshed on splash before dashboard; lock icon size 24"
+  "notes": "v90 — Overlay sticky update (never vanishes); durable lock cache; hub waits for locks; lock icon size 24"
 }
