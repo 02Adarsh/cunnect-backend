@@ -1,6 +1,6 @@
 {
-  "version": 91,
+  "version": 92,
   "apk_url": "",
   "url": "",
-  "notes": "v91 — old-style update popup back (shows on every app open), profile section red, UMS prediction MISS NEXT over 75% + month calendar view, releases read from cunnect-backend first"
+  "notes": "v92 — update popup title line removed, profile section CUnnect logo red, UMS notice attachments open in-app, month calendar opens day-by-day with 3-letter days + month short"
 }
